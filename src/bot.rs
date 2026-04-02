@@ -1,10 +1,8 @@
-use serenity::{
-    all::{Guild, GuildId},
-    prelude::TypeMapKey,
-};
+use serenity::{all::GuildId, prelude::TypeMapKey};
 use sqlx::SqlitePool;
+
 pub struct Bot {
-    guild_id: GuildId,
+    pub guild_id: GuildId,
     pool: SqlitePool,
 }
 

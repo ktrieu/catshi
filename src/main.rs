@@ -2,12 +2,15 @@ use std::env;
 
 use serenity::{
     Client,
-    all::{Context, EventHandler, GatewayIntents, Ready},
+    all::{Context, EventHandler, GatewayIntents, Interaction, Ready},
     async_trait,
 };
 use sqlx::SqlitePool;
 
 use crate::bot::Bot;
+
+mod bot;
+mod command;
 
 pub async fn init_db(url: &str) -> anyhow::Result<SqlitePool> {
     let pool = SqlitePool::connect(url).await?;
@@ -21,12 +24,28 @@ struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
-    async fn ready(&self, _ctx: Context, _ready: Ready) {
-        println!("connected");
+    async fn ready(&self, ctx: Context, _ready: Ready) {
+        let mut data = ctx.data.write().await;
+        let bot = data.get_mut::<Bot>().expect("bot should be in context");
+
+        bot.guild_id
+            .create_command(ctx.http, command::register::create())
+            .await
+            .expect("command registration should succeed");
+    }
+
+    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        let mut data = ctx.data.write().await;
+        let _bot = data.get_mut::<Bot>().expect("bot should be in context");
+
+        if let Interaction::Command(command) = interaction {
+            match command.data.name.as_str() {
+                command::register::NAME => println!("register command received"),
+                _ => {}
+            };
+        };
     }
 }
-
-mod bot;
 
 #[tokio::main]
 async fn main() {
