@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
+dotenvy = "0.15.7"
 include_dir = "0.7.4"
 rusqlite = { version = "0.39.0", features = ["bundled"] }
 rusqlite_migration = { version = "2.5.0", features = ["from-directory"] }
