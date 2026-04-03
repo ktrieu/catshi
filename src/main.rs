@@ -11,6 +11,7 @@ use crate::bot::Bot;
 
 mod bot;
 mod command;
+mod store;
 
 pub async fn init_db(url: &str) -> anyhow::Result<SqlitePool> {
     let pool = SqlitePool::connect(url).await?;
@@ -36,13 +37,14 @@ impl EventHandler for Handler {
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         let mut data = ctx.data.write().await;
-        let _bot = data.get_mut::<Bot>().expect("bot should be in context");
+        let bot = data.get_mut::<Bot>().expect("bot should be in context");
 
         if let Interaction::Command(command) = interaction {
             match command.data.name.as_str() {
-                command::register::NAME => println!("register command received"),
-                _ => {}
-            };
+                command::register::NAME => command::register::run(bot, command),
+                _ => Ok(()),
+            }
+            .expect("command execution should succeed!");
         };
     }
 }

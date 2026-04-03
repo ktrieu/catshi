@@ -1,4 +1,5 @@
-use serenity::{all::GuildId, prelude::TypeMapKey};
+use serenity::all::GuildId;
+use serenity::{all::CommandInteraction, prelude::TypeMapKey};
 use sqlx::SqlitePool;
 
 pub struct Bot {
@@ -11,6 +12,10 @@ impl Bot {
         let guild_id = GuildId::new(guild_id.parse::<u64>()?);
 
         Ok(Self { guild_id, pool })
+    }
+
+    pub fn register_user(&mut self, interaction: CommandInteraction) -> anyhow::Result<Option<()>> {
+        Ok(Some(()))
     }
 }
 
