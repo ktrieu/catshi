@@ -1,1 +1,0 @@
-DROP INDEX users_discord_id_unique;

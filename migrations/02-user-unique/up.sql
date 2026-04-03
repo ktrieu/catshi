@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX users_discord_id_unique ON users(discord_id);
