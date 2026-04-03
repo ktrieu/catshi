@@ -1,4 +1,4 @@
-use std::{env, sync::LazyLock};
+use std::env;
 
 use serenity::{
     Client,
@@ -9,8 +9,10 @@ use sqlx::SqlitePool;
 
 use crate::bot::Bot;
 
-pub async fn init_db(path: &str) -> anyhow::Result<SqlitePool> {
-    let pool = SqlitePool::connect(path).await?;
+pub async fn init_db(url: &str) -> anyhow::Result<SqlitePool> {
+    let pool = SqlitePool::connect(url).await?;
+
+    sqlx::migrate!("./migrations").run(&pool).await?;
 
     Ok(pool)
 }
@@ -30,8 +32,8 @@ mod bot;
 async fn main() {
     dotenvy::dotenv().expect(".env loading should succeed");
 
-    let db_path = env::var("DB_PATH").expect("DB_PATH should be set");
-    let pool = init_db(&db_path)
+    let url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
+    let pool = init_db(&url)
         .await
         .expect("db initialization should succeed");
 
