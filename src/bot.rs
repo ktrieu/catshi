@@ -2,18 +2,17 @@ use serenity::{
     all::{Guild, GuildId},
     prelude::TypeMapKey,
 };
-use tokio_rusqlite_new::Connection;
-
+use sqlx::SqlitePool;
 pub struct Bot {
     guild_id: GuildId,
-    conn: Connection,
+    pool: SqlitePool,
 }
 
 impl Bot {
-    pub fn new(guild_id: &str, conn: Connection) -> anyhow::Result<Self> {
+    pub fn new(guild_id: &str, pool: SqlitePool) -> anyhow::Result<Self> {
         let guild_id = GuildId::new(guild_id.parse::<u64>()?);
 
-        Ok(Self { guild_id, conn })
+        Ok(Self { guild_id, pool })
     }
 }
 

@@ -1,29 +1,18 @@
 use std::{env, sync::LazyLock};
 
-use include_dir::{Dir, include_dir};
-use rusqlite_migration::Migrations;
 use serenity::{
     Client,
     all::{Context, EventHandler, GatewayIntents, Ready},
     async_trait,
 };
-use tokio_rusqlite_new::Connection;
+use sqlx::SqlitePool;
 
 use crate::bot::Bot;
 
-static MIGRATIONS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/migrations");
+pub async fn init_db(path: &str) -> anyhow::Result<SqlitePool> {
+    let pool = SqlitePool::connect(path).await?;
 
-// Define migrations. These are applied atomically.
-static MIGRATIONS: LazyLock<Migrations<'static>> =
-    LazyLock::new(|| Migrations::from_directory(&MIGRATIONS_DIR).unwrap());
-
-pub async fn init_db(path: &str) -> anyhow::Result<Connection> {
-    let conn = Connection::open(path).await?;
-
-    // Update the database schema, atomically
-    conn.call_unwrap(|conn| MIGRATIONS.to_latest(conn)).await?;
-
-    Ok(conn)
+    Ok(pool)
 }
 
 struct Handler;
@@ -42,7 +31,7 @@ async fn main() {
     dotenvy::dotenv().expect(".env loading should succeed");
 
     let db_path = env::var("DB_PATH").expect("DB_PATH should be set");
-    let conn = init_db(&db_path)
+    let pool = init_db(&db_path)
         .await
         .expect("db initialization should succeed");
 
@@ -54,7 +43,7 @@ async fn main() {
         .await
         .expect("client creation should succeed");
 
-    let bot = Bot::new(&guild_id, conn).expect("bot initialization should succeed");
+    let bot = Bot::new(&guild_id, pool).expect("bot initialization should succeed");
     {
         let mut data = client.data.write().await;
         data.insert::<Bot>(bot);
