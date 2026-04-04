@@ -4,7 +4,7 @@ use serenity::{
     Client,
     all::{
         CommandInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage,
-        EventHandler, GatewayIntents, GuildId, Interaction, ModalInteraction, Ready,
+        EventHandler, GatewayIntents, GuildId, Interaction, ModalInteraction, Ready, User,
     },
     async_trait,
 };
@@ -29,26 +29,33 @@ struct Handler {
 }
 
 impl Handler {
+    async fn authenticate(&self, ctx: &Context, discord_user: &User) -> anyhow::Result<DbUser> {
+        let mut tx = self.pool.begin().await?;
+
+        let user = store::get_user_by_discord_id(&self.pool, &discord_user.id).await?;
+        let user = match user {
+            Some(user) => anyhow::Ok(user),
+            None => {
+                // Automatically register if we haven't seen them before.
+                let server_nickname = discord_user.nick_in(ctx, self.guild_id).await;
+                let name: &str = server_nickname.as_ref().unwrap_or(&discord_user.name);
+                let user_id = &discord_user.id.to_string();
+
+                let user = store::insert_user_if_not_exists(&mut *tx, &user_id, name).await?;
+
+                // We're only in this branch if user query above didn't return a user.
+                Ok(user.expect("user should have been created"))
+            }
+        }?;
+
+        tx.commit().await?;
+
+        Ok(user)
+    }
+
     async fn handle_command(&self, ctx: &Context, command: CommandInteraction) {
         let result: anyhow::Result<()> = async {
-            let user = store::get_user_by_discord_id(&self.pool, &command.user.id).await?;
-
-            let mut tx = self.pool.begin().await?;
-            let _user: DbUser = match user {
-                Some(user) => anyhow::Ok(user),
-                None => {
-                    // Automatically register if we haven't seen them before.
-                    let server_nickname = command.user.nick_in(ctx, self.guild_id).await;
-                    let name: &str = server_nickname.as_ref().unwrap_or(&command.user.name);
-                    let user_id = &command.user.id.to_string();
-
-                    let user = store::insert_user_if_not_exists(&mut *tx, &user_id, name).await?;
-
-                    // We're only in this branch if user query above didn't return a user. Possible race condition, will fix later.
-                    Ok(user.expect("user should have been created"))
-                }
-            }?;
-            tx.commit().await?;
+            let _user = self.authenticate(ctx, &command.user).await?;
 
             match command.data.name.as_str() {
                 command::market::NAME => command::market::run(&ctx, self, &command).await?,
@@ -78,24 +85,7 @@ impl Handler {
 
     async fn handle_modal(&self, ctx: &Context, modal: ModalInteraction) {
         let result: anyhow::Result<()> = async {
-            let user = store::get_user_by_discord_id(&self.pool, &modal.user.id).await?;
-
-            let mut tx = self.pool.begin().await?;
-            let user: DbUser = match user {
-                Some(user) => anyhow::Ok(user),
-                None => {
-                    // Automatically register if we haven't seen them before.
-                    let server_nickname = modal.user.nick_in(ctx, self.guild_id).await;
-                    let name: &str = server_nickname.as_ref().unwrap_or(&modal.user.name);
-                    let user_id = &modal.user.id.to_string();
-
-                    let user = store::insert_user_if_not_exists(&mut *tx, &user_id, name).await?;
-
-                    // We're only in this branch if user query above didn't return a user. Possible race condition, will fix later.
-                    Ok(user.expect("user should have been created"))
-                }
-            }?;
-            tx.commit().await?;
+            let user = self.authenticate(ctx, &modal.user).await?;
 
             match modal.data.custom_id.as_str() {
                 command::market::MODAL_ID => {
