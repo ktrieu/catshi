@@ -2,10 +2,15 @@ use std::env;
 
 use serenity::{
     Client,
-    all::{Context, EventHandler, GatewayIntents, GuildId, Interaction, Ready},
+    all::{
+        CommandInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage,
+        EventHandler, GatewayIntents, GuildId, Interaction, ModalInteraction, Ready,
+    },
     async_trait,
 };
 use sqlx::SqlitePool;
+
+use crate::store::User;
 
 mod command;
 mod store;
@@ -23,22 +28,118 @@ struct Handler {
     pub pool: SqlitePool,
 }
 
+impl Handler {
+    async fn handle_command(&self, ctx: &Context, command: CommandInteraction) {
+        let result: anyhow::Result<()> = async {
+            let user = store::get_user_by_discord_id(&self.pool, &command.user.id).await?;
+
+            let mut tx = self.pool.begin().await?;
+            let _user: User = match user {
+                Some(user) => anyhow::Ok(user),
+                None => {
+                    // Automatically register if we haven't seen them before.
+                    let server_nickname = command.user.nick_in(ctx, self.guild_id).await;
+                    let name: &str = server_nickname.as_ref().unwrap_or(&command.user.name);
+                    let user_id = &command.user.id.to_string();
+
+                    let user = store::insert_user_if_not_exists(&mut tx, &user_id, name).await?;
+
+                    // We're only in this branch if user query above didn't return a user. Possible race condition, will fix later.
+                    Ok(user.expect("user should have been created"))
+                }
+            }?;
+            tx.commit().await?;
+
+            match command.data.name.as_str() {
+                command::market::NAME => command::market::run(&ctx, self, &command).await?,
+                _ => {}
+            };
+
+            Ok(())
+        }
+        .await;
+
+        if let Err(e) = result {
+            let err_send_result = command
+                .create_response(
+                    ctx,
+                    CreateInteractionResponse::Message(
+                        CreateInteractionResponseMessage::new()
+                            .content(format!("Internal command error: {}", e.to_string())),
+                    ),
+                )
+                .await;
+
+            if let Err(_) = err_send_result {
+                // Dang, this really sucks. Don't do anything for now, maybe we'll add logging later.
+            }
+        };
+    }
+
+    async fn handle_modal(&self, ctx: &Context, modal: ModalInteraction) {
+        let result: anyhow::Result<()> = async {
+            let user = store::get_user_by_discord_id(&self.pool, &modal.user.id).await?;
+
+            let mut tx = self.pool.begin().await?;
+            let user: User = match user {
+                Some(user) => anyhow::Ok(user),
+                None => {
+                    // Automatically register if we haven't seen them before.
+                    let server_nickname = modal.user.nick_in(ctx, self.guild_id).await;
+                    let name: &str = server_nickname.as_ref().unwrap_or(&modal.user.name);
+                    let user_id = &modal.user.id.to_string();
+
+                    let user = store::insert_user_if_not_exists(&mut tx, &user_id, name).await?;
+
+                    // We're only in this branch if user query above didn't return a user. Possible race condition, will fix later.
+                    Ok(user.expect("user should have been created"))
+                }
+            }?;
+            tx.commit().await?;
+
+            match modal.data.custom_id.as_str() {
+                command::market::MODAL_ID => {
+                    command::market::modal_submit(ctx, &self, &modal, &user).await?
+                }
+                _ => {}
+            }
+
+            Ok(())
+        }
+        .await;
+
+        if let Err(e) = result {
+            let err_send_result = modal
+                .create_response(
+                    ctx,
+                    CreateInteractionResponse::Message(
+                        CreateInteractionResponseMessage::new()
+                            .content(format!("Internal command error: {}", e.to_string())),
+                    ),
+                )
+                .await;
+
+            if let Err(_) = err_send_result {
+                // Dang, this really sucks. Don't do anything for now, maybe we'll add logging later.
+            }
+        };
+    }
+}
+
 #[async_trait]
 impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, _ready: Ready) {
         self.guild_id
-            .create_command(ctx.http, command::register::create())
+            .set_commands(ctx, vec![command::market::create()])
             .await
             .expect("command registration should succeed");
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::Command(command) = interaction {
-            match command.data.name.as_str() {
-                command::register::NAME => command::register::run(&ctx, &self, &command).await,
-                _ => Ok(()),
-            }
-            .expect("command execution should succeed!");
+        match interaction {
+            Interaction::Command(command) => self.handle_command(&ctx, command).await,
+            Interaction::Modal(modal) => self.handle_modal(&ctx, modal).await,
+            _ => {}
         };
     }
 }
