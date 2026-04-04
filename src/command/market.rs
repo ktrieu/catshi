@@ -6,7 +6,7 @@ use serenity::all::{
 
 use crate::{
     Handler,
-    store::{self, Market, User},
+    store::{self, DbUser, Market},
 };
 
 pub const NAME: &'static str = "market";
@@ -127,7 +127,7 @@ pub async fn modal_submit(
     ctx: &SerenityContext,
     handler: &Handler,
     modal: &ModalInteraction,
-    user: &User,
+    user: &DbUser,
 ) -> anyhow::Result<()> {
     let values = extract_create_modal_values(modal)
         .inspect_err(|e| println!("{}", e))

@@ -3,7 +3,7 @@ use sqlx::{Executor, Sqlite, query, query_as};
 
 #[derive(Debug, sqlx::FromRow)]
 #[allow(dead_code)]
-pub struct User {
+pub struct DbUser {
     id: i64,
     discord_id: String,
     name: String,
@@ -13,9 +13,9 @@ pub async fn insert_user_if_not_exists(
     exec: impl Executor<'_, Database = Sqlite>,
     discord_id: &str,
     name: &str,
-) -> anyhow::Result<Option<User>> {
+) -> anyhow::Result<Option<DbUser>> {
     let user = query_as!(
-        User,
+        DbUser,
         "INSERT INTO users(discord_id, name) VALUES ($1, $2) ON CONFLICT (discord_id) DO NOTHING RETURNING *",
         discord_id,
         name
@@ -29,11 +29,11 @@ pub async fn insert_user_if_not_exists(
 pub async fn get_user_by_discord_id(
     exec: impl Executor<'_, Database = Sqlite>,
     discord_id: &UserId,
-) -> anyhow::Result<Option<User>> {
+) -> anyhow::Result<Option<DbUser>> {
     let discord_id = discord_id.to_string();
 
     let user = query_as!(
-        User,
+        DbUser,
         "SELECT * FROM users WHERE discord_id = $1",
         discord_id,
     )
@@ -63,7 +63,7 @@ pub struct Market {
 pub async fn create_new_market(
     exec: impl Executor<'_, Database = Sqlite>,
     description: &str,
-    owner: &User,
+    owner: &DbUser,
 ) -> anyhow::Result<Market> {
     let result = query_as!(
         Market,

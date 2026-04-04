@@ -10,7 +10,7 @@ use serenity::{
 };
 use sqlx::SqlitePool;
 
-use crate::store::User;
+use crate::store::DbUser;
 
 mod command;
 mod store;
@@ -34,7 +34,7 @@ impl Handler {
             let user = store::get_user_by_discord_id(&self.pool, &command.user.id).await?;
 
             let mut tx = self.pool.begin().await?;
-            let _user: User = match user {
+            let _user: DbUser = match user {
                 Some(user) => anyhow::Ok(user),
                 None => {
                     // Automatically register if we haven't seen them before.
@@ -81,7 +81,7 @@ impl Handler {
             let user = store::get_user_by_discord_id(&self.pool, &modal.user.id).await?;
 
             let mut tx = self.pool.begin().await?;
-            let user: User = match user {
+            let user: DbUser = match user {
                 Some(user) => anyhow::Ok(user),
                 None => {
                     // Automatically register if we haven't seen them before.
