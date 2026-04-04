@@ -1,13 +1,13 @@
 use serenity::all::{
-    CommandInteraction, Context, CreateCommand, CreateComponent, CreateInputText,
-    CreateInteractionResponse, CreateLabel, CreateMessage, CreateModal, CreateModalComponent,
-    CreateSeparator, CreateTextDisplay, InputTextStyle, MessageFlags, ModalComponent,
-    ModalInteraction,
+    ButtonStyle, CommandInteraction, Context, CreateActionRow, CreateButton, CreateCommand,
+    CreateComponent, CreateInputText, CreateInteractionResponse, CreateLabel, CreateMessage,
+    CreateModal, CreateModalComponent, CreateSeparator, CreateTextDisplay, InputTextStyle,
+    MessageFlags, ModalComponent, ModalInteraction,
 };
 
 use crate::{
     Handler,
-    store::{self, DbUser, Market},
+    store::{self, DbUser, Instrument, Market},
 };
 
 pub const NAME: &'static str = "market";
@@ -60,7 +60,7 @@ pub async fn run(
 
 struct CreateModalValues<'resp> {
     description: &'resp str,
-    _options: Vec<&'resp str>,
+    options: Vec<&'resp str>,
 }
 
 fn extract_create_modal_values(
@@ -116,20 +116,46 @@ fn extract_create_modal_values(
 
     Ok(CreateModalValues {
         description,
-        _options: options,
+        options,
     })
 }
 
-fn render_market_message(market: &'_ Market) -> [CreateComponent<'_>; 3] {
+fn get_trade_button_id(instrument: &Instrument, action: &str) -> String {
+    format!("trade_button_{}_{}", action, instrument.id)
+}
+
+fn render_market_message<'a>(
+    market: &'a Market,
+    instruments: &'a [Instrument],
+) -> Vec<CreateComponent<'a>> {
     let title = CreateTextDisplay::new(format!("## Market #{:04}", market.id));
 
     let desc = CreateTextDisplay::new(&market.description);
 
-    [
+    let mut components = vec![
         CreateComponent::TextDisplay(title),
         CreateComponent::TextDisplay(desc),
         CreateComponent::Separator(CreateSeparator::new()),
-    ]
+    ];
+
+    for i in instruments {
+        let name = CreateTextDisplay::new(&i.name);
+        components.push(CreateComponent::TextDisplay(name));
+
+        let buttons = vec![
+            CreateButton::new(get_trade_button_id(i, "buy"))
+                .label("Buy")
+                .style(ButtonStyle::Success),
+            CreateButton::new(get_trade_button_id(i, "sell"))
+                .label("Sell")
+                .style(ButtonStyle::Danger),
+        ];
+
+        let row = CreateActionRow::buttons(buttons);
+        components.push(CreateComponent::ActionRow(row));
+    }
+
+    components
 }
 
 pub async fn modal_submit(
@@ -145,9 +171,11 @@ pub async fn modal_submit(
     let mut tx = handler.pool.begin().await?;
 
     let new_market = store::create_new_market(&mut *tx, values.description, user).await?;
+    let instruments =
+        store::insert_market_instruments(&mut *tx, &new_market, &values.options).await?;
 
     let resp_channel = modal.channel_id;
-    let resp_components = render_market_message(&new_market);
+    let resp_components = render_market_message(&new_market, &instruments);
     let message = resp_channel
         .send_message(
             &ctx.http,

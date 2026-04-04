@@ -1,5 +1,5 @@
 use serenity::all::{GenericChannelId, MessageId, UserId};
-use sqlx::{Executor, Sqlite, query, query_as};
+use sqlx::{Executor, QueryBuilder, Sqlite, query, query_as};
 
 #[derive(Debug, sqlx::FromRow)]
 #[allow(dead_code)]
@@ -112,4 +112,43 @@ pub async fn set_market_message_id(
     .await?;
 
     Ok(())
+}
+
+#[derive(Debug, sqlx::Type)]
+#[sqlx(rename_all = "lowercase")]
+pub enum InstrumentState {
+    Open,
+    Winner,
+    Loser,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+#[allow(dead_code)]
+pub struct Instrument {
+    pub id: i64,
+    pub name: String,
+    pub state: InstrumentState,
+    pub market_id: i64,
+}
+
+pub async fn insert_market_instruments(
+    exec: impl Executor<'_, Database = Sqlite>,
+    market: &Market,
+    names: &[&str],
+) -> anyhow::Result<Vec<Instrument>> {
+    let mut builder = QueryBuilder::new("INSERT INTO instruments (name, state, market_id) ");
+
+    builder.push_values(names.iter(), |mut b, name| {
+        b.push_bind(name);
+        b.push_bind(InstrumentState::Open);
+        b.push_bind(market.id);
+    });
+
+    builder.push(" RETURNING *");
+
+    let query = builder.build_query_as::<Instrument>();
+
+    let rows = query.fetch_all(exec).await?;
+
+    Ok(rows)
 }
