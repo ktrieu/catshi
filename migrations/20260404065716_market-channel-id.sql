@@ -1,0 +1,1 @@
+ALTER TABLE markets ADD channel_id TEXT;

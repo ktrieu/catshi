@@ -1,4 +1,4 @@
-use serenity::all::{MessageId, UserId};
+use serenity::all::{GenericChannelId, MessageId, UserId};
 use sqlx::{Executor, Sqlite, query, query_as};
 
 #[derive(Debug, sqlx::FromRow)]
@@ -58,6 +58,7 @@ pub struct Market {
     pub state: MarketState,
     pub owner_id: i64,
     pub message_id: Option<String>,
+    pub channel_id: Option<String>,
 }
 
 pub async fn create_new_market(
@@ -79,7 +80,8 @@ pub async fn create_new_market(
                 description, 
                 state as "state: MarketState", 
                 owner_id, 
-                message_id
+                message_id,
+                channel_id
         "#,
         description,
         MarketState::Open,
@@ -95,12 +97,15 @@ pub async fn set_market_message_id(
     exec: impl Executor<'_, Database = Sqlite>,
     market_id: i64,
     message_id: MessageId,
+    channel_id: GenericChannelId,
 ) -> anyhow::Result<()> {
     let message_id = message_id.to_string();
+    let channel_id = channel_id.to_string();
 
     query!(
-        "UPDATE markets SET message_id = $1 WHERE id = $2",
+        "UPDATE markets SET message_id = $1, channel_id = $2 WHERE id = $3",
         message_id,
+        channel_id,
         market_id,
     )
     .execute(exec)

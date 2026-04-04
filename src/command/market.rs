@@ -142,7 +142,7 @@ pub async fn modal_submit(
         .send_message(&ctx.http, make_market_message(&new_market))
         .await?;
 
-    store::set_market_message_id(&mut *tx, new_market.id, message.id).await?;
+    store::set_market_message_id(&mut *tx, new_market.id, message.id, resp_channel).await?;
 
     tx.commit().await?;
 
