@@ -1,7 +1,7 @@
 use serenity::all::{
-    ActionRowComponent, CommandInteraction, Context as SerenityContext, CreateActionRow,
-    CreateCommand, CreateInputText, CreateInteractionResponse, CreateMessage, CreateModal,
-    InputTextStyle, ModalInteraction,
+    CommandInteraction, Context, CreateCommand, CreateInputText, CreateInteractionResponse,
+    CreateLabel, CreateMessage, CreateModal, CreateModalComponent, InputTextStyle, ModalComponent,
+    ModalInteraction,
 };
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
 pub const NAME: &'static str = "market";
 pub const MODAL_ID: &'static str = "market-create-modal";
 
-pub fn create() -> CreateCommand {
+pub fn create() -> CreateCommand<'static> {
     CreateCommand::new(NAME).description("create a new prediction market")
 }
 
@@ -23,13 +23,16 @@ fn get_modal_opt_id(num: i64) -> String {
 }
 
 pub async fn run(
-    ctx: &SerenityContext,
+    ctx: &Context,
     _handler: &Handler,
     command: &CommandInteraction,
 ) -> anyhow::Result<()> {
-    let desc_entry = CreateInputText::new(InputTextStyle::Paragraph, "Question", MODAL_DESC_ID);
+    let desc_label = CreateLabel::input_text(
+        "Question",
+        CreateInputText::new(InputTextStyle::Paragraph, MODAL_DESC_ID),
+    );
 
-    let mut rows = vec![CreateActionRow::InputText(desc_entry)];
+    let mut rows = vec![CreateModalComponent::Label(desc_label)];
 
     // Add 4 potential options to the modal.
     for i in 0..4 {
@@ -37,20 +40,18 @@ pub async fn run(
         // We want at least two options here.
         let required = num <= 2;
 
-        let text = CreateInputText::new(
-            InputTextStyle::Short,
+        let option = CreateLabel::input_text(
             format!("Option #{}", num),
-            get_modal_opt_id(num),
-        )
-        .required(required);
+            CreateInputText::new(InputTextStyle::Short, get_modal_opt_id(num)).required(required),
+        );
 
-        rows.push(CreateActionRow::InputText(text));
+        rows.push(CreateModalComponent::Label(option));
     }
 
     let modal = CreateModal::new(MODAL_ID, "New market").components(rows);
 
     command
-        .create_response(ctx, CreateInteractionResponse::Modal(modal))
+        .create_response(&ctx.http, CreateInteractionResponse::Modal(modal))
         .await?;
 
     Ok(())
@@ -74,22 +75,21 @@ fn extract_create_modal_values(
         );
     }
 
-    for (i, r) in rows.iter().enumerate() {
-        if r.components.len() != 1 {
-            anyhow::bail!("action row {i} had more than one component")
-        }
-
-        let component = &r.components[0];
-
-        if let ActionRowComponent::InputText(text) = component {
-            let value = text
-                .value
-                .as_ref()
-                .expect("text input value should always be set on receive")
-                .as_str();
-            values.push([text.custom_id.as_str(), value])
-        } else {
-            anyhow::bail!("action row {i} was not an input text")
+    for r in rows.iter() {
+        if let ModalComponent::Label(label) = r {
+            let (id, value) = match &label.component {
+                serenity::all::LabelComponent::InputText(input_text) => (
+                    input_text.custom_id.as_str(),
+                    input_text
+                        .value
+                        .as_ref()
+                        .expect("value should be set for received modal fields"),
+                ),
+                _ => {
+                    anyhow::bail!("unsupported modal label component")
+                }
+            };
+            values.push([id, value])
         }
     }
 
@@ -119,12 +119,12 @@ fn extract_create_modal_values(
     })
 }
 
-fn make_market_message(market: &Market) -> CreateMessage {
+fn make_market_message(market: &'_ Market) -> CreateMessage<'_> {
     CreateMessage::new().content(format!("Prediction market: {}", market.description))
 }
 
 pub async fn modal_submit(
-    ctx: &SerenityContext,
+    ctx: &Context,
     handler: &Handler,
     modal: &ModalInteraction,
     user: &DbUser,
@@ -139,7 +139,7 @@ pub async fn modal_submit(
 
     let resp_channel = modal.channel_id;
     let message = resp_channel
-        .send_message(ctx, make_market_message(&new_market))
+        .send_message(&ctx.http, make_market_message(&new_market))
         .await?;
 
     store::set_market_message_id(&mut *tx, new_market.id, message.id).await?;

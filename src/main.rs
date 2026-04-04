@@ -1,10 +1,10 @@
-use std::env;
+use std::{env, sync::Arc};
 
 use serenity::{
     Client,
     all::{
-        CommandInteraction, Context, EventHandler, GatewayIntents, GuildId, Interaction,
-        ModalInteraction, Ready, User,
+        CommandInteraction, Context, EventHandler, FullEvent, GatewayIntents, GuildId, Interaction,
+        ModalInteraction, Token, User,
     },
     async_trait,
 };
@@ -39,10 +39,13 @@ impl Handler {
             None => {
                 // Automatically register if we haven't seen them before.
                 let server_nickname = discord_user.nick_in(ctx, self.guild_id).await;
-                let name: &str = server_nickname.as_ref().unwrap_or(&discord_user.name);
+
+                let name = server_nickname
+                    .as_deref()
+                    .unwrap_or(discord_user.name.as_str());
                 let user_id = &discord_user.id.to_string();
 
-                let user = store::insert_user_if_not_exists(&mut *tx, &user_id, name).await?;
+                let user = store::insert_user_if_not_exists(&mut *tx, &user_id, &name).await?;
 
                 // We're only in this branch if user query above didn't return a user.
                 Ok(user.expect("user should have been created"))
@@ -52,6 +55,35 @@ impl Handler {
         tx.commit().await?;
 
         Ok(user)
+    }
+
+    async fn ready(&self, ctx: &Context) {
+        self.guild_id
+            .set_commands(&ctx.http, &[command::market::create()])
+            .await
+            .expect("command registration should succeed");
+    }
+
+    async fn interaction_create(&self, ctx: &Context, interaction: &Interaction) {
+        let result = match &interaction {
+            Interaction::Command(command) => self.handle_command(&ctx, command).await,
+            Interaction::Modal(modal) => self.handle_modal(&ctx, modal).await,
+            _ => Ok(()),
+        };
+
+        if let Err(e) = result {
+            let msg = format!("Internal error: {}", e.to_string());
+            let response = utils::text_interaction_response(&msg, true);
+            let send_result = match &interaction {
+                Interaction::Command(command) => command.create_response(&ctx.http, response).await,
+                Interaction::Modal(modal) => modal.create_response(&ctx.http, response).await,
+                _ => Ok(()),
+            };
+
+            if let Err(_) = send_result {
+                // Dang, that sucks. Just log this error we have logging.
+            }
+        }
     }
 
     async fn handle_command(
@@ -85,34 +117,13 @@ impl Handler {
 
 #[async_trait]
 impl EventHandler for Handler {
-    async fn ready(&self, ctx: Context, _ready: Ready) {
-        self.guild_id
-            .set_commands(ctx, vec![command::market::create()])
-            .await
-            .expect("command registration should succeed");
-    }
-
-    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        let result = match &interaction {
-            Interaction::Command(command) => self.handle_command(&ctx, command).await,
-            Interaction::Modal(modal) => self.handle_modal(&ctx, modal).await,
-            _ => Ok(()),
-        };
-
-        if let Err(e) = result {
-            let response = utils::text_interaction_response(
-                format!("Internal error: {}", e.to_string()).as_str(),
-                true,
-            );
-            let send_result = match &interaction {
-                Interaction::Command(command) => command.create_response(ctx, response).await,
-                Interaction::Modal(modal) => modal.create_response(ctx, response).await,
-                _ => Ok(()),
-            };
-
-            if let Err(_) = send_result {
-                // Dang, that sucks. Just log this error we have logging.
+    async fn dispatch(&self, ctx: &Context, event: &FullEvent) {
+        match event {
+            FullEvent::Ready { .. } => self.ready(&ctx).await,
+            FullEvent::InteractionCreate { interaction, .. } => {
+                self.interaction_create(ctx, interaction).await
             }
+            _ => {}
         }
     }
 }
@@ -126,15 +137,16 @@ async fn main() {
         .await
         .expect("db initialization should succeed");
 
-    let discord_token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN should be set");
     let guild_id = env::var("GUILD_ID")
         .expect("GUILD_ID should be set")
         .parse::<u64>()
         .expect("GUILD_ID should be a valid u64");
     let guild_id = GuildId::new(guild_id);
 
-    let handler = Handler { guild_id, pool };
+    let handler = Arc::new(Handler { guild_id, pool });
 
+    let discord_token =
+        Token::from_env("DISCORD_TOKEN").expect("DISCORD_TOKEN should be present in env.");
     let mut client = Client::builder(discord_token, GatewayIntents::empty())
         .event_handler(handler)
         .await
