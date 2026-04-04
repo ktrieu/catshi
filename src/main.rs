@@ -3,8 +3,8 @@ use std::env;
 use serenity::{
     Client,
     all::{
-        CommandInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage,
-        EventHandler, GatewayIntents, GuildId, Interaction, ModalInteraction, Ready, User,
+        CommandInteraction, Context, EventHandler, GatewayIntents, GuildId, Interaction,
+        ModalInteraction, Ready, User,
     },
     async_trait,
 };
@@ -14,6 +14,7 @@ use crate::store::DbUser;
 
 mod command;
 mod store;
+mod utils;
 
 pub async fn init_db(url: &str) -> anyhow::Result<SqlitePool> {
     let pool = SqlitePool::connect(url).await?;
@@ -53,66 +54,32 @@ impl Handler {
         Ok(user)
     }
 
-    async fn handle_command(&self, ctx: &Context, command: CommandInteraction) {
-        let result: anyhow::Result<()> = async {
-            let _user = self.authenticate(ctx, &command.user).await?;
+    async fn handle_command(
+        &self,
+        ctx: &Context,
+        command: &CommandInteraction,
+    ) -> anyhow::Result<()> {
+        let _user = self.authenticate(ctx, &command.user).await?;
 
-            match command.data.name.as_str() {
-                command::market::NAME => command::market::run(&ctx, self, &command).await?,
-                _ => {}
-            };
-
-            Ok(())
-        }
-        .await;
-
-        if let Err(e) = result {
-            let err_send_result = command
-                .create_response(
-                    ctx,
-                    CreateInteractionResponse::Message(
-                        CreateInteractionResponseMessage::new()
-                            .content(format!("Internal command error: {}", e.to_string())),
-                    ),
-                )
-                .await;
-
-            if let Err(_) = err_send_result {
-                // Dang, this really sucks. Don't do anything for now, maybe we'll add logging later.
-            }
+        match command.data.name.as_str() {
+            command::market::NAME => command::market::run(&ctx, self, &command).await?,
+            _ => {}
         };
+
+        Ok(())
     }
 
-    async fn handle_modal(&self, ctx: &Context, modal: ModalInteraction) {
-        let result: anyhow::Result<()> = async {
-            let user = self.authenticate(ctx, &modal.user).await?;
+    async fn handle_modal(&self, ctx: &Context, modal: &ModalInteraction) -> anyhow::Result<()> {
+        let user = self.authenticate(ctx, &modal.user).await?;
 
-            match modal.data.custom_id.as_str() {
-                command::market::MODAL_ID => {
-                    command::market::modal_submit(ctx, &self, &modal, &user).await?
-                }
-                _ => {}
+        match modal.data.custom_id.as_str() {
+            command::market::MODAL_ID => {
+                command::market::modal_submit(ctx, &self, &modal, &user).await?
             }
-
-            Ok(())
-        }
-        .await;
-
-        if let Err(e) = result {
-            let err_send_result = modal
-                .create_response(
-                    ctx,
-                    CreateInteractionResponse::Message(
-                        CreateInteractionResponseMessage::new()
-                            .content(format!("Internal command error: {}", e.to_string())),
-                    ),
-                )
-                .await;
-
-            if let Err(_) = err_send_result {
-                // Dang, this really sucks. Don't do anything for now, maybe we'll add logging later.
-            }
+            _ => {}
         };
+
+        Ok(())
     }
 }
 
@@ -126,11 +93,27 @@ impl EventHandler for Handler {
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        match interaction {
+        let result = match &interaction {
             Interaction::Command(command) => self.handle_command(&ctx, command).await,
             Interaction::Modal(modal) => self.handle_modal(&ctx, modal).await,
-            _ => {}
+            _ => Ok(()),
         };
+
+        if let Err(e) = result {
+            let response = utils::text_interaction_response(
+                format!("Internal error: {}", e.to_string()).as_str(),
+                true,
+            );
+            let send_result = match &interaction {
+                Interaction::Command(command) => command.create_response(ctx, response).await,
+                Interaction::Modal(modal) => modal.create_response(ctx, response).await,
+                _ => Ok(()),
+            };
+
+            if let Err(_) = send_result {
+                // Dang, that sucks. Just log this error we have logging.
+            }
+        }
     }
 }
 
