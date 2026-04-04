@@ -1,6 +1,7 @@
 use serenity::all::{
-    CommandInteraction, Context, CreateCommand, CreateInputText, CreateInteractionResponse,
-    CreateLabel, CreateMessage, CreateModal, CreateModalComponent, InputTextStyle, ModalComponent,
+    CommandInteraction, Context, CreateCommand, CreateComponent, CreateInputText,
+    CreateInteractionResponse, CreateLabel, CreateMessage, CreateModal, CreateModalComponent,
+    CreateSeparator, CreateTextDisplay, InputTextStyle, MessageFlags, ModalComponent,
     ModalInteraction,
 };
 
@@ -119,8 +120,16 @@ fn extract_create_modal_values(
     })
 }
 
-fn make_market_message(market: &'_ Market) -> CreateMessage<'_> {
-    CreateMessage::new().content(format!("Prediction market: {}", market.description))
+fn render_market_message(market: &'_ Market) -> [CreateComponent<'_>; 3] {
+    let title = CreateTextDisplay::new(format!("## Market #{:04}", market.id));
+
+    let desc = CreateTextDisplay::new(&market.description);
+
+    [
+        CreateComponent::TextDisplay(title),
+        CreateComponent::TextDisplay(desc),
+        CreateComponent::Separator(CreateSeparator::new()),
+    ]
 }
 
 pub async fn modal_submit(
@@ -138,8 +147,14 @@ pub async fn modal_submit(
     let new_market = store::create_new_market(&mut *tx, values.description, user).await?;
 
     let resp_channel = modal.channel_id;
+    let resp_components = render_market_message(&new_market);
     let message = resp_channel
-        .send_message(&ctx.http, make_market_message(&new_market))
+        .send_message(
+            &ctx.http,
+            CreateMessage::new()
+                .components(&resp_components)
+                .flags(MessageFlags::IS_COMPONENTS_V2),
+        )
         .await?;
 
     store::set_market_message_id(&mut *tx, new_market.id, message.id, resp_channel).await?;
