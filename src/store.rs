@@ -1,5 +1,5 @@
 use serenity::all::{MessageId, UserId};
-use sqlx::{Sqlite, SqlitePool, Transaction, query, query_as};
+use sqlx::{Executor, Sqlite, query, query_as};
 
 #[derive(Debug, sqlx::FromRow)]
 #[allow(dead_code)]
@@ -10,7 +10,7 @@ pub struct User {
 }
 
 pub async fn insert_user_if_not_exists(
-    tx: &mut Transaction<'_, Sqlite>,
+    exec: impl Executor<'_, Database = Sqlite>,
     discord_id: &str,
     name: &str,
 ) -> anyhow::Result<Option<User>> {
@@ -20,14 +20,14 @@ pub async fn insert_user_if_not_exists(
         discord_id,
         name
     )
-    .fetch_optional(&mut **tx)
+    .fetch_optional(exec)
     .await?;
 
     Ok(user)
 }
 
 pub async fn get_user_by_discord_id(
-    pool: &SqlitePool,
+    exec: impl Executor<'_, Database = Sqlite>,
     discord_id: &UserId,
 ) -> anyhow::Result<Option<User>> {
     let discord_id = discord_id.to_string();
@@ -37,7 +37,7 @@ pub async fn get_user_by_discord_id(
         "SELECT * FROM users WHERE discord_id = $1",
         discord_id,
     )
-    .fetch_optional(pool)
+    .fetch_optional(exec)
     .await?;
 
     Ok(user)
@@ -61,7 +61,7 @@ pub struct Market {
 }
 
 pub async fn create_new_market(
-    tx: &mut Transaction<'_, Sqlite>,
+    exec: impl Executor<'_, Database = Sqlite>,
     description: &str,
     owner: &User,
 ) -> anyhow::Result<Market> {
@@ -85,14 +85,14 @@ pub async fn create_new_market(
         MarketState::Open,
         owner.id
     )
-    .fetch_one(&mut **tx)
+    .fetch_one(exec)
     .await?;
 
     Ok(result)
 }
 
 pub async fn set_market_message_id(
-    tx: &mut Transaction<'_, Sqlite>,
+    exec: impl Executor<'_, Database = Sqlite>,
     market_id: i64,
     message_id: MessageId,
 ) -> anyhow::Result<()> {
@@ -103,7 +103,7 @@ pub async fn set_market_message_id(
         message_id,
         market_id,
     )
-    .execute(&mut **tx)
+    .execute(exec)
     .await?;
 
     Ok(())

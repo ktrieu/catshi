@@ -135,14 +135,14 @@ pub async fn modal_submit(
 
     let mut tx = handler.pool.begin().await?;
 
-    let new_market = store::create_new_market(&mut tx, values.description, user).await?;
+    let new_market = store::create_new_market(&mut *tx, values.description, user).await?;
 
     let resp_channel = modal.channel_id;
     let message = resp_channel
         .send_message(ctx, make_market_message(&new_market))
         .await?;
 
-    store::set_market_message_id(&mut tx, new_market.id, message.id).await?;
+    store::set_market_message_id(&mut *tx, new_market.id, message.id).await?;
 
     tx.commit().await?;
 

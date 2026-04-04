@@ -42,7 +42,7 @@ impl Handler {
                     let name: &str = server_nickname.as_ref().unwrap_or(&command.user.name);
                     let user_id = &command.user.id.to_string();
 
-                    let user = store::insert_user_if_not_exists(&mut tx, &user_id, name).await?;
+                    let user = store::insert_user_if_not_exists(&mut *tx, &user_id, name).await?;
 
                     // We're only in this branch if user query above didn't return a user. Possible race condition, will fix later.
                     Ok(user.expect("user should have been created"))
@@ -89,7 +89,7 @@ impl Handler {
                     let name: &str = server_nickname.as_ref().unwrap_or(&modal.user.name);
                     let user_id = &modal.user.id.to_string();
 
-                    let user = store::insert_user_if_not_exists(&mut tx, &user_id, name).await?;
+                    let user = store::insert_user_if_not_exists(&mut *tx, &user_id, name).await?;
 
                     // We're only in this branch if user query above didn't return a user. Possible race condition, will fix later.
                     Ok(user.expect("user should have been created"))
