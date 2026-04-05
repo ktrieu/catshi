@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serenity::all::{Label, ModalInteraction};
 
 pub mod market_create_modal;
+pub mod market_message;
 
 fn extract_label_value(label: &Label) -> Option<(&str, &str)> {
     // For now, we only use input text values.

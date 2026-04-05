@@ -1,13 +1,12 @@
 use serenity::all::{
-    ButtonStyle, CommandInteraction, Context, CreateActionRow, CreateButton, CreateCommand,
-    CreateComponent, CreateInteractionResponse, CreateMessage, CreateSeparator, CreateTextDisplay,
+    CommandInteraction, Context, CreateCommand, CreateInteractionResponse, CreateMessage,
     MessageFlags, ModalInteraction,
 };
 
 use crate::{
     Handler,
-    store::{self, DbUser, Instrument, Market},
-    ui::market_create_modal,
+    store::{self, DbUser},
+    ui::{market_create_modal, market_message},
 };
 
 pub const NAME: &'static str = "market";
@@ -30,44 +29,6 @@ pub async fn run(
     Ok(())
 }
 
-fn get_trade_button_id(instrument: &Instrument, action: &str) -> String {
-    format!("trade_button_{}_{}", action, instrument.id)
-}
-
-fn render_market_message<'a>(
-    market: &'a Market,
-    instruments: &'a [Instrument],
-) -> Vec<CreateComponent<'a>> {
-    let title = CreateTextDisplay::new(format!("## Market #{:04}", market.id));
-
-    let desc = CreateTextDisplay::new(&market.description);
-
-    let mut components = vec![
-        CreateComponent::TextDisplay(title),
-        CreateComponent::TextDisplay(desc),
-        CreateComponent::Separator(CreateSeparator::new()),
-    ];
-
-    for i in instruments {
-        let name = CreateTextDisplay::new(&i.name);
-        components.push(CreateComponent::TextDisplay(name));
-
-        let buttons = vec![
-            CreateButton::new(get_trade_button_id(i, "buy"))
-                .label("Buy")
-                .style(ButtonStyle::Success),
-            CreateButton::new(get_trade_button_id(i, "sell"))
-                .label("Sell")
-                .style(ButtonStyle::Danger),
-        ];
-
-        let row = CreateActionRow::buttons(buttons);
-        components.push(CreateComponent::ActionRow(row));
-    }
-
-    components
-}
-
 pub async fn modal_submit(
     ctx: &Context,
     handler: &Handler,
@@ -85,7 +46,7 @@ pub async fn modal_submit(
         store::insert_market_instruments(&mut *tx, &new_market, &values.options).await?;
 
     let resp_channel = modal.channel_id;
-    let resp_components = render_market_message(&new_market, &instruments);
+    let resp_components = market_message::render_market_message(&new_market, &instruments);
     let message = resp_channel
         .send_message(
             &ctx.http,
