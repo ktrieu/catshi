@@ -1,38 +1,37 @@
+use anyhow::anyhow;
 use serenity::all::{
     CreateInputText, CreateLabel, CreateModal, CreateModalComponent, InputTextStyle,
-    ModalComponent, ModalInteraction,
+    ModalInteraction,
 };
 
-pub const MODAL_ID: &'static str = "market-create-modal";
-const MODAL_DESC_ID: &'static str = "market-create-desc";
+use crate::ui;
 
-fn get_modal_opt_id(num: i64) -> String {
-    format!("market-create-opt-{}", num)
-}
+pub const MODAL_ID: &'static str = "market-create-modal";
+
+const MODAL_DESC_ID: &'static str = "market-create-desc";
+const MODAL_OPTS_ID: &'static str = "market-create-opts";
 
 pub fn create_modal() -> CreateModal<'static> {
     let desc_label = CreateLabel::input_text(
-        "Question",
+        "Question".to_string(),
         CreateInputText::new(InputTextStyle::Paragraph, MODAL_DESC_ID),
     );
 
-    let mut rows = vec![CreateModalComponent::Label(desc_label)];
+    let opts_label = CreateLabel::input_text(
+        "Options".to_string(),
+        CreateInputText::new(InputTextStyle::Paragraph, MODAL_OPTS_ID).value("Yes\nNo"),
+    )
+    .description(
+        "Options for this market, one per line. Not too many or I will have to add validation."
+            .to_string(),
+    );
 
-    // Add 4 potential options to the modal.
-    for i in 0..4 {
-        let num = i + 1;
-        // We want at least two options here.
-        let required = num <= 2;
+    let components = vec![
+        CreateModalComponent::Label(desc_label),
+        CreateModalComponent::Label(opts_label),
+    ];
 
-        let option = CreateLabel::input_text(
-            format!("Option #{}", num),
-            CreateInputText::new(InputTextStyle::Short, get_modal_opt_id(num)).required(required),
-        );
-
-        rows.push(CreateModalComponent::Label(option));
-    }
-
-    CreateModal::new(MODAL_ID, "New market").components(rows)
+    CreateModal::new(MODAL_ID, "New market").components(components)
 }
 
 pub struct CreateModalValues<'resp> {
@@ -43,53 +42,17 @@ pub struct CreateModalValues<'resp> {
 pub fn extract_create_modal_values(
     modal: &'_ ModalInteraction,
 ) -> anyhow::Result<CreateModalValues<'_>> {
-    let rows = &modal.data.components;
-    let mut values = Vec::new();
+    let values = ui::extract_modal_values(&modal);
 
-    if rows.len() != 5 {
-        anyhow::bail!(
-            "invalid number of action rows: had {} expected 5",
-            rows.len()
-        );
-    }
+    let description = values
+        .get(MODAL_DESC_ID)
+        .ok_or(anyhow!("modal description field not found"))?;
 
-    for r in rows.iter() {
-        if let ModalComponent::Label(label) = r {
-            let (id, value) = match &label.component {
-                serenity::all::LabelComponent::InputText(input_text) => (
-                    input_text.custom_id.as_str(),
-                    input_text
-                        .value
-                        .as_ref()
-                        .expect("value should be set for received modal fields"),
-                ),
-                _ => {
-                    anyhow::bail!("unsupported modal label component")
-                }
-            };
-            values.push([id, value])
-        }
-    }
-
-    let [desc_id, description] = values[0];
-    if desc_id != MODAL_DESC_ID {
-        anyhow::bail!("description text field ID was invalid");
-    }
-
-    let mut options = Vec::new();
-
-    for i in 0..4 {
-        let [opt_id, opt_value] = values[i as usize + 1];
-
-        let num = i + 1;
-        if opt_id != get_modal_opt_id(num) {
-            anyhow::bail!("option text field ID was invalid");
-        }
-
-        if opt_value != "" {
-            options.push(opt_value)
-        }
-    }
+    let options = values
+        .get(MODAL_OPTS_ID)
+        .ok_or(anyhow!("modal options field not present"))?
+        .split("\n")
+        .collect();
 
     Ok(CreateModalValues {
         description,
