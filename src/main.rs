@@ -14,6 +14,7 @@ use crate::store::DbUser;
 
 mod command;
 mod store;
+mod ui;
 mod utils;
 
 pub async fn init_db(url: &str) -> anyhow::Result<SqlitePool> {
@@ -105,7 +106,7 @@ impl Handler {
         let user = self.authenticate(ctx, &modal.user).await?;
 
         match modal.data.custom_id.as_str() {
-            command::market::MODAL_ID => {
+            ui::market_create_modal::MODAL_ID => {
                 command::market::modal_submit(ctx, &self, &modal, &user).await?
             }
             _ => {}
