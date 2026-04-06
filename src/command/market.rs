@@ -61,12 +61,7 @@ pub async fn modal_submit(
     tx.commit().await?;
 
     // Be sure to acknowledge the interaction as well so the modal closes.
-    modal
-        .create_response(
-            &ctx.http,
-            crate::utils::text_interaction_response("Market created.", true),
-        )
-        .await?;
+    modal.defer(&ctx.http).await?;
 
     Ok(())
 }
