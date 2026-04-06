@@ -1,19 +1,24 @@
 use std::{env, sync::Arc};
 
+use anyhow::anyhow;
 use serenity::{
     Client,
     all::{
-        CommandInteraction, Context, EventHandler, FullEvent, GatewayIntents, GuildId, Interaction,
-        ModalInteraction, Token, User,
+        CommandInteraction, ComponentInteraction, Context, EventHandler, FullEvent, GatewayIntents,
+        GuildId, Interaction, ModalInteraction, Token, User,
     },
     async_trait,
 };
 use sqlx::SqlitePool;
 
-use crate::store::DbUser;
+use crate::{
+    store::DbUser,
+    ui::market_message::{self, TradeAction},
+};
 
 mod command;
 mod store;
+mod trade;
 mod ui;
 mod utils;
 
@@ -69,6 +74,7 @@ impl Handler {
         let result = match &interaction {
             Interaction::Command(command) => self.handle_command(&ctx, command).await,
             Interaction::Modal(modal) => self.handle_modal(&ctx, modal).await,
+            Interaction::Component(component) => self.handle_component(&ctx, component).await,
             _ => Ok(()),
         };
 
@@ -78,6 +84,9 @@ impl Handler {
             let send_result = match &interaction {
                 Interaction::Command(command) => command.create_response(&ctx.http, response).await,
                 Interaction::Modal(modal) => modal.create_response(&ctx.http, response).await,
+                Interaction::Component(component) => {
+                    component.create_response(&ctx.http, response).await
+                }
                 _ => Ok(()),
             };
 
@@ -111,6 +120,61 @@ impl Handler {
             }
             _ => {}
         };
+
+        Ok(())
+    }
+
+    async fn handle_component(
+        &self,
+        ctx: &Context,
+        component: &ComponentInteraction,
+    ) -> anyhow::Result<()> {
+        let user = self.authenticate(ctx, &component.user).await?;
+
+        if let Some((trade_action, instrument_id)) =
+            market_message::parse_trade_button_id(&component.data.custom_id)
+        {
+            if trade_action == TradeAction::Buy {
+                let mut tx = self.pool.begin().await?;
+
+                let quantity = 1;
+
+                let instrument = store::get_instrument_by_id(&mut *tx, instrument_id)
+                    .await?
+                    .ok_or(anyhow!("instrument not found"))?;
+
+                let outstanding_shares =
+                    store::get_outstanding_shares_for_market(&mut *tx, instrument.market_id)
+                        .await?;
+
+                // Simple MVP behaviour here: buy 1 share.
+                let result = trade::buy(
+                    quantity,
+                    instrument_id,
+                    &outstanding_shares,
+                    trade::MARKET_B,
+                );
+
+                store::create_buy_position(
+                    &mut *tx,
+                    quantity,
+                    result.total_price,
+                    &instrument,
+                    &user,
+                )
+                .await?;
+
+                tx.commit().await?;
+
+                let msg = format!(
+                    "Bought {} shares of instrument {} for {}",
+                    quantity, instrument_id, result.total_price
+                );
+                component
+                    .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
+                    .await?;
+            }
+        }
 
         Ok(())
     }
