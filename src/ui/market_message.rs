@@ -1,58 +1,11 @@
-use std::str::FromStr;
-
 use serenity::all::{
     ButtonStyle, CreateActionRow, CreateButton, CreateComponent, CreateSeparator, CreateTextDisplay,
 };
 
-use crate::store::{Instrument, Market};
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum TradeAction {
-    Buy,
-    Sell,
-}
-
-impl ToString for TradeAction {
-    fn to_string(&self) -> String {
-        match &self {
-            TradeAction::Buy => "buy".to_string(),
-            TradeAction::Sell => "sell".to_string(),
-        }
-    }
-}
-
-impl FromStr for TradeAction {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "buy" => Ok(TradeAction::Buy),
-            "sell" => Ok(TradeAction::Sell),
-            _ => Err(()),
-        }
-    }
-}
-
-fn get_trade_button_id(instrument: &Instrument, action: TradeAction) -> String {
-    format!("trade_button|{}|{}", action.to_string(), instrument.id)
-}
-
-pub fn parse_trade_button_id(id: &str) -> Option<(TradeAction, i64)> {
-    let components: Vec<&str> = id.split('|').collect();
-
-    if components.len() != 3 {
-        return None;
-    }
-
-    if components[0] != "trade_button" {
-        return None;
-    }
-
-    let action = TradeAction::from_str(components[1]).ok()?;
-    let id = components[2].parse::<i64>().ok()?;
-
-    Some((action, id))
-}
+use crate::{
+    command::trade::{TradeAction, get_trade_button_id},
+    store::{Instrument, Market},
+};
 
 pub fn render_market_message<'a>(
     market: &'a Market,

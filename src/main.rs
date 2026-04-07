@@ -1,6 +1,5 @@
 use std::{env, sync::Arc};
 
-use anyhow::anyhow;
 use serenity::{
     Client,
     all::{
@@ -11,10 +10,7 @@ use serenity::{
 };
 use sqlx::SqlitePool;
 
-use crate::{
-    store::DbUser,
-    ui::market_message::{self, TradeAction},
-};
+use crate::{command::trade::parse_trade_button_id, store::DbUser};
 
 mod command;
 mod currency;
@@ -132,48 +128,8 @@ impl Handler {
     ) -> anyhow::Result<()> {
         let user = self.authenticate(ctx, &component.user).await?;
 
-        if let Some((trade_action, instrument_id)) =
-            market_message::parse_trade_button_id(&component.data.custom_id)
-        {
-            if trade_action == TradeAction::Buy {
-                // We'll handle the UI later - for now assume we only buy one share.
-                let quantity = 1;
-
-                let instrument = store::get_instrument_by_id(&self.pool, instrument_id)
-                    .await?
-                    .ok_or(anyhow!("instrument not found"))?;
-
-                let result = trade::buy(&self.pool, quantity, &instrument, &user).await?;
-
-                let msg = format!(
-                    "Bought {quantity} shares of instrument {instrument_id}. Total: {} ({} + {} fees)",
-                    result.total(),
-                    result.shares_price,
-                    result.fees
-                );
-                component
-                    .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
-                    .await?;
-            } else {
-                let quantity = 1;
-
-                let instrument = store::get_instrument_by_id(&self.pool, instrument_id)
-                    .await?
-                    .ok_or(anyhow!("instrument not found"))?;
-
-                let result = trade::sell(&self.pool, quantity, &instrument, &user).await?;
-
-                let msg = format!(
-                    "Sold {quantity} shares of instrument {instrument_id}. Total: {} ({} - {} fees). Profit {}",
-                    result.net(),
-                    result.shares_price,
-                    result.fees,
-                    result.profit()
-                );
-                component
-                    .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
-                    .await?;
-            }
+        if let Some((action, instrument_id)) = parse_trade_button_id(&component.data.custom_id) {
+            command::trade::trade(ctx, &self, &user, component, action, instrument_id).await?;
         }
 
         Ok(())
