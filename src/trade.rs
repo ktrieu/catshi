@@ -41,8 +41,20 @@ pub fn calc_cost_delta(
     Currency::from_instrument_price(total_price)
 }
 
+fn calc_fees(shares_price: Currency) -> Currency {
+    // Flat two percent.
+    shares_price * 0.02f32
+}
+
 pub struct BuyResult {
-    pub total_price: Currency,
+    pub shares_price: Currency,
+    pub fees: Currency,
+}
+
+impl BuyResult {
+    pub fn total(&self) -> Currency {
+        self.shares_price + self.fees
+    }
 }
 
 pub async fn buy(
@@ -59,15 +71,14 @@ pub async fn buy(
     // Simple MVP behaviour here: buy 1 share.
     let shares_price = calc_cost_delta(quantity, instrument.id, &outstanding_shares, MARKET_B);
 
-    // No fees for now.
-    let fees = Currency::from(0i64);
-    let total = shares_price + fees;
+    let fees = calc_fees(shares_price);
+    let total_price = shares_price + fees;
 
     let existing = store::get_user_position(&mut *tx, &instrument, &user).await?;
     if existing.is_none() {
-        store::create_new_position(&mut *tx, quantity, total, &instrument, &user).await?;
+        store::create_new_position(&mut *tx, quantity, total_price, &instrument, &user).await?;
     } else {
-        store::increase_position(&mut *tx, quantity, total, &instrument, &user).await?;
+        store::increase_position(&mut *tx, quantity, total_price, &instrument, &user).await?;
     }
 
     store::create_order(
@@ -75,8 +86,8 @@ pub async fn buy(
         store::OrderDirection::Buy,
         quantity,
         shares_price,
-        fees,  // no fees for now.
-        total, // cost basis is the same as shares_price for buys.
+        fees,        // no fees for now.
+        total_price, // cost basis is the same as shares_price for buys.
         instrument,
         user,
     )
@@ -84,9 +95,7 @@ pub async fn buy(
 
     tx.commit().await?;
 
-    Ok(BuyResult {
-        total_price: shares_price,
-    })
+    Ok(BuyResult { shares_price, fees })
 }
 
 pub struct SellResult {
@@ -98,6 +107,10 @@ pub struct SellResult {
 impl SellResult {
     pub fn profit(&self) -> Currency {
         self.shares_price - self.fees - self.order_cost_basis
+    }
+
+    pub fn net(&self) -> Currency {
+        self.shares_price - self.fees
     }
 }
 
@@ -117,7 +130,7 @@ pub async fn sell(
     let shares_price = -calc_cost_delta(-quantity, instrument.id, &outstanding_shares, MARKET_B);
 
     // No fees for now.
-    let fees = Currency::from(0i64);
+    let fees = calc_fees(shares_price);
 
     let position = match store::get_user_position(&mut *tx, &instrument, &user).await? {
         Some(position) => position,

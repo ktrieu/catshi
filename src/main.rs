@@ -146,8 +146,10 @@ impl Handler {
                 let result = trade::buy(&self.pool, quantity, &instrument, &user).await?;
 
                 let msg = format!(
-                    "Bought {} shares of instrument {} for {}",
-                    quantity, instrument_id, result.total_price
+                    "Bought {quantity} shares of instrument {instrument_id}. Total: {} ({} + {} fees)",
+                    result.total(),
+                    result.shares_price,
+                    result.fees
                 );
                 component
                     .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
@@ -162,10 +164,10 @@ impl Handler {
                 let result = trade::sell(&self.pool, quantity, &instrument, &user).await?;
 
                 let msg = format!(
-                    "Sold {} shares of instrument {} for {}. Profit {}",
-                    quantity,
-                    instrument_id,
+                    "Sold {quantity} shares of instrument {instrument_id}. Total: {} ({} - {} fees). Profit {}",
+                    result.net(),
                     result.shares_price,
+                    result.fees,
                     result.profit()
                 );
                 component
