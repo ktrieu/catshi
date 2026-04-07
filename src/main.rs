@@ -17,6 +17,7 @@ use crate::{
 };
 
 mod command;
+mod currency;
 mod store;
 mod trade;
 mod ui;
@@ -158,7 +159,7 @@ impl Handler {
                 store::create_buy_position(
                     &mut *tx,
                     quantity,
-                    result.total_price,
+                    result.total_price.into(),
                     &instrument,
                     &user,
                 )

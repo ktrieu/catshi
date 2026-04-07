@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
+use crate::currency::Currency;
+
 pub const MARKET_B: f32 = 10.0f32;
 
 pub struct BuyResult {
-    pub total_price: i64,
+    pub total_price: Currency,
 }
 
 fn cost(share_counts: impl IntoIterator<Item = i64>, b: f32) -> f32 {
@@ -27,7 +29,9 @@ pub fn buy(quantity: i64, instrument_id: i64, shares: &HashMap<i64, i64>, b: f32
 
     let post_cost = cost(post_shares, b);
 
-    let total_price = ((post_cost - pre_cost) * 100f32).round() as i64;
+    let total_price = post_cost - pre_cost;
 
-    BuyResult { total_price }
+    BuyResult {
+        total_price: Currency::from_instrument_price(total_price),
+    }
 }
