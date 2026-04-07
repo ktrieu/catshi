@@ -136,36 +136,14 @@ impl Handler {
             market_message::parse_trade_button_id(&component.data.custom_id)
         {
             if trade_action == TradeAction::Buy {
-                let mut tx = self.pool.begin().await?;
-
+                // We'll handle the UI later - for now assume we only buy one share.
                 let quantity = 1;
 
-                let instrument = store::get_instrument_by_id(&mut *tx, instrument_id)
+                let instrument = store::get_instrument_by_id(&self.pool, instrument_id)
                     .await?
                     .ok_or(anyhow!("instrument not found"))?;
 
-                let outstanding_shares =
-                    store::get_outstanding_shares_for_market(&mut *tx, instrument.market_id)
-                        .await?;
-
-                // Simple MVP behaviour here: buy 1 share.
-                let result = trade::buy(
-                    quantity,
-                    instrument_id,
-                    &outstanding_shares,
-                    trade::MARKET_B,
-                );
-
-                store::create_buy_position(
-                    &mut *tx,
-                    quantity,
-                    result.total_price.into(),
-                    &instrument,
-                    &user,
-                )
-                .await?;
-
-                tx.commit().await?;
+                let result = trade::buy(&self.pool, quantity, &instrument, &user).await?;
 
                 let msg = format!(
                     "Bought {} shares of instrument {} for {}",

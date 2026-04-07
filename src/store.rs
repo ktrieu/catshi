@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use serenity::all::{GenericChannelId, MessageId, UserId};
 use sqlx::{Executor, QueryBuilder, Sqlite, query, query_as};
 
+use crate::currency::Currency;
+
 #[derive(Debug, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct DbUser {
@@ -192,12 +194,11 @@ pub async fn get_outstanding_shares_for_market(
             FROM
                 instruments
             LEFT JOIN
-                positions ON instruments.id = positions.instrument_id AND positions.state = $1
+                positions ON instruments.id = positions.instrument_id
             WHERE
-                instruments.market_id = $2
+                instruments.market_id = $1
             GROUP BY instruments.id
         "#,
-        PositionState::Purchased,
         market_id,
     )
     .fetch_all(exec)
@@ -206,30 +207,47 @@ pub async fn get_outstanding_shares_for_market(
     Ok(rows.iter().map(|r| (r.id, r.shares)).collect())
 }
 
-#[derive(Debug, sqlx::Type)]
-#[sqlx(rename_all = "lowercase")]
-pub enum PositionState {
-    Purchased,
-    Sold,
-    Resolved,
-}
-
 #[derive(Debug, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Position {
     id: i64,
-    state: PositionState,
     quantity: i64,
-    enter_price: i64,
-    exit_price: Option<i64>,
+    cost_basis: Currency,
     instrument_id: i64,
     owner_id: i64,
 }
 
-pub async fn create_buy_position(
+pub async fn get_user_position(
+    exec: impl Executor<'_, Database = Sqlite>,
+    instrument: &Instrument,
+    owner: &DbUser,
+) -> anyhow::Result<Option<Position>> {
+    let position = query_as!(
+        Position,
+        r#"
+        SELECT
+            id,
+            quantity,
+            cost_basis,
+            instrument_id,
+            owner_id
+        FROM positions
+        WHERE
+            instrument_id = $1 AND owner_id = $2
+        "#,
+        instrument.id,
+        owner.id
+    )
+    .fetch_optional(exec)
+    .await?;
+
+    Ok(position)
+}
+
+pub async fn create_new_position(
     exec: impl Executor<'_, Database = Sqlite>,
     quantity: i64,
-    enter_price: i64,
+    cost_basis: Currency,
     instrument: &Instrument,
     owner: &DbUser,
 ) -> anyhow::Result<Position> {
@@ -237,25 +255,44 @@ pub async fn create_buy_position(
         Position,
         r#"
             INSERT INTO positions (
-                state, 
-                quantity, 
-                enter_price, 
-                instrument_id, 
-                owner_id
-            ) 
-            VALUES ($1, $2, $3, $4, $5) 
-            RETURNING
-                id,
-                state as "state: PositionState",
                 quantity,
-                enter_price,
-                exit_price,
+                cost_basis,
                 instrument_id,
                 owner_id
+            ) VALUES ($1, $2, $3, $4)
+            RETURNING *
         "#,
-        PositionState::Purchased,
         quantity,
-        enter_price,
+        cost_basis,
+        instrument.id,
+        owner.id
+    )
+    .fetch_one(exec)
+    .await?;
+
+    Ok(position)
+}
+
+pub async fn increase_position(
+    exec: impl Executor<'_, Database = Sqlite>,
+    quantity: i64,
+    price_paid: Currency,
+    instrument: &Instrument,
+    owner: &DbUser,
+) -> anyhow::Result<Position> {
+    let position = query_as!(
+        Position,
+        r#"
+            UPDATE positions
+            SET
+                quantity = quantity + $1,
+                cost_basis = cost_basis + $2
+            WHERE
+                instrument_id = $3 AND owner_id = $4
+            RETURNING *
+        "#,
+        quantity,
+        price_paid,
         instrument.id,
         owner.id
     )
