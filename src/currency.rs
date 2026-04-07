@@ -3,12 +3,12 @@ use std::{
     ops::{Add, Mul, Neg, Sub},
 };
 
-// Currency in our system - symbol YP. Stored as integer 100ths (bips), so a value of 100 = 1.00 YP.
+// Currency in our system - symbol YP. Stored as integer 1000ths (bips), so a value of 1000 = 1.00 YP.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, sqlx::Type)]
 #[sqlx(transparent)]
 pub struct Currency(i64);
 
-const BIPS_PER_YP: i64 = 100;
+const BIPS_PER_YP: i64 = 1000;
 
 impl Currency {
     pub fn from_instrument_price(price: f32) -> Self {
