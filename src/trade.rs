@@ -59,12 +59,28 @@ pub async fn buy(
     let shares_price =
         calc_buy_shares_price(quantity, instrument.id, &outstanding_shares, MARKET_B);
 
+    // No fees for now.
+    let fees = Currency::from(0i64);
+    let total = shares_price + fees;
+
     let existing = store::get_user_position(&mut *tx, &instrument, &user).await?;
     if existing.is_none() {
-        store::create_new_position(&mut *tx, quantity, shares_price, &instrument, &user).await?;
+        store::create_new_position(&mut *tx, quantity, total, &instrument, &user).await?;
     } else {
-        store::increase_position(&mut *tx, quantity, shares_price, &instrument, &user).await?;
+        store::increase_position(&mut *tx, quantity, total, &instrument, &user).await?;
     }
+
+    store::create_order(
+        &mut *tx,
+        store::OrderDirection::Buy,
+        quantity,
+        shares_price,
+        fees,  // no fees for now.
+        total, // cost basis is the same as shares_price for buys.
+        instrument,
+        user,
+    )
+    .await?;
 
     tx.commit().await?;
 
