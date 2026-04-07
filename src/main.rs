@@ -152,6 +152,25 @@ impl Handler {
                 component
                     .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
                     .await?;
+            } else {
+                let quantity = 1;
+
+                let instrument = store::get_instrument_by_id(&self.pool, instrument_id)
+                    .await?
+                    .ok_or(anyhow!("instrument not found"))?;
+
+                let result = trade::sell(&self.pool, quantity, &instrument, &user).await?;
+
+                let msg = format!(
+                    "Sold {} shares of instrument {} for {}. Profit {}",
+                    quantity,
+                    instrument_id,
+                    result.shares_price,
+                    result.profit()
+                );
+                component
+                    .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
+                    .await?;
             }
         }
 

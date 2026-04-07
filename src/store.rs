@@ -8,9 +8,9 @@ use crate::currency::Currency;
 #[derive(Debug, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct DbUser {
-    id: i64,
-    discord_id: String,
-    name: String,
+    pub id: i64,
+    pub discord_id: String,
+    pub name: String,
 }
 
 pub async fn insert_user_if_not_exists(
@@ -210,11 +210,11 @@ pub async fn get_outstanding_shares_for_market(
 #[derive(Debug, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Position {
-    id: i64,
-    quantity: i64,
-    cost_basis: Currency,
-    instrument_id: i64,
-    owner_id: i64,
+    pub id: i64,
+    pub quantity: i64,
+    pub cost_basis: Currency,
+    pub instrument_id: i64,
+    pub owner_id: i64,
 }
 
 pub async fn get_user_position(
@@ -302,6 +302,37 @@ pub async fn increase_position(
     Ok(position)
 }
 
+// Similar to increase position but we take the new_cost_basis directly instead of
+// blindly adding it, since we need to do some weighted adjustment.
+pub async fn decrease_position(
+    exec: impl Executor<'_, Database = Sqlite>,
+    quantity: i64,
+    new_cost_basis: Currency,
+    instrument: &Instrument,
+    owner: &DbUser,
+) -> anyhow::Result<Position> {
+    let position = query_as!(
+        Position,
+        r#"
+            UPDATE positions
+            SET
+                quantity = quantity - $1,
+                cost_basis = $2
+            WHERE
+                instrument_id = $3 AND owner_id = $4
+            RETURNING *
+        "#,
+        quantity,
+        new_cost_basis,
+        instrument.id,
+        owner.id
+    )
+    .fetch_one(exec)
+    .await?;
+
+    Ok(position)
+}
+
 #[derive(Debug, sqlx::Type)]
 #[sqlx(rename_all = "lowercase")]
 pub enum OrderDirection {
@@ -312,17 +343,17 @@ pub enum OrderDirection {
 #[derive(Debug, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Order {
-    id: i64,
-    direction: OrderDirection,
-    quantity: i64,
-    shares_price: Currency,
-    fees: Currency,
+    pub id: i64,
+    pub direction: OrderDirection,
+    pub quantity: i64,
+    pub shares_price: Currency,
+    pub fees: Currency,
     // Same as shares_price + fees for buys but based on position cost basis for sells.
     // Allows us to calculate the profit on a sell.
-    cost_basis: Currency,
-    instrument_id: i64,
-    owner_id: i64,
-    created_at: i64,
+    pub cost_basis: Currency,
+    pub instrument_id: i64,
+    pub owner_id: i64,
+    pub created_at: i64,
 }
 
 pub async fn create_order(

@@ -1,6 +1,6 @@
 use std::{
     fmt::Display,
-    ops::{Add, Mul, Sub},
+    ops::{Add, Mul, Neg, Sub},
 };
 
 // Currency in our system - symbol YP. Stored as integer 100ths (bips), so a value of 100 = 1.00 YP.
@@ -23,10 +23,12 @@ impl Currency {
 
 impl Display for Currency {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // We'll manually apply the negative sign later.
+        let positive = self.0.abs();
         // For precision let's not use floats to downscale and use integer arithmetic instead.
-        let fractional = self.0 % BIPS_PER_YP;
+        let fractional = positive % BIPS_PER_YP;
 
-        let yp = (self.0 - fractional) / BIPS_PER_YP;
+        let yp = (positive - fractional) / BIPS_PER_YP;
 
         let neg_sign = if self.0 < 0 { "-" } else { "" };
 
@@ -47,6 +49,14 @@ impl Sub for Currency {
 
     fn sub(self, rhs: Self) -> Self::Output {
         Currency(self.0 - rhs.0)
+    }
+}
+
+impl Neg for Currency {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Currency(-self.0)
     }
 }
 
