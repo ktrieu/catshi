@@ -1,12 +1,12 @@
 use std::str::FromStr;
 
-use anyhow::anyhow;
 use serenity::all::{ComponentInteraction, Context};
 
 use crate::{
     Handler,
     store::{self, DbUser, Instrument},
-    trade, utils,
+    trade::{self, TradeInput},
+    utils,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -65,15 +65,13 @@ pub async fn trade(
     action: TradeAction,
     instrument_id: i64,
 ) -> anyhow::Result<()> {
-    let instrument = store::get_instrument_by_id(&handler.pool, instrument_id)
-        .await?
-        .ok_or(anyhow!("instrument {instrument_id} not found"))?;
     let quantity = 1;
+    let input = TradeInput::new(&handler.pool, instrument_id, 1, (*user).clone()).await?;
 
     let system_user = store::get_system_user(&handler.pool).await?;
 
     if action == TradeAction::Buy {
-        let result = trade::buy(&handler.pool, quantity, &instrument, &user, &system_user).await?;
+        let result = trade::buy(&handler.pool, &input, &system_user).await?;
 
         let msg = format!(
             "Bought {quantity} shares of instrument {instrument_id}. Total: {} ({} + {} fees)",
@@ -85,7 +83,7 @@ pub async fn trade(
             .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
             .await?;
     } else {
-        let result = trade::sell(&handler.pool, quantity, &instrument, &user, &system_user).await?;
+        let result = trade::sell(&handler.pool, &input, &system_user).await?;
 
         let msg = format!(
             "Sold {quantity} shares of instrument {instrument_id}. Total: {} ({} - {} fees). Profit {}",

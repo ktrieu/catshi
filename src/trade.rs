@@ -1,61 +1,10 @@
-use std::collections::HashMap;
-
-use anyhow::bail;
-use sqlx::{Sqlite, SqlitePool, Transaction};
+use anyhow::{anyhow, bail};
+use sqlx::{Executor, Sqlite, SqlitePool, Transaction};
 
 use crate::{
     currency::Currency,
-    store::{self, CreateTransfer, DbUser, Instrument},
+    store::{self, CreateTransfer, DbUser, Instrument, Market, Position},
 };
-
-pub const MARKET_B: f32 = 10.0f32;
-
-fn cost(share_counts: impl IntoIterator<Item = i64>, b: f32) -> f32 {
-    let summed: f32 = share_counts.into_iter().map(|s| (s as f32 / b).exp()).sum();
-
-    b * summed.ln()
-}
-
-pub fn calc_cost_delta(
-    quantity: i64,
-    instrument_id: i64,
-    shares: &HashMap<i64, i64>,
-    b: f32,
-) -> Currency {
-    // Pre cost is the current state of the market.
-    let pre_cost = cost(shares.values().cloned(), b);
-
-    // Post cost is the market + the potentially bought shares.
-    let post_shares = shares.iter().map(|(id, count)| {
-        if *id == instrument_id {
-            *count + quantity
-        } else {
-            *count
-        }
-    });
-
-    let post_cost = cost(post_shares, b);
-
-    let total_price = post_cost - pre_cost;
-
-    Currency::from_instrument_price(total_price)
-}
-
-fn calc_fees(shares_price: Currency) -> Currency {
-    // Flat two percent.
-    shares_price * 0.02f32
-}
-
-pub struct BuyResult {
-    pub shares_price: Currency,
-    pub fees: Currency,
-}
-
-impl BuyResult {
-    pub fn total(&self) -> Currency {
-        self.shares_price + self.fees
-    }
-}
 
 async fn transfer_cash(
     tx: &mut Transaction<'_, Sqlite>,
@@ -106,60 +55,176 @@ async fn system_debit_user(
     Ok(())
 }
 
+pub const MARKET_B: f32 = 10.0f32;
+
+fn cost(share_counts: impl IntoIterator<Item = i64>, b: f32) -> f32 {
+    let summed: f32 = share_counts.into_iter().map(|s| (s as f32 / b).exp()).sum();
+
+    b * summed.ln()
+}
+
+pub fn calc_cost_delta<'s>(
+    quantity: i64,
+    instrument_id: i64,
+    shares: impl Iterator<Item = &'s (Instrument, i64)> + Clone,
+    b: f32,
+) -> Currency {
+    // Pre cost is the current state of the market.
+    let pre_cost = cost(shares.clone().map(|(_, qty)| *qty), b);
+
+    // Post cost is the market + the potentially bought shares.
+    let post_shares = shares.clone().map(|(instrument, count)| {
+        if instrument.id == instrument_id {
+            count + quantity
+        } else {
+            *count
+        }
+    });
+
+    let post_cost = cost(post_shares, b);
+
+    let total_price = post_cost - pre_cost;
+
+    Currency::from_instrument_price(total_price)
+}
+
+fn calc_fees(shares_price: Currency) -> Currency {
+    // Flat two percent.
+    shares_price * 0.02f32
+}
+
+pub struct BuyResult {
+    pub shares_price: Currency,
+    pub fees: Currency,
+}
+
+impl BuyResult {
+    pub fn total(&self) -> Currency {
+        self.shares_price + self.fees
+    }
+}
+
+pub struct TradeInput {
+    quantity: i64,
+    position: Option<Position>,
+    user: DbUser,
+    _market: Market,
+    market_instruments: Vec<(Instrument, i64)>,
+    traded_instrument: Instrument,
+    market_owner: DbUser,
+}
+
+impl TradeInput {
+    pub async fn new(
+        exec: impl Executor<'_, Database = Sqlite> + Copy,
+        instrument_id: i64,
+        quantity: i64,
+        user: DbUser,
+    ) -> anyhow::Result<Self> {
+        let traded_instrument = store::get_instrument_by_id(exec, instrument_id)
+            .await?
+            .ok_or(anyhow!("instrument {instrument_id} not found"))?;
+
+        let market = store::get_market_by_id(exec, traded_instrument.market_id)
+            .await?
+            .ok_or(anyhow!("market {} not found", traded_instrument.market_id))?;
+
+        let market_owner = store::get_user_by_id(exec, market.owner_id)
+            .await?
+            .ok_or(anyhow!("user {} not found", market.owner_id))?;
+
+        let position = store::get_user_position(exec, &traded_instrument, &user).await?;
+
+        let market_instruments =
+            store::get_instruments_with_share_counts_for_market(exec, market.id).await?;
+
+        Ok(Self {
+            quantity,
+            position,
+            user,
+            _market: market,
+            market_instruments,
+            market_owner,
+            traded_instrument,
+        })
+    }
+}
+
 pub async fn buy(
     pool: &SqlitePool,
-    quantity: i64,
-    instrument: &Instrument,
-    user: &DbUser,
+    input: &TradeInput,
     system_user: &DbUser,
 ) -> anyhow::Result<BuyResult> {
     let mut tx = pool.begin().await?;
 
-    let outstanding_shares =
-        store::get_outstanding_shares_for_market(&mut *tx, instrument.market_id).await?;
-
     // Simple MVP behaviour here: buy 1 share.
-    let shares_price = calc_cost_delta(quantity, instrument.id, &outstanding_shares, MARKET_B);
+    let shares_price = calc_cost_delta(
+        input.quantity,
+        input.traded_instrument.id,
+        input.market_instruments.iter(),
+        MARKET_B,
+    );
 
     let fees = calc_fees(shares_price);
     let total_price = shares_price + fees;
 
-    let existing = store::get_user_position(&mut *tx, &instrument, &user).await?;
-    if existing.is_none() {
-        store::create_new_position(&mut *tx, quantity, total_price, &instrument, &user).await?;
+    if input.position.is_none() {
+        store::create_new_position(
+            &mut *tx,
+            input.quantity,
+            total_price,
+            &input.traded_instrument,
+            &input.user,
+        )
+        .await?;
     } else {
-        store::increase_position(&mut *tx, quantity, total_price, &instrument, &user).await?;
+        store::increase_position(
+            &mut *tx,
+            input.quantity,
+            total_price,
+            &input.traded_instrument,
+            &input.user,
+        )
+        .await?;
     }
 
     store::create_order(
         &mut *tx,
         store::OrderDirection::Buy,
-        quantity,
+        input.quantity,
         shares_price,
         fees,        // no fees for now.
         total_price, // cost basis is the same as shares_price for buys.
-        instrument,
-        user,
+        &input.traded_instrument,
+        &input.user,
     )
     .await?;
 
     // Make the user pay for their shares.
     system_debit_user(
         &mut tx,
-        user,
+        &input.user,
         system_user,
         shares_price,
-        format!("BUY {} shares {}", quantity, instrument.name).as_str(),
+        format!(
+            "BUY {} shares {}",
+            input.quantity, input.traded_instrument.name
+        )
+        .as_str(),
     )
     .await?;
 
-    // And make the user pay their fees. TODO: direct this to the market owner instead.
+    // And transfer the market fees to the market ownwer.
     transfer_cash(
         &mut tx,
-        user,
-        system_user,
+        &input.user,
+        &input.market_owner,
         fees,
-        format!("BUY {} shares {} fees", quantity, instrument.name).as_str(),
+        format!(
+            "BUY {} shares {} fees",
+            input.quantity, input.traded_instrument.name
+        )
+        .as_str(),
     )
     .await?;
 
@@ -186,57 +251,57 @@ impl SellResult {
 
 pub async fn sell(
     pool: &SqlitePool,
-    quantity: i64,
-    instrument: &Instrument,
-    user: &DbUser,
+    input: &TradeInput,
     system_user: &DbUser,
 ) -> anyhow::Result<SellResult> {
     let mut tx = pool.begin().await?;
 
-    let outstanding_shares =
-        store::get_outstanding_shares_for_market(&mut *tx, instrument.market_id).await?;
-
     // A sell would be decreasing the amount of shares, so negate quantity. We receive the corresponding decrease in price
     // so also negate the result.
-    let shares_price = -calc_cost_delta(-quantity, instrument.id, &outstanding_shares, MARKET_B);
+    let shares_price = -calc_cost_delta(
+        -input.quantity,
+        input.traded_instrument.id,
+        input.market_instruments.iter(),
+        MARKET_B,
+    );
 
-    // No fees for now.
     let fees = calc_fees(shares_price);
 
-    let position = match store::get_user_position(&mut *tx, &instrument, &user).await? {
-        Some(position) => position,
-        None => {
-            // Can't sell if there's no position. Raise an error here. Caller should catch this
-            // and display a more graceful message, however.
-            bail!(
-                "no position to sell for user {}, instrument {}",
-                user.id,
-                instrument.id
-            );
-        }
-    };
+    let position =
+        match store::get_user_position(&mut *tx, &input.traded_instrument, &input.user).await? {
+            Some(position) => position,
+            None => {
+                // Can't sell if there's no position. Raise an error here. Caller should catch this
+                // and display a more graceful message, however.
+                bail!(
+                    "no position to sell for user {}, instrument {}",
+                    input.user.id,
+                    input.traded_instrument.id
+                );
+            }
+        };
 
     // Important! Check and make sure we have enough shares to sell!
-    if position.quantity < quantity {
+    if position.quantity < input.quantity {
         bail!(
             "insufficient shares to sell for user {}, instrument {}. tried to sell {} but only had {}",
-            user.id,
-            instrument.id,
-            quantity,
+            input.user.id,
+            input.traded_instrument.id,
+            input.quantity,
             position.quantity
         )
     }
 
     // Scale down the cost-basis uniformly based on the proportion of shares we are selling.
     let new_position_cost_basis =
-        position.cost_basis * (1f32 - (quantity as f32 / position.quantity as f32));
+        position.cost_basis * (1f32 - (input.quantity as f32 / position.quantity as f32));
 
     store::decrease_position(
         &mut *tx,
-        quantity,
+        input.quantity,
         new_position_cost_basis,
-        &instrument,
-        &user,
+        &input.traded_instrument,
+        &input.user,
     )
     .await?;
 
@@ -246,32 +311,40 @@ pub async fn sell(
     store::create_order(
         &mut *tx,
         store::OrderDirection::Sell,
-        quantity,
+        input.quantity,
         shares_price,
         fees,
         order_cost_basis,
-        instrument,
-        user,
+        &input.traded_instrument,
+        &input.user,
     )
     .await?;
 
     // Give the user their proceeds.
     system_credit_user(
         &mut tx,
-        user,
+        &input.user,
         system_user,
         shares_price,
-        format!("SELL {} shares {}", quantity, instrument.name).as_str(),
+        format!(
+            "SELL {} shares {}",
+            input.quantity, input.traded_instrument.name
+        )
+        .as_str(),
     )
     .await?;
 
-    // And make the user pay their fees. TODO: direct this to the market owner instead.
+    // And pay the market owner their fees.
     transfer_cash(
         &mut tx,
-        user,
-        system_user,
+        &input.user,
+        &input.market_owner,
         fees,
-        format!("BUY {} shares {} fees", quantity, instrument.name).as_str(),
+        format!(
+            "SELL {} shares {} fees",
+            input.quantity, input.traded_instrument.name
+        )
+        .as_str(),
     )
     .await?;
 

@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-
 use anyhow::anyhow;
 use serenity::all::{GenericChannelId, MessageId, UserId};
 use sqlx::{Executor, QueryBuilder, Sqlite, query, query_as};
 
 use crate::currency::Currency;
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Clone)]
 #[allow(dead_code)]
 pub struct DbUser {
     pub id: i64,
@@ -51,6 +49,28 @@ pub async fn get_user_by_discord_id(
         WHERE 
             discord_id = $1"#,
         discord_id,
+    )
+    .fetch_optional(exec)
+    .await?;
+
+    Ok(user)
+}
+
+pub async fn get_user_by_id(
+    exec: impl Executor<'_, Database = Sqlite>,
+    id: i64,
+) -> anyhow::Result<Option<DbUser>> {
+    let user = query_as!(
+        DbUser,
+        r#"SELECT
+            id,
+            name,
+            discord_id,
+            cash_balance as "cash_balance: Currency"
+        FROM users 
+        WHERE 
+            id = $1"#,
+        id,
     )
     .fetch_optional(exec)
     .await?;
@@ -152,7 +172,34 @@ pub async fn set_market_message_id(
     Ok(())
 }
 
-#[derive(Debug, sqlx::Type)]
+pub async fn get_market_by_id(
+    exec: impl Executor<'_, Database = Sqlite>,
+    id: i64,
+) -> anyhow::Result<Option<Market>> {
+    let market = query_as!(
+        Market,
+        r#"
+        SELECT
+             id, 
+            description, 
+            state as "state: MarketState", 
+            owner_id, 
+            message_id,
+            channel_id
+        FROM
+            markets
+        WHERE
+            id = $1
+        "#,
+        id
+    )
+    .fetch_optional(exec)
+    .await?;
+
+    Ok(market)
+}
+
+#[derive(Debug, sqlx::Type, Clone, Copy)]
 #[sqlx(rename_all = "lowercase")]
 pub enum InstrumentState {
     Open,
@@ -160,7 +207,7 @@ pub enum InstrumentState {
     Loser,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Clone)]
 #[allow(dead_code)]
 pub struct Instrument {
     pub id: i64,
@@ -215,15 +262,18 @@ pub async fn get_instrument_by_id(
     Ok(instrument)
 }
 
-pub async fn get_outstanding_shares_for_market(
+pub async fn get_instruments_with_share_counts_for_market(
     exec: impl Executor<'_, Database = Sqlite>,
     market_id: i64,
-) -> anyhow::Result<HashMap<i64, i64>> {
+) -> anyhow::Result<Vec<(Instrument, i64)>> {
     // Maybe one day we'll cache this data on the instrument but it seems fine for now?
     let rows = query!(
         r#"
             SELECT
                 instruments.id,
+                instruments.name,
+                instruments.state as "state: InstrumentState",
+                instruments.market_id,
                 COALESCE(SUM(quantity), 0) as shares
             FROM
                 instruments
@@ -238,7 +288,20 @@ pub async fn get_outstanding_shares_for_market(
     .fetch_all(exec)
     .await?;
 
-    Ok(rows.iter().map(|r| (r.id, r.shares)).collect())
+    Ok(rows
+        .iter()
+        .map(|r| {
+            (
+                Instrument {
+                    id: r.id,
+                    name: r.name.clone(),
+                    state: r.state,
+                    market_id: r.market_id,
+                },
+                r.shares,
+            )
+        })
+        .collect())
 }
 
 #[derive(Debug, sqlx::FromRow)]
