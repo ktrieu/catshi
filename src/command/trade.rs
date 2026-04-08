@@ -6,6 +6,7 @@ use crate::{
     Handler,
     store::{self, DbUser, Instrument},
     trade::{self, TradeInput},
+    ui::instrument_display_text,
     utils,
 };
 
@@ -74,7 +75,9 @@ pub async fn trade(
         let result = trade::buy(&handler.pool, &input, &system_user).await?;
 
         let msg = format!(
-            "Bought {quantity} shares of instrument {instrument_id}. Total: {} ({} + {} fees)",
+            "Bought {} shares of {}. Total: {} ({} + {} fees)",
+            quantity,
+            instrument_display_text(&input.traded_instrument, &input.market),
             result.total(),
             result.shares_price,
             result.fees
@@ -86,7 +89,9 @@ pub async fn trade(
         let result = trade::sell(&handler.pool, &input, &system_user).await?;
 
         let msg = format!(
-            "Sold {quantity} shares of instrument {instrument_id}. Total: {} ({} - {} fees). Profit {}",
+            "Sold {} shares of {}. Total: {} ({} - {} fees). Profit {}",
+            quantity,
+            instrument_display_text(&input.traded_instrument, &input.market),
             result.net(),
             result.shares_price,
             result.fees,

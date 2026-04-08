@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serenity::all::{Label, ModalInteraction};
 
+use crate::store::{Instrument, Market};
+
 pub mod market_create_modal;
 pub mod market_message;
 
@@ -30,4 +32,16 @@ pub fn extract_modal_values(modal: &'_ ModalInteraction) -> HashMap<&str, &str> 
             _ => None,
         })
         .collect()
+}
+
+pub fn format_market_id(id: i64) -> String {
+    format!("#{id:04}")
+}
+
+pub fn instrument_display_text(instrument: &Instrument, market: &Market) -> String {
+    format!(
+        "{} (market {})",
+        instrument.name,
+        format_market_id(market.id)
+    )
 }

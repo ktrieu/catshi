@@ -105,13 +105,13 @@ impl BuyResult {
 }
 
 pub struct TradeInput {
-    quantity: i64,
-    position: Option<Position>,
-    user: DbUser,
-    _market: Market,
-    market_instruments: Vec<(Instrument, i64)>,
-    traded_instrument: Instrument,
-    market_owner: DbUser,
+    pub quantity: i64,
+    pub position: Option<Position>,
+    pub user: DbUser,
+    pub market: Market,
+    pub market_instruments: Vec<(Instrument, i64)>,
+    pub traded_instrument: Instrument,
+    pub market_owner: DbUser,
 }
 
 impl TradeInput {
@@ -142,7 +142,7 @@ impl TradeInput {
             quantity,
             position,
             user,
-            _market: market,
+            market,
             market_instruments,
             market_owner,
             traded_instrument,
