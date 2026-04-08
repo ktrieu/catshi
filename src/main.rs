@@ -10,7 +10,7 @@ use serenity::{
 };
 use sqlx::SqlitePool;
 
-use crate::{command::trade::parse_trade_button_id, store::DbUser};
+use crate::{command::trade::parse_trade_button_id, currency::Currency, store::DbUser};
 
 mod command;
 mod currency;
@@ -32,6 +32,9 @@ struct Handler {
     pub pool: SqlitePool,
 }
 
+// Everyone starts with 100 YP for now I think.
+const INITIAL_BALANCE: Currency = Currency::new_yp(100);
+
 impl Handler {
     async fn authenticate(&self, ctx: &Context, discord_user: &User) -> anyhow::Result<DbUser> {
         let mut tx = self.pool.begin().await?;
@@ -48,7 +51,9 @@ impl Handler {
                     .unwrap_or(discord_user.name.as_str());
                 let user_id = &discord_user.id.to_string();
 
-                let user = store::insert_user_if_not_exists(&mut *tx, &user_id, &name).await?;
+                let user =
+                    store::insert_user_if_not_exists(&mut *tx, &user_id, &name, INITIAL_BALANCE)
+                        .await?;
 
                 // We're only in this branch if user query above didn't return a user.
                 Ok(user.expect("user should have been created"))

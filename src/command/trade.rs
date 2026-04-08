@@ -70,8 +70,10 @@ pub async fn trade(
         .ok_or(anyhow!("instrument {instrument_id} not found"))?;
     let quantity = 1;
 
+    let system_user = store::get_system_user(&handler.pool).await?;
+
     if action == TradeAction::Buy {
-        let result = trade::buy(&handler.pool, quantity, &instrument, &user).await?;
+        let result = trade::buy(&handler.pool, quantity, &instrument, &user, &system_user).await?;
 
         let msg = format!(
             "Bought {quantity} shares of instrument {instrument_id}. Total: {} ({} + {} fees)",
@@ -83,7 +85,7 @@ pub async fn trade(
             .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
             .await?;
     } else {
-        let result = trade::sell(&handler.pool, quantity, &instrument, &user).await?;
+        let result = trade::sell(&handler.pool, quantity, &instrument, &user, &system_user).await?;
 
         let msg = format!(
             "Sold {quantity} shares of instrument {instrument_id}. Total: {} ({} - {} fees). Profit {}",

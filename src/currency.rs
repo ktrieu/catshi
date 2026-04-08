@@ -19,6 +19,10 @@ impl Currency {
 
         Self(rounded as i64)
     }
+
+    pub const fn new_yp(yp: i64) -> Self {
+        Currency(yp * BIPS_PER_YP)
+    }
 }
 
 impl Display for Currency {

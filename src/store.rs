@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::anyhow;
 use serenity::all::{GenericChannelId, MessageId, UserId};
 use sqlx::{Executor, QueryBuilder, Sqlite, query, query_as};
 
@@ -11,18 +12,21 @@ pub struct DbUser {
     pub id: i64,
     pub discord_id: String,
     pub name: String,
+    pub cash_balance: Currency,
 }
 
 pub async fn insert_user_if_not_exists(
     exec: impl Executor<'_, Database = Sqlite>,
     discord_id: &str,
     name: &str,
+    initial_balance: Currency,
 ) -> anyhow::Result<Option<DbUser>> {
     let user = query_as!(
         DbUser,
-        "INSERT INTO users(discord_id, name) VALUES ($1, $2) ON CONFLICT (discord_id) DO NOTHING RETURNING *",
+        "INSERT INTO users(discord_id, name, cash_balance) VALUES ($1, $2, $3) ON CONFLICT (discord_id) DO NOTHING RETURNING *",
         discord_id,
-        name
+        name,
+        initial_balance,
     )
     .fetch_optional(exec)
     .await?;
@@ -38,13 +42,43 @@ pub async fn get_user_by_discord_id(
 
     let user = query_as!(
         DbUser,
-        "SELECT * FROM users WHERE discord_id = $1",
+        r#"SELECT
+            id,
+            name,
+            discord_id,
+            cash_balance as "cash_balance: Currency"
+        FROM users 
+        WHERE 
+            discord_id = $1"#,
         discord_id,
     )
     .fetch_optional(exec)
     .await?;
 
     Ok(user)
+}
+
+pub async fn get_system_user(exec: impl Executor<'_, Database = Sqlite>) -> anyhow::Result<DbUser> {
+    // By convention the system user has a discord ID of 0, see the migrations.
+    get_user_by_discord_id(exec, &UserId::new(0))
+        .await?
+        .ok_or(anyhow!("system user not found"))
+}
+
+pub async fn increment_balance(
+    exec: impl Executor<'_, Database = Sqlite>,
+    user: &DbUser,
+    amount: Currency,
+) -> anyhow::Result<()> {
+    query!(
+        r#"UPDATE users SET cash_balance = cash_balance + $1 WHERE id = $2"#,
+        amount,
+        user.id,
+    )
+    .execute(exec)
+    .await?;
+
+    Ok(())
 }
 
 #[derive(Debug, sqlx::Type)]
@@ -401,4 +435,52 @@ pub async fn create_order(
     .await?;
 
     Ok(order)
+}
+
+#[derive(Debug, sqlx::FromRow)]
+#[allow(dead_code)]
+pub struct Transfer {
+    pub id: i64,
+    pub amount: Currency,
+    pub sender: i64,
+    pub receiver: i64,
+    pub memo: String,
+}
+
+pub struct CreateTransfer {
+    pub amount: Currency,
+    pub sender: i64,
+    pub receiver: i64,
+    pub memo: String,
+}
+
+pub async fn insert_transfer(
+    exec: impl Executor<'_, Database = Sqlite>,
+    create: CreateTransfer,
+) -> anyhow::Result<Transfer> {
+    let transfer = query_as!(
+        Transfer,
+        r#"
+        INSERT INTO transfers (
+            amount,
+            sender,
+            receiver,
+            memo
+        ) VALUES ($1, $2, $3, $4)
+        RETURNING
+            id,
+            amount as "amount: Currency",
+            sender,
+            receiver,
+            memo
+        "#,
+        create.amount,
+        create.sender,
+        create.receiver,
+        create.memo,
+    )
+    .fetch_one(exec)
+    .await?;
+
+    Ok(transfer)
 }

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use anyhow::bail;
-use sqlx::SqlitePool;
+use sqlx::{Sqlite, SqlitePool, Transaction};
 
 use crate::{
     currency::Currency,
-    store::{self, DbUser, Instrument},
+    store::{self, CreateTransfer, DbUser, Instrument},
 };
 
 pub const MARKET_B: f32 = 10.0f32;
@@ -57,11 +57,61 @@ impl BuyResult {
     }
 }
 
+async fn transfer_cash(
+    tx: &mut Transaction<'_, Sqlite>,
+    sender: &DbUser,
+    receiver: &DbUser,
+    amount: Currency,
+    memo: &str,
+) -> anyhow::Result<()> {
+    // 1. Create the transfer.
+    let create = CreateTransfer {
+        amount,
+        sender: sender.id,
+        receiver: receiver.id,
+        memo: memo.to_owned(),
+    };
+    store::insert_transfer(&mut **tx, create).await?;
+
+    // 2. Credit the receiving account.
+    store::increment_balance(&mut **tx, receiver, amount).await?;
+
+    // 3. Debit the sending account.
+    store::increment_balance(&mut **tx, sender, -amount).await?;
+
+    Ok(())
+}
+
+async fn system_credit_user(
+    tx: &mut Transaction<'_, Sqlite>,
+    user: &DbUser,
+    system_user: &DbUser,
+    amount: Currency,
+    memo: &str,
+) -> anyhow::Result<()> {
+    transfer_cash(tx, system_user, user, amount, memo).await?;
+
+    Ok(())
+}
+
+async fn system_debit_user(
+    tx: &mut Transaction<'_, Sqlite>,
+    user: &DbUser,
+    system_user: &DbUser,
+    amount: Currency,
+    memo: &str,
+) -> anyhow::Result<()> {
+    transfer_cash(tx, user, system_user, amount, memo).await?;
+
+    Ok(())
+}
+
 pub async fn buy(
     pool: &SqlitePool,
     quantity: i64,
     instrument: &Instrument,
     user: &DbUser,
+    system_user: &DbUser,
 ) -> anyhow::Result<BuyResult> {
     let mut tx = pool.begin().await?;
 
@@ -93,6 +143,26 @@ pub async fn buy(
     )
     .await?;
 
+    // Make the user pay for their shares.
+    system_debit_user(
+        &mut tx,
+        user,
+        system_user,
+        shares_price,
+        format!("BUY {} shares {}", quantity, instrument.name).as_str(),
+    )
+    .await?;
+
+    // And make the user pay their fees. TODO: direct this to the market owner instead.
+    transfer_cash(
+        &mut tx,
+        user,
+        system_user,
+        fees,
+        format!("BUY {} shares {} fees", quantity, instrument.name).as_str(),
+    )
+    .await?;
+
     tx.commit().await?;
 
     Ok(BuyResult { shares_price, fees })
@@ -119,6 +189,7 @@ pub async fn sell(
     quantity: i64,
     instrument: &Instrument,
     user: &DbUser,
+    system_user: &DbUser,
 ) -> anyhow::Result<SellResult> {
     let mut tx = pool.begin().await?;
 
@@ -181,6 +252,26 @@ pub async fn sell(
         order_cost_basis,
         instrument,
         user,
+    )
+    .await?;
+
+    // Give the user their proceeds.
+    system_credit_user(
+        &mut tx,
+        user,
+        system_user,
+        shares_price,
+        format!("SELL {} shares {}", quantity, instrument.name).as_str(),
+    )
+    .await?;
+
+    // And make the user pay their fees. TODO: direct this to the market owner instead.
+    transfer_cash(
+        &mut tx,
+        user,
+        system_user,
+        fees,
+        format!("BUY {} shares {} fees", quantity, instrument.name).as_str(),
     )
     .await?;
 
