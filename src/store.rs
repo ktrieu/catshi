@@ -537,6 +537,7 @@ pub struct Transfer {
     pub sender: i64,
     pub receiver: i64,
     pub memo: String,
+    pub created_at: i64,
 }
 
 pub struct CreateTransfer {
@@ -564,7 +565,8 @@ pub async fn insert_transfer(
             amount as "amount: Currency",
             sender,
             receiver,
-            memo
+            memo,
+            created_at
         "#,
         create.amount,
         create.sender,
