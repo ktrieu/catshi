@@ -10,7 +10,10 @@ use serenity::{
 };
 use sqlx::SqlitePool;
 
-use crate::{command::trade::parse_trade_button_id, currency::Currency, store::DbUser};
+use crate::{
+    command::trade::parse_trade_button_id, currency::Currency, store::DbUser,
+    ui::trade_flow::parse_trade_modal_id,
+};
 
 mod command;
 mod currency;
@@ -116,11 +119,10 @@ impl Handler {
     async fn handle_modal(&self, ctx: &Context, modal: &ModalInteraction) -> anyhow::Result<()> {
         let user = self.authenticate(ctx, &modal.user).await?;
 
-        match modal.data.custom_id.as_str() {
-            ui::market_create_modal::MODAL_ID => {
-                command::market::modal_submit(ctx, &self, &modal, &user).await?
-            }
-            _ => {}
+        if let Some((trade_action, instrument_id)) = parse_trade_modal_id(&modal.data.custom_id) {
+            command::trade::trade(ctx, &self, &user, modal, trade_action, instrument_id).await?;
+        } else if modal.data.custom_id == ui::market_create_modal::MODAL_ID {
+            command::market::modal_submit(ctx, &self, &modal, &user).await?
         };
 
         Ok(())
@@ -134,7 +136,8 @@ impl Handler {
         let user = self.authenticate(ctx, &component.user).await?;
 
         if let Some((action, instrument_id)) = parse_trade_button_id(&component.data.custom_id) {
-            command::trade::trade(ctx, &self, &user, component, action, instrument_id).await?;
+            command::trade::initiate_trade(ctx, &self, &user, component, action, instrument_id)
+                .await?;
         }
 
         Ok(())

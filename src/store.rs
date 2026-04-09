@@ -199,6 +199,35 @@ pub async fn get_market_by_id(
     Ok(market)
 }
 
+pub async fn get_market_by_instrument_id(
+    exec: impl Executor<'_, Database = Sqlite>,
+    instrument_id: i64,
+) -> anyhow::Result<Option<Market>> {
+    let market = query_as!(
+        Market,
+        r#"
+        SELECT
+            markets.id, 
+            markets.description, 
+            markets.state as "state: MarketState", 
+            markets.owner_id, 
+            markets.message_id,
+            markets.channel_id
+        FROM
+            markets
+        JOIN
+            instruments ON instruments.market_id = markets.id
+        WHERE
+            instruments.id = $1
+        "#,
+        instrument_id
+    )
+    .fetch_optional(exec)
+    .await?;
+
+    Ok(market)
+}
+
 #[derive(Debug, sqlx::Type, Clone, Copy)]
 #[sqlx(rename_all = "lowercase")]
 pub enum InstrumentState {

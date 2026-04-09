@@ -20,6 +20,12 @@ impl Currency {
         Self(rounded as i64)
     }
 
+    pub fn as_instrument_price(&self) -> f32 {
+        // Convert from currency to a fractional number of 100% instruments.
+
+        self.0 as f32 / BIPS_PER_YP as f32
+    }
+
     pub const fn new_yp(yp: i64) -> Self {
         Currency(yp * BIPS_PER_YP)
     }

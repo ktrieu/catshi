@@ -88,7 +88,57 @@ pub fn calc_cost_delta<'s>(
     Currency::from_instrument_price(total_price)
 }
 
-fn calc_fees(shares_price: Currency) -> Currency {
+pub fn calc_price_raw<'s>(
+    instrument_id: i64,
+    shares: impl Iterator<Item = &'s (Instrument, i64)> + Clone,
+    b: f32,
+) -> f32 {
+    let all_sum: f32 = shares
+        .clone()
+        .map(|(_, count)| (*count as f32 / b).exp())
+        .sum();
+
+    let selected = shares
+        .clone()
+        .find(|(instrument, _)| instrument.id == instrument_id)
+        .expect("instrument should be in instruments list");
+
+    let selected_price_exp = (selected.1 as f32 / b).exp();
+
+    selected_price_exp / all_sum
+}
+
+pub fn calc_price<'s>(
+    instrument_id: i64,
+    shares: impl Iterator<Item = &'s (Instrument, i64)> + Clone,
+    b: f32,
+) -> Currency {
+    Currency::from_instrument_price(calc_price_raw(instrument_id, shares, b))
+}
+
+pub fn get_max_buy_shares<'s>(
+    budget: Currency,
+    instrument_id: i64,
+    shares: impl Iterator<Item = &'s (Instrument, i64)> + Clone,
+    b: f32,
+) -> (i64, Currency) {
+    let price = calc_price_raw(instrument_id, shares.clone(), b);
+    let inv_price = 1f32 - price;
+
+    let inner = ((budget.as_instrument_price() / b).exp() - inv_price) / price;
+
+    let raw_max = b * inner.ln();
+
+    // Round down to calculate the max buy.
+    let max_shares = raw_max.floor() as i64;
+
+    // Calculate the cost we would have spent as well.
+    let cost = calc_cost_delta(max_shares, instrument_id, shares.clone(), b);
+
+    (max_shares, cost)
+}
+
+pub fn calc_fees(shares_price: Currency) -> Currency {
     // Flat two percent.
     shares_price * 0.02f32
 }

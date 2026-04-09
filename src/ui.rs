@@ -6,6 +6,7 @@ use crate::store::{Instrument, Market};
 
 pub mod market_create_modal;
 pub mod market_message;
+pub mod trade_flow;
 
 fn extract_label_value(label: &Label) -> Option<(&str, &str)> {
     // For now, we only use input text values.
