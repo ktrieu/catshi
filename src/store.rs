@@ -291,10 +291,12 @@ pub async fn get_instrument_by_id(
     Ok(instrument)
 }
 
+pub type InstrumentWithShares = (Instrument, i64);
+
 pub async fn get_instruments_with_share_counts_for_market(
     exec: impl Executor<'_, Database = Sqlite>,
     market_id: i64,
-) -> anyhow::Result<Vec<(Instrument, i64)>> {
+) -> anyhow::Result<Vec<InstrumentWithShares>> {
     // Maybe one day we'll cache this data on the instrument but it seems fine for now?
     let rows = query!(
         r#"

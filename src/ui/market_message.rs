@@ -4,12 +4,13 @@ use serenity::all::{
 
 use crate::{
     command::trade::{TradeAction, get_trade_button_id},
-    store::{Instrument, Market},
+    store::{InstrumentWithShares, Market},
+    trade,
 };
 
 pub fn render_market_message<'a>(
     market: &'a Market,
-    instruments: &'a [Instrument],
+    instruments: impl Iterator<Item = &'a InstrumentWithShares> + Clone,
 ) -> Vec<CreateComponent<'a>> {
     let title = CreateTextDisplay::new(format!("## Market #{:04}", market.id));
 
@@ -21,9 +22,10 @@ pub fn render_market_message<'a>(
         CreateComponent::Separator(CreateSeparator::new()),
     ];
 
-    for i in instruments {
-        let name = CreateTextDisplay::new(&i.name);
-        components.push(CreateComponent::TextDisplay(name));
+    for (i, _) in instruments.clone() {
+        let price = trade::calc_price(i.id, instruments.clone(), trade::MARKET_B);
+        let desc_label = CreateTextDisplay::new(format!("{} ({})", i.name, price));
+        components.push(CreateComponent::TextDisplay(desc_label));
 
         let buttons = vec![
             CreateButton::new(get_trade_button_id(i, TradeAction::Buy))

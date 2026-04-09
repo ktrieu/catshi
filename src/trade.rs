@@ -3,7 +3,7 @@ use sqlx::{Executor, Sqlite, SqlitePool, Transaction};
 
 use crate::{
     currency::Currency,
-    store::{self, CreateTransfer, DbUser, Instrument, Market, Position},
+    store::{self, CreateTransfer, DbUser, Instrument, InstrumentWithShares, Market, Position},
 };
 
 async fn transfer_cash(
@@ -66,7 +66,7 @@ fn cost(share_counts: impl IntoIterator<Item = i64>, b: f32) -> f32 {
 pub fn calc_cost_delta<'s>(
     quantity: i64,
     instrument_id: i64,
-    shares: impl Iterator<Item = &'s (Instrument, i64)> + Clone,
+    shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
 ) -> Currency {
     // Pre cost is the current state of the market.
@@ -90,7 +90,7 @@ pub fn calc_cost_delta<'s>(
 
 pub fn calc_price_raw<'s>(
     instrument_id: i64,
-    shares: impl Iterator<Item = &'s (Instrument, i64)> + Clone,
+    shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
 ) -> f32 {
     let all_sum: f32 = shares
@@ -110,7 +110,7 @@ pub fn calc_price_raw<'s>(
 
 pub fn calc_price<'s>(
     instrument_id: i64,
-    shares: impl Iterator<Item = &'s (Instrument, i64)> + Clone,
+    shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
 ) -> Currency {
     Currency::from_instrument_price(calc_price_raw(instrument_id, shares, b))
@@ -119,7 +119,7 @@ pub fn calc_price<'s>(
 pub fn get_max_buy_shares<'s>(
     budget: Currency,
     instrument_id: i64,
-    shares: impl Iterator<Item = &'s (Instrument, i64)> + Clone,
+    shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
 ) -> (i64, Currency) {
     let price = calc_price_raw(instrument_id, shares.clone(), b);
@@ -159,7 +159,7 @@ pub struct TradeInput {
     pub position: Option<Position>,
     pub user: DbUser,
     pub market: Market,
-    pub market_instruments: Vec<(Instrument, i64)>,
+    pub market_instruments: Vec<InstrumentWithShares>,
     pub traded_instrument: Instrument,
     pub market_owner: DbUser,
 }

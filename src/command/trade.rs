@@ -1,7 +1,10 @@
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use serenity::all::{ComponentInteraction, Context, CreateInteractionResponse, ModalInteraction};
+use serenity::all::{
+    ComponentInteraction, Context, CreateInteractionResponse, EditMessage, GenericChannelId,
+    MessageId, ModalInteraction,
+};
 
 use crate::{
     Handler,
@@ -10,6 +13,7 @@ use crate::{
     trade::{self, TradeInput},
     ui::{
         instrument_display_text,
+        market_message::render_market_message,
         trade_flow::{create_trade_modal, extract_quantity_from_trade_modal},
     },
     utils,
@@ -185,6 +189,38 @@ pub async fn trade(
             .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
             .await?;
     }
+
+    let msg_id = input
+        .market
+        .message_id
+        .as_ref()
+        .ok_or(anyhow!(
+            "message ID not found for market {}",
+            input.market.id
+        ))?
+        .parse::<u64>()?;
+    let channel_id = input
+        .market
+        .channel_id
+        .as_ref()
+        .ok_or(anyhow!(
+            "channel ID not found for market {}",
+            input.market.id
+        ))?
+        .parse::<u64>()?;
+
+    let mut msg = ctx
+        .http
+        .get_message(GenericChannelId::new(channel_id), MessageId::new(msg_id))
+        .await?;
+
+    // Refetch the instruments after the trade is complete to update the market.
+    let instruments =
+        store::get_instruments_with_share_counts_for_market(&handler.pool, input.market.id).await?;
+    let market_message = render_market_message(&input.market, instruments.iter());
+
+    msg.edit(&ctx.http, EditMessage::new().components(market_message))
+        .await?;
 
     Ok(())
 }

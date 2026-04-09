@@ -5,7 +5,7 @@ use serenity::all::{
 
 use crate::{
     Handler,
-    store::{self, DbUser},
+    store::{self, DbUser, InstrumentWithShares},
     ui::{market_create_modal, market_message},
 };
 
@@ -45,8 +45,13 @@ pub async fn modal_submit(
     let instruments =
         store::insert_market_instruments(&mut *tx, &new_market, &values.options).await?;
 
+    // We just created this market! Each instrument has 0 shares.
+    let instruments_with_shares: Vec<InstrumentWithShares> =
+        instruments.into_iter().map(|i| (i, 0)).collect();
+
     let resp_channel = modal.channel_id;
-    let resp_components = market_message::render_market_message(&new_market, &instruments);
+    let resp_components =
+        market_message::render_market_message(&new_market, instruments_with_shares.iter());
     let message = resp_channel
         .send_message(
             &ctx.http,
