@@ -155,12 +155,15 @@ pub async fn trade(
         }
     };
 
-    let input = TradeInput::new(&handler.pool, instrument_id, quantity, (*user).clone()).await?;
+    let mut tx = handler.pool.begin().await?;
+
+    let input = TradeInput::new(&mut tx, instrument_id, quantity, (*user).clone()).await?;
 
     let system_user = store::get_system_user(&handler.pool).await?;
 
     if action == TradeAction::Buy {
-        let result = trade::buy(&handler.pool, &input, &system_user).await?;
+        let result = trade::buy(&input).await?;
+        result.persist(&mut tx, &system_user).await?;
 
         let msg = format!(
             "Bought {} shares of {}. Total: {} ({} + {} fees)",
@@ -174,7 +177,8 @@ pub async fn trade(
             .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
             .await?;
     } else {
-        let result = trade::sell(&handler.pool, &input, &system_user).await?;
+        let result = trade::sell(&input).await?;
+        result.persist(&mut tx, &system_user).await?;
 
         let msg = format!(
             "Sold {} shares of {}. Total: {} ({} - {} fees). Profit {}",
@@ -189,6 +193,8 @@ pub async fn trade(
             .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
             .await?;
     }
+
+    tx.commit().await?;
 
     let msg_id = input
         .market
