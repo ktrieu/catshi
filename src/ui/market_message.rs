@@ -8,6 +8,24 @@ use crate::{
     trade,
 };
 
+pub fn get_market_resolve_id(market: &Market) -> String {
+    format!("resolve_button|{}", market.id)
+}
+
+pub fn parse_market_resolve_id(id: &str) -> Option<i64> {
+    let components: Vec<&str> = id.split('|').collect();
+
+    if components.len() != 2 {
+        return None;
+    };
+
+    if components[0] != "resolve_button" {
+        return None;
+    }
+
+    components[1].parse::<i64>().ok()
+}
+
 pub fn render_market_message<'a>(
     market: &'a Market,
     instruments: impl Iterator<Item = &'a InstrumentWithShares> + Clone,
@@ -39,6 +57,18 @@ pub fn render_market_message<'a>(
         let row = CreateActionRow::buttons(buttons);
         components.push(CreateComponent::ActionRow(row));
     }
+
+    components.push(CreateComponent::Separator(CreateSeparator::new()));
+
+    let resolve_button = vec![
+        CreateButton::new(get_market_resolve_id(market))
+            .label("Resolve")
+            .style(ButtonStyle::Secondary),
+    ];
+
+    components.push(CreateComponent::ActionRow(CreateActionRow::Buttons(
+        resolve_button.into(),
+    )));
 
     components
 }
