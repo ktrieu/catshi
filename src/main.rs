@@ -11,8 +11,10 @@ use serenity::{
 use sqlx::SqlitePool;
 
 use crate::{
-    command::trade::parse_trade_button_id, currency::Currency, store::DbUser,
-    ui::trade_flow::parse_trade_modal_id,
+    command::trade::parse_trade_button_id,
+    currency::Currency,
+    store::DbUser,
+    ui::{market_message::parse_market_resolve_button_id, trade_flow::parse_trade_modal_id},
 };
 
 mod command;
@@ -138,6 +140,8 @@ impl Handler {
         if let Some((action, instrument_id)) = parse_trade_button_id(&component.data.custom_id) {
             command::trade::initiate_trade(ctx, &self, &user, component, action, instrument_id)
                 .await?;
+        } else if let Some(market_id) = parse_market_resolve_button_id(&component.data.custom_id) {
+            command::resolve::handle_resolve(ctx, &self, market_id, &component, &user).await?;
         }
 
         Ok(())
