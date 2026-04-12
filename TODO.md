@@ -5,6 +5,8 @@
 - ~~trade checks (NSF, not enough shares)~~
     - ~~include helpful messages~~
 - better profit/loss view on resolve
+- BUG: prices hit zero/other odd behaviour with high share counts
+    - maybe adjust b factor to make prices adjust less aggressively
 -- MVP LINE -- 
 - e-transfer command
 - order history
