@@ -101,7 +101,7 @@ pub async fn increment_balance(
     Ok(())
 }
 
-#[derive(Debug, sqlx::Type)]
+#[derive(Debug, sqlx::Type, Clone, Copy, PartialEq, Eq)]
 #[sqlx(rename_all = "lowercase")]
 pub enum MarketState {
     Open,
@@ -228,7 +228,30 @@ pub async fn get_market_by_instrument_id(
     Ok(market)
 }
 
-#[derive(Debug, sqlx::Type, Clone, Copy)]
+pub async fn set_market_state(
+    exec: impl Executor<'_, Database = Sqlite>,
+    market: &Market,
+    state: MarketState,
+) -> anyhow::Result<()> {
+    query!(
+        r#"
+        UPDATE
+            markets
+        SET
+            state = $1
+        WHERE
+            id = $2
+        "#,
+        state,
+        market.id,
+    )
+    .execute(exec)
+    .await?;
+
+    Ok(())
+}
+
+#[derive(Debug, sqlx::Type, Clone, Copy, PartialEq, Eq)]
 #[sqlx(rename_all = "lowercase")]
 pub enum InstrumentState {
     Open,
@@ -289,6 +312,29 @@ pub async fn get_instrument_by_id(
     .await?;
 
     Ok(instrument)
+}
+
+pub async fn set_instrument_state(
+    exec: impl Executor<'_, Database = Sqlite>,
+    instrument: &Instrument,
+    state: InstrumentState,
+) -> anyhow::Result<()> {
+    query!(
+        r#"
+        UPDATE
+            instruments
+        SET 
+            state = $1
+        WHERE
+            id = $2
+        "#,
+        state,
+        instrument.id
+    )
+    .execute(exec)
+    .await?;
+
+    Ok(())
 }
 
 pub type InstrumentWithShares = (Instrument, i64);
@@ -459,6 +505,61 @@ pub async fn decrease_position(
     .await?;
 
     Ok(position)
+}
+
+#[derive(Debug)]
+pub struct PositionWithUser {
+    pub position: Position,
+    pub user: DbUser,
+}
+
+pub async fn get_all_market_positions(
+    exec: impl Executor<'_, Database = Sqlite>,
+    market_id: i64,
+) -> anyhow::Result<Vec<PositionWithUser>> {
+    let positions = query!(
+        r#"
+        SELECT
+            positions.id,
+            positions.quantity,
+            positions.cost_basis,
+            positions.instrument_id,
+            positions.owner_id,
+            users.id as users_id,
+            users.name as users_name,
+            users.discord_id as users_discord_id,
+            users.cash_balance as users_cash_balance
+        FROM positions
+        JOIN
+            instruments ON instruments.id = instrument_id
+        JOIN
+            users on users.id = owner_id
+        WHERE
+            instruments.market_id = $1
+        "#,
+        market_id
+    )
+    .fetch_all(exec)
+    .await?
+    .into_iter()
+    .map(|r| PositionWithUser {
+        position: Position {
+            id: r.id,
+            quantity: r.quantity,
+            cost_basis: Currency::from(r.cost_basis),
+            instrument_id: r.instrument_id,
+            owner_id: r.owner_id,
+        },
+        user: DbUser {
+            id: r.users_id,
+            discord_id: r.users_discord_id,
+            name: r.users_name,
+            cash_balance: Currency::from(r.users_cash_balance),
+        },
+    })
+    .collect();
+
+    Ok(positions)
 }
 
 #[derive(Debug, sqlx::Type)]

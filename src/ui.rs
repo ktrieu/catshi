@@ -17,6 +17,10 @@ fn extract_label_value(label: &Label) -> Option<(&str, &str)> {
             let val = input_text.value.as_deref();
             val.map(|val| (input_text.custom_id.as_str(), val))
         }
+        serenity::all::LabelComponent::SelectMenu(menu) => {
+            let val = menu.values.get(0);
+            val.map(|val| (menu.custom_id.as_str(), val.as_str()))
+        }
         _ => None,
     }
 }

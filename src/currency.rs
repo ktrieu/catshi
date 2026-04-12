@@ -80,6 +80,16 @@ impl Mul<f32> for Currency {
     }
 }
 
+impl Mul<i64> for Currency {
+    type Output = Self;
+
+    fn mul(self, rhs: i64) -> Self::Output {
+        let raw = self.0 * rhs;
+
+        Currency(raw)
+    }
+}
+
 impl From<Currency> for i64 {
     fn from(value: Currency) -> Self {
         value.0

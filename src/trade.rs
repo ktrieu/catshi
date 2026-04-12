@@ -3,7 +3,10 @@ use sqlx::{Sqlite, Transaction};
 
 use crate::{
     currency::Currency,
-    store::{self, CreateTransfer, DbUser, Instrument, InstrumentWithShares, Market, Position},
+    store::{
+        self, CreateTransfer, DbUser, Instrument, InstrumentWithShares, Market, Position,
+        PositionWithUser,
+    },
 };
 
 async fn transfer_cash(
@@ -413,4 +416,181 @@ pub async fn sell<'i>(input: &'i TradeInput) -> anyhow::Result<SellResult<'i>> {
         order_cost_basis,
         input,
     })
+}
+
+#[derive(Debug)]
+pub struct ResolveInput {
+    pub market: Market,
+    pub market_owner: DbUser,
+    pub market_instruments: Vec<InstrumentWithShares>,
+    pub winner: Instrument,
+    pub all_positions: Vec<PositionWithUser>,
+}
+
+impl ResolveInput {
+    pub async fn new(
+        tx: &mut Transaction<'_, Sqlite>,
+        market_id: i64,
+        winning_instrument_id: i64,
+    ) -> anyhow::Result<Self> {
+        let market = store::get_market_by_id(&mut **tx, market_id)
+            .await?
+            .ok_or(anyhow!("market {market_id} not found"))?;
+
+        let market_owner = store::get_user_by_id(&mut **tx, market.owner_id)
+            .await?
+            .ok_or(anyhow!("market owner {} not found", market.owner_id))?;
+
+        let market_instruments =
+            store::get_instruments_with_share_counts_for_market(&mut **tx, market_id).await?;
+
+        let winner = market_instruments
+            .iter()
+            .find_map(|(i, _)| {
+                if i.id == winning_instrument_id {
+                    Some(i)
+                } else {
+                    None
+                }
+            })
+            .ok_or(anyhow!(
+                "winning instrument {winning_instrument_id} does not exist"
+            ))?
+            .clone();
+
+        let all_positions = store::get_all_market_positions(&mut **tx, market_id).await?;
+
+        Ok(Self {
+            market,
+            market_owner,
+            market_instruments,
+            winner,
+            all_positions,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct ResolveResult<'i> {
+    pub quantity: i64,
+    pub shares_price: Currency,
+    pub fees: Currency,
+    pub instrument: &'i Instrument,
+    pub user: &'i DbUser,
+    pub market_owner: &'i DbUser,
+    pub cost_basis: Currency,
+}
+
+impl<'i> ResolveResult<'i> {
+    pub async fn persist(
+        &self,
+        tx: &mut Transaction<'_, Sqlite>,
+        system_user: &DbUser,
+    ) -> anyhow::Result<()> {
+        // Close out the position.
+        store::decrease_position(
+            &mut **tx,
+            self.quantity,
+            Currency::from(0),
+            self.instrument,
+            self.user,
+        )
+        .await?;
+
+        // Create the sell order.
+        store::create_order(
+            &mut **tx,
+            store::OrderDirection::Sell,
+            self.quantity,
+            self.shares_price,
+            self.fees,
+            self.cost_basis,
+            self.instrument,
+            self.user,
+        )
+        .await?;
+
+        // Only transfer money if it actually changes hands
+        if self.shares_price != Currency::from(0) {
+            // Give the user their proceeds.
+            system_credit_user(
+                tx,
+                &self.user,
+                system_user,
+                self.shares_price,
+                format!("SELL {} shares {}", self.quantity, self.instrument.name).as_str(),
+            )
+            .await?;
+        };
+
+        if self.fees != Currency::from(0) {
+            // And pay the market owner their fees.
+            transfer_cash(
+                tx,
+                &self.user,
+                &self.market_owner,
+                self.fees,
+                format!(
+                    "SELL {} shares {} fees",
+                    self.quantity, self.instrument.name
+                )
+                .as_str(),
+            )
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    pub fn profit(&self) -> Currency {
+        self.shares_price - self.fees - self.cost_basis
+    }
+}
+
+pub async fn resolve<'i>(input: &'i ResolveInput) -> anyhow::Result<Vec<ResolveResult<'i>>> {
+    let mut results: Vec<ResolveResult> = Vec::new();
+
+    for p in &input.all_positions {
+        let position = &p.position;
+        let user = &p.user;
+
+        // We're closing out the whole position.
+        let quantity = position.quantity;
+        let cost_basis = position.cost_basis;
+        let instrument = &input
+            .market_instruments
+            .iter()
+            .find(|(i, _)| i.id == position.instrument_id)
+            .ok_or(anyhow!(
+                "instrument {} not in instruments list",
+                position.instrument_id
+            ))?
+            .0;
+
+        let (share_price, fees) = if position.instrument_id == input.winner.id {
+            let share_price = Currency::from_instrument_price(1.0) * position.quantity;
+            let fees = calc_fees(share_price);
+
+            (share_price, fees)
+        } else {
+            // You get nothing. Sorry.
+            let share_price = Currency::from_instrument_price(0.0);
+            // Well you know we might change the fee calculation later to charge money on zero prices.
+            let fees = calc_fees(share_price);
+
+            (share_price, fees)
+        };
+
+        results.push(ResolveResult {
+            shares_price: share_price,
+            cost_basis,
+            quantity,
+            fees,
+            instrument: &instrument,
+            user,
+            market_owner: &input.market_owner,
+        });
+    }
+
+    Ok(results)
 }

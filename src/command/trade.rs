@@ -228,5 +228,10 @@ pub async fn trade(
     msg.edit(&ctx.http, EditMessage::new().components(market_message))
         .await?;
 
+    let market_message = render_market_message(&input.market, instruments.iter());
+
+    msg.edit(&ctx.http, EditMessage::new().components(market_message))
+        .await?;
+
     Ok(())
 }
