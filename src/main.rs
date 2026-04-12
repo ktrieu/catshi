@@ -86,6 +86,7 @@ impl Handler {
         };
 
         if let Err(e) = result {
+            dbg!(&e);
             let msg = format!("Internal error: {}", e.to_string());
             let response = utils::text_interaction_response(&msg, true);
             let send_result = match &interaction {
@@ -97,8 +98,9 @@ impl Handler {
                 _ => Ok(()),
             };
 
-            if let Err(_) = send_result {
+            if let Err(e) = send_result {
                 // Dang, that sucks. Just log this error we have logging.
+                dbg!(e);
             }
         }
     }

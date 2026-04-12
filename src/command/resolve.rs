@@ -139,30 +139,35 @@ pub async fn resolve(
 
     tx.commit().await?;
 
-    let mut profits: HashMap<i64, Currency> = HashMap::new();
+    // Only show the profit result msg if there were actually any positions closed out.
+    if results.len() != 0 {
+        let mut profits: HashMap<i64, Currency> = HashMap::new();
 
-    for r in &results {
-        let entry = profits.entry(r.user.id);
+        for r in &results {
+            let entry = profits.entry(r.user.id);
 
-        let user_profit = entry.or_insert(Currency::from(0));
-        *user_profit = *user_profit + r.profit();
+            let user_profit = entry.or_insert(Currency::from(0));
+            *user_profit = *user_profit + r.profit();
+        }
+
+        let mut profits: Vec<(i64, Currency)> = profits.into_iter().collect();
+        profits.sort_by_key(|(_, profit)| Reverse(*profit));
+
+        // TODO: replace this with proper table production code.
+        let rows: Vec<String> = profits
+            .iter()
+            .map(|(user_id, profit)| format!("{user_id} {profit}"))
+            .collect();
+
+        modal
+            .create_response(
+                &ctx.http,
+                utils::text_interaction_response(&rows.join("\n"), false),
+            )
+            .await?;
+    } else {
+        modal.defer(&ctx.http).await?;
     }
-
-    let mut profits: Vec<(i64, Currency)> = profits.into_iter().collect();
-    profits.sort_by_key(|(_, profit)| Reverse(*profit));
-
-    // TODO: replace this with proper table production code.
-    let rows: Vec<String> = profits
-        .iter()
-        .map(|(user_id, profit)| format!("{user_id} {profit}"))
-        .collect();
-
-    modal
-        .create_response(
-            &ctx.http,
-            utils::text_interaction_response(&rows.join("\n"), false),
-        )
-        .await?;
 
     // Refetch and re-render market message.
     let market = store::get_market_by_id(&handler.pool, market_id)
