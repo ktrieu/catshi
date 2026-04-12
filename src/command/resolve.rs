@@ -1,6 +1,7 @@
 use serenity::all::{
     ComponentInteraction, Context, CreateInteractionResponse, CreateLabel, CreateModal,
     CreateModalComponent, CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption,
+    ModalInteraction,
 };
 
 use crate::{
@@ -9,7 +10,7 @@ use crate::{
     ui::format_market_id,
     utils,
 };
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 
 pub const RESOLVE_INSTRUMENT_ID: &'static str = "resolve_market_instrument";
 
@@ -31,7 +32,7 @@ pub fn parse_market_resolve_modal_id(id: &str) -> Option<i64> {
     components[1].parse::<i64>().ok()
 }
 
-pub async fn handle_resolve(
+pub async fn initiate_resolve(
     ctx: &Context,
     handler: &Handler,
     market_id: i64,
@@ -78,6 +79,26 @@ pub async fn handle_resolve(
     component
         .create_response(&ctx.http, CreateInteractionResponse::Modal(modal))
         .await?;
+
+    Ok(())
+}
+
+pub async fn resolve(
+    ctx: &Context,
+    handler: &Handler,
+    market_id: i64,
+    modal: &ModalInteraction,
+    user: &DbUser,
+) -> anyhow::Result<()> {
+    let market = store::get_market_by_id(&handler.pool, market_id)
+        .await?
+        .ok_or(anyhow!("market {market_id} not found"))?;
+
+    // This shouldn't happen and should be caught by the modal initiation logic. Double-check here
+    // but just raise a raw error.
+    if market.owner_id != user.id {
+        bail!("user {} was not the owner of market {}", user.id, market.id);
+    }
 
     Ok(())
 }

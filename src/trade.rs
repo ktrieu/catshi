@@ -1,9 +1,12 @@
 use anyhow::{anyhow, bail};
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Database, Sqlite, Transaction};
 
 use crate::{
     currency::Currency,
-    store::{self, CreateTransfer, DbUser, Instrument, InstrumentWithShares, Market, Position},
+    store::{
+        self, CreateTransfer, DbUser, Instrument, InstrumentWithShares, Market, Position,
+        PositionWithUser,
+    },
 };
 
 async fn transfer_cash(
@@ -413,4 +416,63 @@ pub async fn sell<'i>(input: &'i TradeInput) -> anyhow::Result<SellResult<'i>> {
         order_cost_basis,
         input,
     })
+}
+
+pub struct ResolveInput {
+    pub market: Market,
+    pub market_instruments: Vec<InstrumentWithShares>,
+    pub winner: Instrument,
+    pub all_positions: Vec<PositionWithUser>,
+}
+
+impl ResolveInput {
+    pub async fn new(
+        tx: &mut Transaction<'_, Sqlite>,
+        market_id: i64,
+        winning_instrument_id: i64,
+    ) -> anyhow::Result<Self> {
+        let market = store::get_market_by_id(&mut **tx, market_id)
+            .await?
+            .ok_or(anyhow!("market {market_id} not found"))?;
+
+        let market_instruments =
+            store::get_instruments_with_share_counts_for_market(&mut **tx, market_id).await?;
+
+        let winner = market_instruments
+            .iter()
+            .find_map(|(i, _)| {
+                if i.id == winning_instrument_id {
+                    Some(i)
+                } else {
+                    None
+                }
+            })
+            .ok_or(anyhow!(
+                "winning instrument {winning_instrument_id} does not exist"
+            ))?
+            .clone();
+
+        let all_positions = store::get_all_market_positions(&mut **tx, market_id).await?;
+
+        Ok(Self {
+            market,
+            market_instruments,
+            winner,
+            all_positions,
+        })
+    }
+}
+
+pub struct ResolveResult<'i> {
+    pub instrument: &'i Instrument,
+    pub user: &'i DbUser,
+    pub share_price: Currency,
+    pub fees: Currency,
+    pub cost_basis: Currency,
+    pub winner: bool,
+}
+
+pub async fn resolve<'i>(input: &'i ResolveInput) -> anyhow::Result<Vec<ResolveResult<'i>>> {
+    // Todo: iterate through all positions and fill in resolve result. fill in persist function.
+    Ok(Vec::new())
 }

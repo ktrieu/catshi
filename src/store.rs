@@ -461,6 +461,60 @@ pub async fn decrease_position(
     Ok(position)
 }
 
+pub struct PositionWithUser {
+    position: Position,
+    user: DbUser,
+}
+
+pub async fn get_all_market_positions(
+    exec: impl Executor<'_, Database = Sqlite>,
+    market_id: i64,
+) -> anyhow::Result<Vec<PositionWithUser>> {
+    let positions = query!(
+        r#"
+        SELECT
+            positions.id,
+            positions.quantity,
+            positions.cost_basis,
+            positions.instrument_id,
+            positions.owner_id,
+            users.id as users_id,
+            users.name as users_name,
+            users.discord_id as users_discord_id,
+            users.cash_balance as users_cash_balance
+        FROM positions
+        JOIN
+            instruments ON instruments.id = instrument_id
+        JOIN
+            users on users.id = owner_id
+        WHERE
+            instruments.market_id = $1
+        "#,
+        market_id
+    )
+    .fetch_all(exec)
+    .await?
+    .into_iter()
+    .map(|r| PositionWithUser {
+        position: Position {
+            id: r.id,
+            quantity: r.quantity,
+            cost_basis: Currency::from(r.cost_basis),
+            instrument_id: r.instrument_id,
+            owner_id: r.owner_id,
+        },
+        user: DbUser {
+            id: r.users_id,
+            discord_id: r.users_discord_id,
+            name: r.users_name,
+            cash_balance: Currency::from(r.users_cash_balance),
+        },
+    })
+    .collect();
+
+    Ok(positions)
+}
+
 #[derive(Debug, sqlx::Type)]
 #[sqlx(rename_all = "lowercase")]
 pub enum OrderDirection {
