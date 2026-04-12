@@ -10,7 +10,7 @@ use crate::{
     Handler,
     currency::Currency,
     store::{self, DbUser, Instrument},
-    trade::{self, TradeInput},
+    trade::{self, BuyError, SellError, TradeInput},
     ui::{
         instrument_display_text,
         market_message::render_market_message,
@@ -162,36 +162,68 @@ pub async fn trade(
     let system_user = store::get_system_user(&handler.pool).await?;
 
     if action == TradeAction::Buy {
-        let result = trade::buy(&input).await?;
-        result.persist(&mut tx, &system_user).await?;
+        let result = trade::buy(&input).await;
+        match result {
+            Ok(result) => {
+                result.persist(&mut tx, &system_user).await?;
 
-        let msg = format!(
-            "Bought {} shares of {}. Total: {} ({} + {} fees)",
-            quantity,
-            instrument_display_text(&input.traded_instrument, &input.market),
-            result.total(),
-            result.shares_price,
-            result.fees
-        );
-        modal
-            .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
-            .await?;
+                let msg = format!(
+                    "Bought {} shares of {}. Total: {} ({} + {} fees)",
+                    quantity,
+                    instrument_display_text(&input.traded_instrument, &input.market),
+                    result.total(),
+                    result.shares_price,
+                    result.fees
+                );
+                modal
+                    .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
+                    .await?;
+            }
+            Err(BuyError::InsufficientFunds(total)) => {
+                let message = format!(
+                    "Insufficient funds: your order cost {total} and you only have {} in cash.",
+                    input.user.cash_balance
+                );
+                modal
+                    .create_response(
+                        &ctx.http,
+                        utils::text_interaction_response(message.as_str(), true),
+                    )
+                    .await?;
+                return Ok(());
+            }
+        }
     } else {
-        let result = trade::sell(&input).await?;
-        result.persist(&mut tx, &system_user).await?;
+        let result = trade::sell(&input).await;
+        match result {
+            Ok(result) => {
+                result.persist(&mut tx, &system_user).await?;
 
-        let msg = format!(
-            "Sold {} shares of {}. Total: {} ({} - {} fees). Profit {}",
-            quantity,
-            instrument_display_text(&input.traded_instrument, &input.market),
-            result.net(),
-            result.shares_price,
-            result.fees,
-            result.profit()
-        );
-        modal
-            .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
-            .await?;
+                let msg = format!(
+                    "Sold {} shares of {}. Total: {} ({} - {} fees). Profit {}",
+                    quantity,
+                    instrument_display_text(&input.traded_instrument, &input.market),
+                    result.net(),
+                    result.shares_price,
+                    result.fees,
+                    result.profit()
+                );
+                modal
+                    .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
+                    .await?;
+            }
+            Err(SellError::InsufficientShares) => {
+                let held_shares = input.position.map(|p| p.quantity).unwrap_or(0);
+                let message = format!("You have only {held_shares} shares to sell.");
+                modal
+                    .create_response(
+                        &ctx.http,
+                        utils::text_interaction_response(message.as_str(), true),
+                    )
+                    .await?;
+                return Ok(());
+            }
+        }
     }
 
     tx.commit().await?;

@@ -2,8 +2,8 @@
 - ~~BUG: improper currency display~~
     - first unit tests!!
 - ~~BUG: resolve fails when no shares purchased~~
-- trade checks (NSF, not enough shares)
-    - include helpful messages
+- ~~trade checks (NSF, not enough shares)~~
+    - ~~include helpful messages~~
 - better profit/loss view on resolve
 -- MVP LINE -- 
 - e-transfer command

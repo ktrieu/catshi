@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail};
+use anyhow::anyhow;
 use sqlx::{Sqlite, Transaction};
 
 use crate::{
@@ -271,7 +271,12 @@ impl<'a> BuyResult<'a> {
     }
 }
 
-pub async fn buy<'i>(input: &'i TradeInput) -> anyhow::Result<BuyResult<'i>> {
+#[derive(Debug)]
+pub enum BuyError {
+    InsufficientFunds(Currency),
+}
+
+pub async fn buy<'i>(input: &'i TradeInput) -> Result<BuyResult<'i>, BuyError> {
     // Simple MVP behaviour here: buy 1 share.
     let shares_price = calc_cost_delta(
         input.quantity,
@@ -281,6 +286,13 @@ pub async fn buy<'i>(input: &'i TradeInput) -> anyhow::Result<BuyResult<'i>> {
     );
 
     let fees = calc_fees(shares_price);
+
+    // Check that we have enough money to actually purchase these shares.
+    // To be generous, (and avoid annoying fractional YPs lying around) we'll let people go 1 YP into overdraft.
+    let overdraft = input.user.cash_balance - (shares_price + fees);
+    if overdraft < Currency::new_yp(-1) {
+        return Err(BuyError::InsufficientFunds(shares_price + fees));
+    }
 
     Ok(BuyResult {
         shares_price,
@@ -371,7 +383,11 @@ impl<'i> SellResult<'i> {
     }
 }
 
-pub async fn sell<'i>(input: &'i TradeInput) -> anyhow::Result<SellResult<'i>> {
+pub enum SellError {
+    InsufficientShares,
+}
+
+pub async fn sell<'i>(input: &'i TradeInput) -> Result<SellResult<'i>, SellError> {
     // A sell would be decreasing the amount of shares, so negate quantity. We receive the corresponding decrease in price
     // so also negate the result.
     let shares_price = -calc_cost_delta(
@@ -386,25 +402,13 @@ pub async fn sell<'i>(input: &'i TradeInput) -> anyhow::Result<SellResult<'i>> {
     let position = match &input.position {
         Some(position) => position,
         None => {
-            // Can't sell if there's no position. Raise an error here. Caller should catch this
-            // and display a more graceful message, however.
-            bail!(
-                "no position to sell for user {}, instrument {}",
-                input.user.id,
-                input.traded_instrument.id
-            );
+            return Err(SellError::InsufficientShares);
         }
     };
 
     // Important! Check and make sure we have enough shares to sell!
     if position.quantity < input.quantity {
-        bail!(
-            "insufficient shares to sell for user {}, instrument {}. tried to sell {} but only had {}",
-            input.user.id,
-            input.traded_instrument.id,
-            input.quantity,
-            position.quantity
-        )
+        return Err(SellError::InsufficientShares);
     }
 
     let sold_ratio = input.quantity as f32 / position.quantity as f32;
