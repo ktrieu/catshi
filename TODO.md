@@ -1,15 +1,16 @@
-- finish market resolution flow
-- e-transfer command
+- ~~finish market resolution flow~~
+- BUG: improper currency display
+    - first unit tests!!
+- BUG: resolve fails when no shares purchased
 - trade checks (NSF, not enough shares)
     - include helpful messages
-- stats/history
-    - order history
+- better profit/loss view on resolve
+-- MVP LINE -- 
+- e-transfer command
+- order history
     - PV/total gain calculations
         - calculate net deposits from transfer table
             - do initial funding via transfer row, not just via database creation command
-    - global leaderboard
-
--- MVP LINE -- 
-
+- global leaderboard
 - unit tests for trade flow
 - market hours
