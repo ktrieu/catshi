@@ -1,5 +1,5 @@
 - ~~finish market resolution flow~~
-- BUG: improper currency display
+- ~~BUG: improper currency display~~
     - first unit tests!!
 - BUG: resolve fails when no shares purchased
 - trade checks (NSF, not enough shares)

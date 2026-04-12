@@ -42,7 +42,7 @@ impl Display for Currency {
 
         let neg_sign = if self.0 < 0 { "-" } else { "" };
 
-        write!(f, "{}{}.{}yp", neg_sign, yp, fractional)
+        write!(f, "{}{}.{:03}yp", neg_sign, yp, fractional)
     }
 }
 
@@ -99,5 +99,35 @@ impl From<Currency> for i64 {
 impl From<i64> for Currency {
     fn from(value: i64) -> Self {
         Currency(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_instrument_price() {
+        assert_eq!(Currency::from_instrument_price(0.500).0, 500);
+        assert_eq!(Currency::from_instrument_price(1.0).0, 1000);
+        assert_eq!(Currency::from_instrument_price(0.001).0, 1);
+    }
+
+    #[test]
+    fn test_as_instrument_price() {
+        assert_eq!(Currency::from(1500).as_instrument_price(), 1.5);
+    }
+
+    #[test]
+    fn test_new_yp() {
+        assert_eq!(Currency::new_yp(12).0, 12000);
+    }
+
+    #[test]
+    fn test_formatting() {
+        assert_eq!(Currency::from(1000).to_string(), "1.000yp");
+        assert_eq!(Currency::from(1500).to_string(), "1.500yp");
+        assert_eq!(Currency::from(-1200).to_string(), "-1.200yp");
+        assert_eq!(Currency::from(35001).to_string(), "35.001yp");
     }
 }
