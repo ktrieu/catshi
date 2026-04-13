@@ -28,4 +28,7 @@
 - add resolved at time to market message
 - richer metadata for transfers
     - funds source (fees/order proceeds)
-- market hours
+- market hours?
+- daily digest for markets
+    - price movement last day - can use orders table to aggregate by day
+    - charts? somehow
