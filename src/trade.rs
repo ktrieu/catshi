@@ -58,7 +58,7 @@ async fn system_debit_user(
     Ok(())
 }
 
-pub const MARKET_B: f32 = 10.0f32;
+pub const MARKET_B: f32 = 70.0f32;
 
 fn cost(share_counts: impl IntoIterator<Item = i64>, b: f32) -> f32 {
     let summed: f32 = share_counts.into_iter().map(|s| (s as f32 / b).exp()).sum();
