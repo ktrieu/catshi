@@ -9,9 +9,11 @@
     - ~~maybe adjust b factor to make prices adjust less aggressively~~
 - ~~do initial funding via transfer row, not just via database creation command~~
  - moved up to MVP because we can't undo this once we get live data
+
 -- MVP LINE -- 
+
 - add logging
- - probably bad to launch without this
+    - probably bad to launch without this
 - new trade UI
     - display prices for some fixed quantity when selecting share count
     - but allow freetext entry of arbitary amount
@@ -21,4 +23,7 @@
         - calculate net deposits from transfer table
 - global leaderboard
 - unit tests for trade flow
+- add resolved at time to market message
+- richer metadata for transfers
+    - funds source (fees/order proceeds)
 - market hours
