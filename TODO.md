@@ -8,11 +8,11 @@
 - BUG: prices hit zero/other odd behaviour with high share counts
     - ~~maybe adjust b factor to make prices adjust less aggressively~~
 - ~~do initial funding via transfer row, not just via database creation command~~
- - moved up to MVP because we can't undo this once we get live data
+    a- moved up to MVP because we can't undo this once we get live data
 
 -- MVP LINE -- 
 
-- add logging
+- ~~add logging~~
     - probably bad to launch without this
 - new trade UI
     - display prices for some fixed quantity when selecting share count
