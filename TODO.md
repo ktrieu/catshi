@@ -9,9 +9,9 @@
     - ~~maybe adjust b factor to make prices adjust less aggressively~~
 - ~~do initial funding via transfer row, not just via database creation command~~
  - moved up to MVP because we can't undo this once we get live data
+-- MVP LINE -- 
 - add logging
  - probably bad to launch without this
--- MVP LINE -- 
 - e-transfer command
 - order history
     - PV/total gain calculations
