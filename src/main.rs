@@ -97,6 +97,16 @@ impl Handler {
     }
 
     async fn interaction_create(&self, ctx: &Context, interaction: &Interaction) {
+        if let Some(interaction_guild_id) = interaction.guild_id()
+            && self.guild_id != interaction_guild_id
+        {
+            info!(
+                "Skipping interaction not targeted for this instance's guild. Interaction guild {} did not match our guild {}",
+                interaction_guild_id, self.guild_id
+            );
+            return;
+        }
+
         let result = match &interaction {
             Interaction::Command(command) => self.handle_command(&ctx, command).await,
             Interaction::Modal(modal) => self.handle_modal(&ctx, modal).await,
