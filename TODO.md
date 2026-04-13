@@ -4,15 +4,18 @@
 - ~~BUG: resolve fails when no shares purchased~~
 - ~~trade checks (NSF, not enough shares)~~
     - ~~include helpful messages~~
-- better profit/loss view on resolve
+- ~~better profit/loss view on resolve~~
 - BUG: prices hit zero/other odd behaviour with high share counts
     - ~~maybe adjust b factor to make prices adjust less aggressively~~
+- do initial funding via transfer row, not just via database creation command
+ - moved up to MVP because we can't undo this once we get live data
+- add logging
+ - probably bad to launch without this
 -- MVP LINE -- 
 - e-transfer command
 - order history
     - PV/total gain calculations
         - calculate net deposits from transfer table
-            - do initial funding via transfer row, not just via database creation command
 - global leaderboard
 - unit tests for trade flow
 - market hours
