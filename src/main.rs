@@ -37,8 +37,8 @@ struct Handler {
     pub pool: SqlitePool,
 }
 
-// Everyone starts with 100 YP for now I think.
-const INITIAL_BALANCE: Currency = Currency::new_yp(100);
+// Everyone starts with 20 YP.
+const INITIAL_BALANCE: Currency = Currency::new_yp(20);
 
 impl Handler {
     async fn authenticate(&self, ctx: &Context, discord_user: &User) -> anyhow::Result<DbUser> {
@@ -48,6 +48,7 @@ impl Handler {
         let user = match user {
             Some(user) => anyhow::Ok(user),
             None => {
+                let system_user = store::get_system_user(&mut *tx).await?;
                 // Automatically register if we haven't seen them before.
                 let server_nickname = discord_user.nick_in(ctx, self.guild_id).await;
 
@@ -57,11 +58,21 @@ impl Handler {
                 let user_id = &discord_user.id.to_string();
 
                 let user =
-                    store::insert_user_if_not_exists(&mut *tx, &user_id, &name, INITIAL_BALANCE)
+                    store::insert_user_if_not_exists(&mut *tx, &user_id, &name, Currency::from(0))
                         .await?;
 
+                // Credit the user their initial balance.
+                trade::system_credit_user(
+                    &mut tx,
+                    &user,
+                    &system_user,
+                    INITIAL_BALANCE,
+                    "Initial account funding. Have fun.",
+                )
+                .await?;
+
                 // We're only in this branch if user query above didn't return a user.
-                Ok(user.expect("user should have been created"))
+                Ok(user)
             }
         }?;
 

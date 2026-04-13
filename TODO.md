@@ -7,7 +7,7 @@
 - ~~better profit/loss view on resolve~~
 - BUG: prices hit zero/other odd behaviour with high share counts
     - ~~maybe adjust b factor to make prices adjust less aggressively~~
-- do initial funding via transfer row, not just via database creation command
+- ~~do initial funding via transfer row, not just via database creation command~~
  - moved up to MVP because we can't undo this once we get live data
 - add logging
  - probably bad to launch without this

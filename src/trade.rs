@@ -34,7 +34,7 @@ async fn transfer_cash(
     Ok(())
 }
 
-async fn system_credit_user(
+pub async fn system_credit_user(
     tx: &mut Transaction<'_, Sqlite>,
     user: &DbUser,
     system_user: &DbUser,
@@ -46,7 +46,7 @@ async fn system_credit_user(
     Ok(())
 }
 
-async fn system_debit_user(
+pub async fn system_debit_user(
     tx: &mut Transaction<'_, Sqlite>,
     user: &DbUser,
     system_user: &DbUser,

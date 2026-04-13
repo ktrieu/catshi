@@ -18,7 +18,7 @@ pub async fn insert_user_if_not_exists(
     discord_id: &str,
     name: &str,
     initial_balance: Currency,
-) -> anyhow::Result<Option<DbUser>> {
+) -> anyhow::Result<DbUser> {
     let user = query_as!(
         DbUser,
         "INSERT INTO users(discord_id, name, cash_balance) VALUES ($1, $2, $3) ON CONFLICT (discord_id) DO NOTHING RETURNING *",
@@ -26,7 +26,7 @@ pub async fn insert_user_if_not_exists(
         name,
         initial_balance,
     )
-    .fetch_optional(exec)
+    .fetch_one(exec)
     .await?;
 
     Ok(user)
