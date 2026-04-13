@@ -17,6 +17,7 @@
 - new trade UI
     - display prices for some fixed quantity when selecting share count
     - but allow freetext entry of arbitary amount
+- view open positions for market
 - e-transfer command
 - order history
     - PV/total gain calculations
