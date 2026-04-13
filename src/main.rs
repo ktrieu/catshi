@@ -42,7 +42,7 @@ const INITIAL_BALANCE: Currency = Currency::new_yp(20);
 
 impl Handler {
     async fn authenticate(&self, ctx: &Context, discord_user: &User) -> anyhow::Result<DbUser> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
 
         let user = store::get_user_by_discord_id(&self.pool, &discord_user.id).await?;
         let user = match user {

@@ -114,7 +114,7 @@ pub async fn resolve(
         .ok_or(anyhow!("market resolve instrument field not present"))?
         .parse::<i64>()?;
 
-    let mut tx = handler.pool.begin().await?;
+    let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
 
     let input = ResolveInput::new(&mut tx, market_id, instrument_id).await?;
     let system_user = store::get_system_user(&handler.pool).await?;

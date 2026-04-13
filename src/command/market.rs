@@ -39,7 +39,7 @@ pub async fn modal_submit(
         .inspect_err(|e| println!("{}", e))
         .map_err(|_| anyhow::anyhow!("failed to parse modal response"))?;
 
-    let mut tx = handler.pool.begin().await?;
+    let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
 
     let new_market = store::create_new_market(&mut *tx, values.description, user).await?;
     let instruments =

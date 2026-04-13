@@ -155,7 +155,7 @@ pub async fn trade(
         }
     };
 
-    let mut tx = handler.pool.begin().await?;
+    let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
 
     let input = TradeInput::new(&mut tx, instrument_id, quantity, (*user).clone()).await?;
 
