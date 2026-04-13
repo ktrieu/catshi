@@ -50,3 +50,45 @@ pub fn instrument_display_text(instrument: &Instrument, market: &Market) -> Stri
         format_market_id(market.id)
     )
 }
+
+const TABULATE_ROW_SEPARATOR: char = '|';
+
+pub fn tabulate<const N: usize>(rows: Vec<[&str; N]>) -> String {
+    let num_cols = N;
+    let num_rows = rows.len();
+
+    let mut sizes: [usize; N] = [0; N];
+
+    for r in &rows {
+        for (i, s) in r.iter().enumerate() {
+            sizes[i] = sizes[i].max(s.len() + 2);
+        }
+    }
+
+    // Sum of all column sizes + all our separators (col count + 1)
+    let row_length = sizes.iter().sum::<usize>() + (num_cols + 1);
+
+    // Add num rows for the newlines and 6 more for the Discord monospace backticks.
+    let table_length = (row_length * num_rows) + num_rows + 6;
+
+    let mut tabulated = String::with_capacity(table_length);
+    tabulated.push_str("```");
+
+    for r in &rows {
+        for (i, cell) in r.iter().enumerate() {
+            // Minus 1 because we added one space on the left
+            let cell_length = sizes[i] - 1;
+            let formatted = format!(
+                "{TABULATE_ROW_SEPARATOR} {cell:<width$}",
+                width = cell_length
+            );
+            tabulated += &formatted
+        }
+        // Add the last row separator and the new line
+        tabulated.push(TABULATE_ROW_SEPARATOR);
+        tabulated.push('\n');
+    }
+
+    tabulated.push_str("```");
+    tabulated
+}

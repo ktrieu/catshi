@@ -14,7 +14,7 @@ use crate::{
         get_instruments_with_share_counts_for_market,
     },
     trade::{self, ResolveInput},
-    ui::{extract_modal_values, format_market_id, market_message::render_market_message},
+    ui::{extract_modal_values, format_market_id, market_message::render_market_message, tabulate},
     utils,
 };
 use anyhow::{anyhow, bail};
@@ -141,28 +141,44 @@ pub async fn resolve(
 
     // Only show the profit result msg if there were actually any positions closed out.
     if results.len() != 0 {
-        let mut profits: HashMap<i64, Currency> = HashMap::new();
+        let users = store::get_users_with_positions_in_market(&handler.pool, market.id).await?;
+
+        let mut profits: HashMap<i64, (&DbUser, Currency)> = users
+            .iter()
+            .map(|u| (u.id, (u, Currency::from(0))))
+            .collect();
 
         for r in &results {
             let entry = profits.entry(r.user.id);
-
-            let user_profit = entry.or_insert(Currency::from(0));
-            *user_profit = *user_profit + r.profit();
+            entry.and_modify(|(_, profit)| *profit = *profit + r.profit());
         }
 
-        let mut profits: Vec<(i64, Currency)> = profits.into_iter().collect();
+        let mut profits: Vec<(&DbUser, Currency)> = profits.into_values().collect();
         profits.sort_by_key(|(_, profit)| Reverse(*profit));
 
-        // TODO: replace this with proper table production code.
-        let rows: Vec<String> = profits
-            .iter()
-            .map(|(user_id, profit)| format!("{user_id} {profit}"))
+        let profits: Vec<[String; 2]> = profits
+            .into_iter()
+            .map(|(user, profit)| [user.name.clone(), profit.to_string()])
             .collect();
+
+        let profits: Vec<[&str; 2]> = profits
+            .iter()
+            .map(|[name, profit]| [name.as_str(), profit.as_str()])
+            .collect();
+
+        let mut rows: Vec<[&str; 2]> = vec![["Name", "Profit"]];
+        rows.extend_from_slice(&profits);
+
+        let final_resp = format!(
+            "Market {} resolved.\n{}",
+            format_market_id(market.id),
+            tabulate(rows)
+        );
 
         modal
             .create_response(
                 &ctx.http,
-                utils::text_interaction_response(&rows.join("\n"), false),
+                utils::text_interaction_response(&final_resp, false),
             )
             .await?;
     } else {
