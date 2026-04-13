@@ -14,7 +14,7 @@
 
 - ~~add logging~~
     - probably bad to launch without this
-- new trade UI
+- ~~new trade UI~~
     - display prices for some fixed quantity when selecting share count
     - but allow freetext entry of arbitary amount
 - view open positions for market

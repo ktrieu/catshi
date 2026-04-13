@@ -4,8 +4,8 @@ use sqlx::{Sqlite, Transaction};
 use crate::{
     currency::Currency,
     store::{
-        self, CreateTransfer, DbUser, Instrument, InstrumentWithShares, Market, Position,
-        PositionWithUser,
+        self, CreateTransfer, DbUser, Instrument, InstrumentWithShares, Market, OrderDirection,
+        Position, PositionWithUser,
     },
 };
 
@@ -124,7 +124,7 @@ pub fn get_max_buy_shares<'s>(
     instrument_id: i64,
     shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
-) -> (i64, Currency) {
+) -> (i64, OrderPrices) {
     let price = calc_price_raw(instrument_id, shares.clone(), b);
     let inv_price = 1f32 - price;
 
@@ -135,16 +135,61 @@ pub fn get_max_buy_shares<'s>(
     // Round down to calculate the max buy.
     let max_shares = raw_max.floor() as i64;
 
-    // Calculate the cost we would have spent as well.
-    let cost = calc_cost_delta(max_shares, instrument_id, shares.clone(), b);
-
-    (max_shares, cost)
+    (
+        max_shares,
+        calc_buy_prices(max_shares, instrument_id, shares, b),
+    )
 }
 
 pub fn calc_fees(shares_price: Currency) -> Currency {
     // Flat two percent.
     shares_price * 0.02f32
 }
+
+pub struct OrderPrices {
+    pub shares_price: Currency,
+    pub fees: Currency,
+}
+
+impl OrderPrices {
+    pub fn total(&self, direction: OrderDirection) -> Currency {
+        match direction {
+            OrderDirection::Buy => self.shares_price + self.fees,
+            OrderDirection::Sell => self.shares_price - self.fees,
+        }
+    }
+}
+
+pub fn calc_buy_prices<'s>(
+    quantity: i64,
+    instrument_id: i64,
+    shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
+    b: f32,
+) -> OrderPrices {
+    let shares_price = calc_cost_delta(quantity, instrument_id, shares, b);
+
+    OrderPrices {
+        shares_price,
+        fees: calc_fees(shares_price),
+    }
+}
+
+pub fn calc_sell_prices<'s>(
+    quantity: i64,
+    instrument_id: i64,
+    shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
+    b: f32,
+) -> OrderPrices {
+    // A sell would be decreasing the amount of shares, so negate quantity. We receive the corresponding decrease in price
+    // so also negate the result.
+    let shares_price = -calc_cost_delta(-quantity, instrument_id, shares, b);
+
+    OrderPrices {
+        shares_price,
+        fees: calc_fees(shares_price),
+    }
+}
+
 pub struct TradeInput {
     pub quantity: i64,
     pub position: Option<Position>,
@@ -277,15 +322,12 @@ pub enum BuyError {
 }
 
 pub async fn buy<'i>(input: &'i TradeInput) -> Result<BuyResult<'i>, BuyError> {
-    // Simple MVP behaviour here: buy 1 share.
-    let shares_price = calc_cost_delta(
+    let OrderPrices { shares_price, fees } = calc_buy_prices(
         input.quantity,
         input.traded_instrument.id,
         input.market_instruments.iter(),
         MARKET_B,
     );
-
-    let fees = calc_fees(shares_price);
 
     // Check that we have enough money to actually purchase these shares.
     // To be generous, (and avoid annoying fractional YPs lying around) we'll let people go 1 YP into overdraft.
@@ -388,16 +430,12 @@ pub enum SellError {
 }
 
 pub async fn sell<'i>(input: &'i TradeInput) -> Result<SellResult<'i>, SellError> {
-    // A sell would be decreasing the amount of shares, so negate quantity. We receive the corresponding decrease in price
-    // so also negate the result.
-    let shares_price = -calc_cost_delta(
-        -input.quantity,
+    let OrderPrices { shares_price, fees } = calc_sell_prices(
+        input.quantity,
         input.traded_instrument.id,
         input.market_instruments.iter(),
         MARKET_B,
     );
-
-    let fees = calc_fees(shares_price);
 
     let position = match &input.position {
         Some(position) => position,

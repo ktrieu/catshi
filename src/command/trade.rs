@@ -9,8 +9,8 @@ use serenity::all::{
 use crate::{
     Handler,
     currency::Currency,
-    store::{self, DbUser, Instrument},
-    trade::{self, BuyError, SellError, TradeInput},
+    store::{self, DbUser, Instrument, OrderDirection},
+    trade::{self, BuyError, SellError, TradeInput, calc_buy_prices},
     ui::{
         instrument_display_text,
         market_message::render_market_message,
@@ -19,7 +19,7 @@ use crate::{
     utils,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TradeAction {
     Buy,
     Sell,
@@ -76,13 +76,11 @@ async fn calc_max_buy_shares(
     let shares =
         store::get_instruments_with_share_counts_for_market(&handler.pool, market_id).await?;
 
-    let (max_shares, cost) =
+    let (max_shares, prices) =
         trade::get_max_buy_shares(balance, instrument_id, shares.iter(), trade::MARKET_B);
 
-    let total = cost + trade::calc_fees(cost);
-
     // If adding fees puts us over the top subtract our max_shares by 1.
-    if total > balance {
+    if prices.total(OrderDirection::Buy) > balance {
         Ok(max_shares - 1)
     } else {
         Ok(max_shares)
@@ -103,6 +101,29 @@ async fn calc_max_sell_shares(
     }
 }
 
+fn get_prefilled_quantity(
+    quantity: i64,
+    instrument_id: i64,
+    instruments: &Vec<(Instrument, i64)>,
+    action: TradeAction,
+) -> (i64, Currency) {
+    // TODO: we should really harmonize this.
+    let total = match action {
+        TradeAction::Buy => {
+            calc_buy_prices(quantity, instrument_id, instruments.iter(), trade::MARKET_B)
+                .total(OrderDirection::Buy)
+        }
+        TradeAction::Sell => {
+            calc_buy_prices(quantity, instrument_id, instruments.iter(), trade::MARKET_B)
+                .total(OrderDirection::Sell)
+        }
+    };
+
+    (quantity, total)
+}
+
+const PREFILLED_QUANTITIES: [i64; 5] = [1, 2, 5, 10, 20];
+
 pub async fn initiate_trade(
     ctx: &Context,
     handler: &Handler,
@@ -114,6 +135,10 @@ pub async fn initiate_trade(
     let market = store::get_market_by_instrument_id(&handler.pool, instrument_id)
         .await?
         .ok_or(anyhow!("market not found for instrument {}", instrument_id))?;
+
+    let instruments =
+        store::get_instruments_with_share_counts_for_market(&handler.pool, market.id).await?;
+
     let instrument = store::get_instrument_by_id(&handler.pool, instrument_id)
         .await?
         .ok_or(anyhow!("instrument {} not found", instrument_id))?;
@@ -125,7 +150,33 @@ pub async fn initiate_trade(
         TradeAction::Sell => calc_max_sell_shares(handler, &instrument, user).await?,
     };
 
-    let modal = create_trade_modal(action, &market, &instrument, max_shares);
+    let mut prefilled: Vec<(i64, Currency)> = Vec::new();
+    for q in PREFILLED_QUANTITIES {
+        if q < max_shares {
+            prefilled.push(get_prefilled_quantity(
+                q,
+                instrument_id,
+                &instruments,
+                action,
+            ));
+        }
+    }
+
+    prefilled.push(get_prefilled_quantity(
+        max_shares,
+        instrument_id,
+        &instruments,
+        action,
+    ));
+
+    let modal = create_trade_modal(
+        action,
+        &market,
+        &instrument,
+        max_shares,
+        prefilled,
+        user.cash_balance,
+    );
 
     component
         .create_response(&ctx.http, CreateInteractionResponse::Modal(modal))
