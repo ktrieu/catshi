@@ -1,5 +1,6 @@
 use std::{env, sync::Arc};
 
+use log::{error, info, warn};
 use serenity::{
     Client,
     all::{
@@ -8,6 +9,7 @@ use serenity::{
     },
     async_trait,
 };
+use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
 use sqlx::SqlitePool;
 
 use crate::{
@@ -26,8 +28,10 @@ mod utils;
 
 pub async fn init_db(url: &str) -> anyhow::Result<SqlitePool> {
     let pool = SqlitePool::connect(url).await?;
+    info!("Connected to database {url}");
 
     sqlx::migrate!("./migrations").run(&pool).await?;
+    info!("Migrations run");
 
     Ok(pool)
 }
@@ -97,12 +101,14 @@ impl Handler {
             Interaction::Command(command) => self.handle_command(&ctx, command).await,
             Interaction::Modal(modal) => self.handle_modal(&ctx, modal).await,
             Interaction::Component(component) => self.handle_component(&ctx, component).await,
-            _ => Ok(()),
+            _ => {
+                warn!("Unrecognized interaction {:?}", interaction.kind());
+                Ok(())
+            }
         };
 
-        if let Err(e) = result {
-            dbg!(&e);
-            let msg = format!("Internal error: {}", e.to_string());
+        if let Err(command_error) = result {
+            let msg = format!("Internal error: {}", command_error.to_string());
             let response = utils::text_interaction_response(&msg, true);
             let send_result = match &interaction {
                 Interaction::Command(command) => command.create_response(&ctx.http, response).await,
@@ -113,9 +119,10 @@ impl Handler {
                 _ => Ok(()),
             };
 
-            if let Err(e) = send_result {
-                // Dang, that sucks. Just log this error we have logging.
-                dbg!(e);
+            if let Err(send_error) = send_result {
+                error!(
+                    "Error sending internal error response: {send_error}. Original error: {command_error}"
+                );
             }
         }
     }
@@ -129,7 +136,9 @@ impl Handler {
 
         match command.data.name.as_str() {
             command::market::NAME => command::market::run(&ctx, self, &command).await?,
-            _ => {}
+            _ => {
+                warn!("Unrecognized command {}", command.data.name);
+            }
         };
 
         Ok(())
@@ -144,6 +153,8 @@ impl Handler {
             command::resolve::resolve(ctx, &self, market_id, modal, &user).await?;
         } else if modal.data.custom_id == ui::market_create_modal::MODAL_ID {
             command::market::modal_submit(ctx, &self, &modal, &user).await?
+        } else {
+            warn!("Unrecognized modal interaction {}", modal.data.custom_id);
         };
 
         Ok(())
@@ -161,6 +172,11 @@ impl Handler {
                 .await?;
         } else if let Some(market_id) = parse_market_resolve_button_id(&component.data.custom_id) {
             command::resolve::initiate_resolve(ctx, &self, market_id, &component, &user).await?;
+        } else {
+            warn!(
+                "Unrecognized component interaction {}",
+                component.data.custom_id
+            );
         }
 
         Ok(())
@@ -182,6 +198,14 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
+    TermLogger::init(
+        LevelFilter::Info,
+        Config::default(),
+        TerminalMode::Stdout,
+        ColorChoice::Auto,
+    )
+    .expect("logger initialization should succeed");
+
     dotenvy::dotenv().expect(".env loading should succeed");
 
     let url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
@@ -204,5 +228,6 @@ async fn main() {
         .await
         .expect("client creation should succeed");
 
+    info!("Starting client");
     client.start().await.expect("client start should succeed");
 }
