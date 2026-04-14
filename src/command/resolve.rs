@@ -161,12 +161,7 @@ pub async fn resolve(
             .map(|(user, profit)| [user.name.clone(), profit.to_string()])
             .collect();
 
-        let profits: Vec<[&str; 2]> = profits
-            .iter()
-            .map(|[name, profit]| [name.as_str(), profit.as_str()])
-            .collect();
-
-        let mut rows: Vec<[&str; 2]> = vec![["Name", "Profit"]];
+        let mut rows: Vec<[String; 2]> = vec![["Name".to_string(), "Profit".to_string()]];
         rows.extend_from_slice(&profits);
 
         let final_resp = format!(

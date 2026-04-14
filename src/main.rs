@@ -16,7 +16,10 @@ use crate::{
     command::{resolve::parse_market_resolve_modal_id, trade::parse_trade_button_id},
     currency::Currency,
     store::DbUser,
-    ui::{market_message::parse_market_resolve_button_id, trade_flow::parse_trade_modal_id},
+    ui::{
+        market_message::{parse_market_details_button_id, parse_market_resolve_button_id},
+        trade_flow::parse_trade_modal_id,
+    },
 };
 
 mod command;
@@ -182,6 +185,8 @@ impl Handler {
                 .await?;
         } else if let Some(market_id) = parse_market_resolve_button_id(&component.data.custom_id) {
             command::resolve::initiate_resolve(ctx, &self, market_id, &component, &user).await?;
+        } else if let Some(market_id) = parse_market_details_button_id(&component.data.custom_id) {
+            command::market_details::view_market_details(ctx, &self, market_id, component).await?;
         } else {
             warn!(
                 "Unrecognized component interaction {}",

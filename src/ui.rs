@@ -53,7 +53,7 @@ pub fn instrument_display_text(instrument: &Instrument, market: &Market) -> Stri
 
 const TABULATE_ROW_SEPARATOR: char = '|';
 
-pub fn tabulate<const N: usize>(rows: Vec<[&str; N]>) -> String {
+pub fn tabulate<const N: usize>(rows: Vec<[String; N]>) -> String {
     let num_cols = N;
     let num_rows = rows.len();
 
