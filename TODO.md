@@ -17,12 +17,12 @@
 - ~~new trade UI~~
     - display prices for some fixed quantity when selecting share count
     - but allow freetext entry of arbitary amount
-- view open positions for market
+- ~~view open positions for market~~
 - e-transfer command
 - order history
     - PV/total gain calculations
         - calculate net deposits from transfer table
-- add info about owner of market to market message
+- ~~add info about owner of market to market message~~
 - global leaderboard
 - unit tests for trade flow
 - add resolved at time to market message
