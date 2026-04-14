@@ -27,6 +27,10 @@ pub async fn view_market_details(
     ]];
 
     for p in all_positions {
+        if p.position.quantity == 0 {
+            continue;
+        }
+
         let instrument_name = instruments
             .iter()
             .find(|(i, _)| i.id == p.position.instrument_id)
