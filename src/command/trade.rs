@@ -306,12 +306,14 @@ pub async fn trade(
     // Refetch the instruments after the trade is complete to update the market.
     let instruments =
         store::get_instruments_with_share_counts_for_market(&handler.pool, input.market.id).await?;
-    let market_message = render_market_message(&input.market, instruments.iter());
+    let market_message =
+        render_market_message(&input.market, &input.market_owner, instruments.iter());
 
     msg.edit(&ctx.http, EditMessage::new().components(market_message))
         .await?;
 
-    let market_message = render_market_message(&input.market, instruments.iter());
+    let market_message =
+        render_market_message(&input.market, &input.market_owner, instruments.iter());
 
     msg.edit(&ctx.http, EditMessage::new().components(market_message))
         .await?;

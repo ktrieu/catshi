@@ -51,7 +51,7 @@ pub async fn modal_submit(
 
     let resp_channel = modal.channel_id;
     let resp_components =
-        market_message::render_market_message(&new_market, instruments_with_shares.iter());
+        market_message::render_market_message(&new_market, user, instruments_with_shares.iter());
     let message = resp_channel
         .send_message(
             &ctx.http,

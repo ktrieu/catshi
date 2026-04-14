@@ -4,7 +4,7 @@ use serenity::all::{
 
 use crate::{
     command::trade::{TradeAction, get_trade_button_id},
-    store::{InstrumentState, InstrumentWithShares, Market, MarketState},
+    store::{DbUser, InstrumentState, InstrumentWithShares, Market, MarketState},
     trade,
 };
 
@@ -46,14 +46,18 @@ pub fn parse_market_details_button_id(id: &str) -> Option<i64> {
 
 pub fn render_market_message<'a>(
     market: &'a Market,
+    owner: &'a DbUser,
     instruments: impl Iterator<Item = &'a InstrumentWithShares> + Clone,
 ) -> Vec<CreateComponent<'a>> {
     let title = CreateTextDisplay::new(format!("## Market #{:04}", market.id));
+    let owner_name = CreateTextDisplay::new(owner.name.clone());
 
     let desc = CreateTextDisplay::new(&market.description);
 
     let mut components = vec![
         CreateComponent::TextDisplay(title),
+        CreateComponent::TextDisplay(owner_name),
+        CreateComponent::Separator(CreateSeparator::new()),
         CreateComponent::TextDisplay(desc),
         CreateComponent::Separator(CreateSeparator::new()),
     ];

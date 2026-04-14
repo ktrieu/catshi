@@ -186,7 +186,7 @@ pub async fn resolve(
         .ok_or(anyhow!("market {market_id} not found"))?;
     let instruments =
         store::get_instruments_with_share_counts_for_market(&handler.pool, input.market.id).await?;
-    let market_message = render_market_message(&market, instruments.iter());
+    let market_message = render_market_message(&market, &input.market_owner, instruments.iter());
 
     let msg_id = input
         .market
