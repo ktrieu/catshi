@@ -1,6 +1,6 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use serenity::all::UserId;
-use sqlx::{Executor, Sqlite, query, query_as};
+use sqlx::{Executor, Sqlite, SqliteConnection, query, query_as};
 
 use crate::currency::Currency;
 
@@ -97,6 +97,26 @@ pub async fn increment_balance(
     )
     .execute(exec)
     .await?;
+
+    Ok(())
+}
+
+pub async fn increment_balance_by_user_id(
+    conn: &mut SqliteConnection,
+    id: i64,
+    amount: Currency,
+) -> anyhow::Result<()> {
+    let result = query!(
+        r#"UPDATE users SET cash_balance = cash_balance + $1 WHERE id = $2"#,
+        amount,
+        id,
+    )
+    .execute(conn)
+    .await?;
+
+    if result.rows_affected() != 1 {
+        bail!("no rows written for increment_balance_by_user_id")
+    }
 
     Ok(())
 }

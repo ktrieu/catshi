@@ -1,7 +1,11 @@
+use anyhow::anyhow;
 use serenity::all::{GenericChannelId, MessageId};
-use sqlx::{Executor, Sqlite, query, query_as};
+use sqlx::{Executor, Sqlite, SqliteConnection, query, query_as};
 
-use crate::store::user::DbUser;
+use crate::store::{
+    instrument::{self, InstrumentWithShares},
+    user::{self, DbUser},
+};
 
 #[derive(Debug, sqlx::Type, Clone, Copy, PartialEq, Eq)]
 #[sqlx(rename_all = "lowercase")]
@@ -10,7 +14,7 @@ pub enum MarketState {
     Closed,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, Clone, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Market {
     pub id: i64,
@@ -151,4 +155,43 @@ pub async fn set_market_state(
     .await?;
 
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct FullMarket {
+    pub row: Market,
+    pub instruments: Vec<InstrumentWithShares>,
+    pub owner: DbUser,
+}
+
+impl FullMarket {
+    pub async fn new_from_instrument_id(
+        conn: &mut SqliteConnection,
+        id: i64,
+    ) -> anyhow::Result<Self> {
+        let row = get_market_by_instrument_id(&mut *conn, id).await?;
+
+        let instruments =
+            instrument::get_instruments_with_share_counts_for_market(&mut *conn, row.id).await?;
+
+        let owner = user::get_user_by_id(&mut *conn, row.owner_id).await?;
+
+        Ok(Self {
+            row,
+            instruments,
+            owner,
+        })
+    }
+
+    pub fn get_instrument(&self, id: i64) -> anyhow::Result<&InstrumentWithShares> {
+        // We expect markets to have very few instruments - just linear search.
+        self.instruments
+            .iter()
+            .find(|(i, _)| i.id == id)
+            .ok_or(anyhow!(
+                "instrument {} not found for market {}",
+                id,
+                self.row.id
+            ))
+    }
 }

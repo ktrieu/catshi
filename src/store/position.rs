@@ -1,4 +1,4 @@
-use sqlx::{Executor, Sqlite, query, query_as};
+use sqlx::{Executor, Sqlite, SqliteConnection, query, query_as};
 
 use crate::{
     currency::Currency,
@@ -42,64 +42,6 @@ pub async fn get_user_position(
     Ok(position)
 }
 
-pub async fn create_new_position(
-    exec: impl Executor<'_, Database = Sqlite>,
-    quantity: i64,
-    cost_basis: Currency,
-    instrument: &Instrument,
-    owner: &DbUser,
-) -> anyhow::Result<Position> {
-    let position = query_as!(
-        Position,
-        r#"
-            INSERT INTO positions (
-                quantity,
-                cost_basis,
-                instrument_id,
-                owner_id
-            ) VALUES ($1, $2, $3, $4)
-            RETURNING *
-        "#,
-        quantity,
-        cost_basis,
-        instrument.id,
-        owner.id
-    )
-    .fetch_one(exec)
-    .await?;
-
-    Ok(position)
-}
-
-pub async fn increase_position(
-    exec: impl Executor<'_, Database = Sqlite>,
-    quantity: i64,
-    price_paid: Currency,
-    instrument: &Instrument,
-    owner: &DbUser,
-) -> anyhow::Result<Position> {
-    let position = query_as!(
-        Position,
-        r#"
-            UPDATE positions
-            SET
-                quantity = quantity + $1,
-                cost_basis = cost_basis + $2
-            WHERE
-                instrument_id = $3 AND owner_id = $4
-            RETURNING *
-        "#,
-        quantity,
-        price_paid,
-        instrument.id,
-        owner.id
-    )
-    .fetch_one(exec)
-    .await?;
-
-    Ok(position)
-}
-
 // Similar to increase position but we take the new_cost_basis directly instead of
 // blindly adding it, since we need to do some weighted adjustment.
 pub async fn decrease_position(
@@ -126,6 +68,39 @@ pub async fn decrease_position(
         owner.id
     )
     .fetch_one(exec)
+    .await?;
+
+    Ok(position)
+}
+
+#[derive(Debug, Clone)]
+pub struct CreatePosition {
+    pub quantity: i64,
+    pub cost_basis: Currency,
+    pub instrument_id: i64,
+    pub owner_id: i64,
+}
+
+pub async fn upsert_position(
+    conn: &mut SqliteConnection,
+    c: &CreatePosition,
+) -> anyhow::Result<Position> {
+    // We have a unique index on instrument and owner_id. Use a CONFLICT clause.
+    let position = query_as!(
+        Position,
+        r#"
+        INSERT INTO positions (quantity, cost_basis, instrument_id, owner_id)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT DO UPDATE 
+        SET quantity = excluded.quantity, cost_basis = excluded.cost_basis
+        RETURNING *
+        "#,
+        c.quantity,
+        c.cost_basis,
+        c.instrument_id,
+        c.owner_id,
+    )
+    .fetch_one(conn)
     .await?;
 
     Ok(position)

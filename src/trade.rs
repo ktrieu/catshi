@@ -4,11 +4,39 @@ use sqlx::{Sqlite, Transaction};
 use crate::{
     currency::Currency,
     store::{
-        self, instrument::Instrument, instrument::InstrumentWithShares, market::Market,
-        order::OrderDirection, position::Position, position::PositionWithUser,
-        transfer::CreateTransfer, user::DbUser,
+        self,
+        instrument::{Instrument, InstrumentWithShares},
+        market::{FullMarket, Market},
+        order::{CreateOrder, OrderDirection},
+        position::{CreatePosition, Position, PositionWithUser},
+        transfer::CreateTransfer,
+        user::DbUser,
     },
+    ui::instrument_display_text,
 };
+
+fn make_transfer_create(
+    sender: &DbUser,
+    receiver: &DbUser,
+    amount: Currency,
+    memo: &str,
+) -> CreateTransfer {
+    CreateTransfer {
+        amount,
+        sender: sender.id,
+        receiver: receiver.id,
+        memo: memo.to_owned(),
+    }
+}
+
+fn make_system_debit_create_transfer(
+    user: &DbUser,
+    system_user: &DbUser,
+    amount: Currency,
+    memo: &str,
+) -> CreateTransfer {
+    make_transfer_create(user, system_user, amount, memo)
+}
 
 async fn transfer_cash(
     tx: &mut Transaction<'_, Sqlite>,
@@ -24,7 +52,7 @@ async fn transfer_cash(
         receiver: receiver.id,
         memo: memo.to_owned(),
     };
-    store::transfer::insert_transfer(&mut **tx, create).await?;
+    store::transfer::insert_transfer(&mut **tx, &create).await?;
 
     // 2. Credit the receiving account.
     store::user::increment_balance(&mut **tx, receiver, amount).await?;
@@ -43,18 +71,6 @@ pub async fn system_credit_user(
     memo: &str,
 ) -> anyhow::Result<()> {
     transfer_cash(tx, system_user, user, amount, memo).await?;
-
-    Ok(())
-}
-
-pub async fn system_debit_user(
-    tx: &mut Transaction<'_, Sqlite>,
-    user: &DbUser,
-    system_user: &DbUser,
-    amount: Currency,
-    memo: &str,
-) -> anyhow::Result<()> {
-    transfer_cash(tx, user, system_user, amount, memo).await?;
 
     Ok(())
 }
@@ -234,83 +250,18 @@ impl TradeInput {
     }
 }
 
-pub struct BuyResult<'a> {
+pub struct BuyResult {
+    pub order: CreateOrder,
+    pub transfers: Vec<CreateTransfer>,
+    pub position: CreatePosition,
     pub shares_price: Currency,
     pub fees: Currency,
-    pub input: &'a TradeInput,
+    pub quantity: i64,
 }
 
-impl<'a> BuyResult<'a> {
+impl BuyResult {
     pub fn total(&self) -> Currency {
         self.shares_price + self.fees
-    }
-
-    pub async fn persist<'e>(
-        &self,
-        tx: &mut Transaction<'_, Sqlite>,
-        system_user: &DbUser,
-    ) -> anyhow::Result<()> {
-        if self.input.position.is_none() {
-            store::position::create_new_position(
-                &mut **tx,
-                self.input.quantity,
-                self.total(),
-                &self.input.traded_instrument,
-                &self.input.user,
-            )
-            .await?;
-        } else {
-            store::position::increase_position(
-                &mut **tx,
-                self.input.quantity,
-                self.total(),
-                &self.input.traded_instrument,
-                &self.input.user,
-            )
-            .await?;
-        }
-
-        store::order::create_order(
-            &mut **tx,
-            store::order::OrderDirection::Buy,
-            self.input.quantity,
-            self.shares_price,
-            self.fees,
-            self.total(), // cost basis is the same as shares_price for buys.
-            &self.input.traded_instrument,
-            &self.input.user,
-        )
-        .await?;
-
-        // Make the user pay for their shares.
-        system_debit_user(
-            tx,
-            &self.input.user,
-            system_user,
-            self.shares_price,
-            format!(
-                "BUY order {} shares {}",
-                &self.input.quantity, self.input.traded_instrument.name
-            )
-            .as_str(),
-        )
-        .await?;
-
-        // And transfer the market fees to the market ownwer.
-        transfer_cash(
-            tx,
-            &self.input.user,
-            &self.input.market_owner,
-            self.fees,
-            format!(
-                "BUY order {} shares {} fees",
-                &self.input.quantity, self.input.traded_instrument.name
-            )
-            .as_str(),
-        )
-        .await?;
-
-        Ok(())
     }
 }
 
@@ -319,25 +270,69 @@ pub enum BuyError {
     InsufficientFunds(Currency),
 }
 
-pub async fn buy<'i>(input: &'i TradeInput) -> Result<BuyResult<'i>, BuyError> {
-    let OrderPrices { shares_price, fees } = calc_buy_prices(
-        input.quantity,
-        input.traded_instrument.id,
-        input.market_instruments.iter(),
-        MARKET_B,
-    );
+pub fn buy(
+    quantity: i64,
+    instrument: &Instrument,
+    market: &FullMarket,
+    existing_position: Option<Position>,
+    user: &DbUser,
+    system_user: &DbUser,
+) -> Result<BuyResult, BuyError> {
+    let prices = calc_buy_prices(quantity, instrument.id, market.instruments.iter(), MARKET_B);
+    let total = prices.total(OrderDirection::Buy);
 
     // Check that we have enough money to actually purchase these shares.
     // To be generous, (and avoid annoying fractional YPs lying around) we'll let people go 1 YP into overdraft.
-    let overdraft = input.user.cash_balance - (shares_price + fees);
+    let overdraft = user.cash_balance - (total);
     if overdraft < Currency::new_yp(-1) {
-        return Err(BuyError::InsufficientFunds(shares_price + fees));
+        return Err(BuyError::InsufficientFunds(total));
     }
 
+    let order = CreateOrder {
+        direction: OrderDirection::Buy,
+        quantity,
+        cost_basis: total,
+        shares_price: prices.shares_price,
+        fees: prices.fees,
+        instrument_id: instrument.id,
+        owner_id: user.id,
+    };
+
+    let shares_memo = format!(
+        "BUY {} shares {}",
+        quantity,
+        instrument_display_text(instrument, &market.row)
+    );
+    let shares_transfer =
+        make_system_debit_create_transfer(user, system_user, prices.shares_price, &shares_memo);
+
+    let fees_memo = format!(
+        "BUY FEES {} shares {}",
+        quantity,
+        instrument_display_text(instrument, &market.row)
+    );
+    let fees_transfer = make_transfer_create(user, &market.owner, prices.fees, &fees_memo);
+
+    let existing_cost_basis = existing_position
+        .as_ref()
+        .map(|p| p.cost_basis)
+        .unwrap_or(Currency::from(0));
+    let held_shares = existing_position.as_ref().map(|p| p.quantity).unwrap_or(0);
+
+    let position = CreatePosition {
+        quantity: held_shares + quantity,
+        cost_basis: existing_cost_basis + prices.total(OrderDirection::Buy),
+        instrument_id: instrument.id,
+        owner_id: user.id,
+    };
+
     Ok(BuyResult {
-        shares_price,
-        fees,
-        input,
+        order,
+        transfers: vec![shares_transfer, fees_transfer],
+        position,
+        shares_price: prices.shares_price,
+        fees: prices.fees,
+        quantity,
     })
 }
 

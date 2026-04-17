@@ -9,7 +9,9 @@ use serenity::all::{
 use crate::{
     Handler,
     currency::Currency,
-    store::{self, instrument::Instrument, order::OrderDirection, user::DbUser},
+    store::{
+        self, instrument::Instrument, market::FullMarket, order::OrderDirection, user::DbUser,
+    },
     trade::{self, BuyError, SellError, TradeInput, calc_buy_prices},
     ui::{
         instrument_display_text,
@@ -207,18 +209,33 @@ pub async fn trade(
 
     let input = TradeInput::new(&mut tx, instrument_id, quantity, (*user).clone()).await?;
 
+    let market = FullMarket::new_from_instrument_id(&mut *tx, instrument_id).await?;
+    let traded_instrument = &market.get_instrument(instrument_id)?.0;
+    let position = store::position::get_user_position(&mut *tx, traded_instrument, user).await?;
+
     let system_user = store::user::get_system_user(&handler.pool).await?;
 
     if action == TradeAction::Buy {
-        let result = trade::buy(&input).await;
+        let result = trade::buy(
+            quantity,
+            traded_instrument,
+            &market,
+            position,
+            user,
+            &system_user,
+        );
         match result {
             Ok(result) => {
-                result.persist(&mut tx, &system_user).await?;
+                store::order::create_order_struct(&mut *tx, &result.order).await?;
+                store::position::upsert_position(&mut *tx, &result.position).await?;
+                for t in &result.transfers {
+                    store::transfer::persist_transfer(&mut tx, t).await?;
+                }
 
                 let msg = format!(
                     "Bought {} shares of {}. Total: {} ({} + {} fees)",
-                    quantity,
-                    instrument_display_text(&input.traded_instrument, &input.market),
+                    result.quantity,
+                    instrument_display_text(traded_instrument, &market.row),
                     result.total(),
                     result.shares_price,
                     result.fees
