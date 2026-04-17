@@ -13,6 +13,7 @@ pub struct Transfer {
     pub created_at: i64,
 }
 
+#[derive(Debug, Clone)]
 pub struct CreateTransfer {
     pub amount: Currency,
     pub sender: i64,

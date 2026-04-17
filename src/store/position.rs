@@ -42,37 +42,6 @@ pub async fn get_user_position(
     Ok(position)
 }
 
-// Similar to increase position but we take the new_cost_basis directly instead of
-// blindly adding it, since we need to do some weighted adjustment.
-pub async fn decrease_position(
-    exec: impl Executor<'_, Database = Sqlite>,
-    quantity: i64,
-    new_cost_basis: Currency,
-    instrument: &Instrument,
-    owner: &DbUser,
-) -> anyhow::Result<Position> {
-    let position = query_as!(
-        Position,
-        r#"
-            UPDATE positions
-            SET
-                quantity = quantity - $1,
-                cost_basis = $2
-            WHERE
-                instrument_id = $3 AND owner_id = $4
-            RETURNING *
-        "#,
-        quantity,
-        new_cost_basis,
-        instrument.id,
-        owner.id
-    )
-    .fetch_one(exec)
-    .await?;
-
-    Ok(position)
-}
-
 #[derive(Debug, Clone)]
 pub struct CreatePosition {
     pub quantity: i64,

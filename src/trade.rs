@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use sqlx::{Sqlite, Transaction};
 
 use crate::{
@@ -6,7 +5,7 @@ use crate::{
     store::{
         self,
         instrument::{Instrument, InstrumentWithShares},
-        market::{FullMarket, Market},
+        market::FullMarket,
         order::{CreateOrder, OrderDirection},
         position::{CreatePosition, Position, PositionWithUser},
         transfer::CreateTransfer,
@@ -371,172 +370,95 @@ pub fn sell(
 }
 
 #[derive(Debug)]
-pub struct ResolveInput {
-    pub market: Market,
-    pub market_owner: DbUser,
-    pub market_instruments: Vec<InstrumentWithShares>,
-    pub winner: Instrument,
-    pub all_positions: Vec<PositionWithUser>,
-}
-
-impl ResolveInput {
-    pub async fn new(
-        tx: &mut Transaction<'_, Sqlite>,
-        market_id: i64,
-        winning_instrument_id: i64,
-    ) -> anyhow::Result<Self> {
-        let market = store::market::get_market_by_id(&mut **tx, market_id).await?;
-        let market_owner = store::user::get_user_by_id(&mut **tx, market.owner_id).await?;
-
-        let market_instruments =
-            store::instrument::get_instruments_with_share_counts_for_market(&mut **tx, market_id)
-                .await?;
-
-        let winner = market_instruments
-            .iter()
-            .find_map(|(i, _)| {
-                if i.id == winning_instrument_id {
-                    Some(i)
-                } else {
-                    None
-                }
-            })
-            .ok_or(anyhow!(
-                "winning instrument {winning_instrument_id} does not exist"
-            ))?
-            .clone();
-
-        let all_positions = store::position::get_all_market_positions(&mut **tx, market_id).await?;
-
-        Ok(Self {
-            market,
-            market_owner,
-            market_instruments,
-            winner,
-            all_positions,
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct ResolveResult<'i> {
-    pub quantity: i64,
+pub struct ResolveResult {
+    pub order: CreateOrder,
+    pub transfers: Vec<CreateTransfer>,
+    pub position: CreatePosition,
     pub shares_price: Currency,
     pub fees: Currency,
-    pub instrument: &'i Instrument,
-    pub user: &'i DbUser,
-    pub market_owner: &'i DbUser,
     pub cost_basis: Currency,
 }
 
-impl<'i> ResolveResult<'i> {
-    pub async fn persist(
-        &self,
-        tx: &mut Transaction<'_, Sqlite>,
-        system_user: &DbUser,
-    ) -> anyhow::Result<()> {
-        // Close out the position.
-        store::position::decrease_position(
-            &mut **tx,
-            self.quantity,
-            Currency::from(0),
-            self.instrument,
-            self.user,
-        )
-        .await?;
-
-        // Create the sell order.
-        store::order::create_order(
-            &mut **tx,
-            OrderDirection::Sell,
-            self.quantity,
-            self.shares_price,
-            self.fees,
-            self.cost_basis,
-            self.instrument,
-            self.user,
-        )
-        .await?;
-
-        // Only transfer money if it actually changes hands
-        if self.shares_price != Currency::from(0) {
-            // Give the user their proceeds.
-            system_credit_user(
-                tx,
-                &self.user,
-                system_user,
-                self.shares_price,
-                format!("SELL {} shares {}", self.quantity, self.instrument.name).as_str(),
-            )
-            .await?;
-        };
-
-        if self.fees != Currency::from(0) {
-            // And pay the market owner their fees.
-            transfer_cash(
-                tx,
-                &self.user,
-                &self.market_owner,
-                self.fees,
-                format!(
-                    "SELL {} shares {} fees",
-                    self.quantity, self.instrument.name
-                )
-                .as_str(),
-            )
-            .await?;
-        }
-
-        Ok(())
-    }
-
+impl ResolveResult {
     pub fn profit(&self) -> Currency {
         self.shares_price - self.fees - self.cost_basis
     }
 }
 
-pub async fn resolve<'i>(input: &'i ResolveInput) -> anyhow::Result<Vec<ResolveResult<'i>>> {
+pub fn resolve(
+    market: &FullMarket,
+    winner: &Instrument,
+    positions: &Vec<PositionWithUser>,
+    system_user: &DbUser,
+) -> anyhow::Result<Vec<ResolveResult>> {
     let mut results: Vec<ResolveResult> = Vec::new();
 
-    for p in &input.all_positions {
+    for p in positions {
         let position = &p.position;
         let user = &p.user;
 
         // We're closing out the whole position.
         let quantity = position.quantity;
         let cost_basis = position.cost_basis;
-        let instrument = &input
-            .market_instruments
-            .iter()
-            .find(|(i, _)| i.id == position.instrument_id)
-            .ok_or(anyhow!(
-                "instrument {} not in instruments list",
-                position.instrument_id
-            ))?
-            .0;
+        let is_winning_position = position.instrument_id == winner.id;
 
-        let (share_price, fees) = if position.instrument_id == input.winner.id {
-            let share_price = Currency::from_instrument_price(1.0) * position.quantity;
-            let fees = calc_fees(share_price);
-
-            (share_price, fees)
+        let resolve_price = if is_winning_position {
+            Currency::from_instrument_price(1.0)
         } else {
-            // You get nothing. Sorry.
-            let share_price = Currency::from_instrument_price(0.0);
-            // Well you know we might change the fee calculation later to charge money on zero prices.
-            let fees = calc_fees(share_price);
+            Currency::from_instrument_price(0.0)
+        };
 
-            (share_price, fees)
+        let shares_price = resolve_price * position.quantity;
+        let prices = OrderPrices {
+            shares_price,
+            fees: calc_fees(shares_price),
+        };
+
+        let order = CreateOrder {
+            direction: OrderDirection::Sell,
+            quantity,
+            shares_price,
+            fees: prices.fees,
+            cost_basis,
+            instrument_id: winner.id,
+            owner_id: user.id,
+        };
+
+        let mut transfers = Vec::new();
+
+        if is_winning_position {
+            let shares_memo = format!(
+                "RESOLVE {quantity} shares {}",
+                instrument_display_text(winner, &market.row)
+            );
+            let shares_transfer =
+                make_system_credit_create_transfer(user, system_user, shares_price, &shares_memo);
+
+            let fees_memo = format!(
+                "RESOLVE FEES {quantity} shares {}",
+                instrument_display_text(winner, &market.row)
+            );
+            let fees_transfer = make_transfer_create(user, &market.owner, prices.fees, &fees_memo);
+
+            transfers.push(shares_transfer);
+            transfers.push(fees_transfer);
+        }
+
+        // Create a new closed out position.
+        let position = CreatePosition {
+            quantity: 0,
+            cost_basis: Currency::from(0),
+            instrument_id: position.instrument_id,
+            owner_id: user.id,
         };
 
         results.push(ResolveResult {
-            shares_price: share_price,
+            order,
+            transfers,
+            position,
+            shares_price,
+            fees: prices.fees,
             cost_basis,
-            quantity,
-            fees,
-            instrument: &instrument,
-            user,
-            market_owner: &input.market_owner,
         });
     }
 

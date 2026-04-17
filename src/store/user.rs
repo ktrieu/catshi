@@ -120,27 +120,3 @@ pub async fn increment_balance_by_user_id(
 
     Ok(())
 }
-
-pub async fn get_users_with_positions_in_market(
-    exec: impl Executor<'_, Database = Sqlite>,
-    market_id: i64,
-) -> anyhow::Result<Vec<DbUser>> {
-    let users = query_as!(
-        DbUser,
-        r#"SELECT
-            DISTINCT users.id,
-            users.name,
-            users.discord_id,
-            users.cash_balance as "cash_balance: Currency"
-        FROM users 
-        JOIN positions ON positions.owner_id = users.id
-        JOIN instruments ON instruments.id = positions.instrument_id
-        WHERE 
-            instruments.market_id = $1"#,
-        market_id,
-    )
-    .fetch_all(exec)
-    .await?;
-
-    Ok(users)
-}
