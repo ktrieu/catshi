@@ -21,7 +21,7 @@
 - buy/sell/resolve refactors to further separate store and trade code
 - BUG: UI render error when clicking SELL on market with no positions
 - BUG: sell prices in prefill and actual order fills not matching
-- show question when resolving
+- ~~show question when resolving~~
 - e-transfer command
 - order history
     - PV/total gain calculations

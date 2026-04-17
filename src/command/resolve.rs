@@ -3,7 +3,7 @@ use std::{cmp::Reverse, collections::HashMap};
 use serenity::all::{
     ComponentInteraction, Context, CreateInteractionResponse, CreateLabel, CreateModal,
     CreateModalComponent, CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption,
-    EditMessage, GenericChannelId, MessageId, ModalInteraction,
+    CreateTextDisplay, EditMessage, GenericChannelId, MessageId, ModalInteraction,
 };
 
 use crate::{
@@ -63,6 +63,8 @@ pub async fn initiate_resolve(
         store::instrument::get_instruments_with_share_counts_for_market(&handler.pool, market_id)
             .await?;
 
+    let question = CreateTextDisplay::new(&market.description);
+
     let options: Vec<CreateSelectMenuOption> = instruments
         .iter()
         .map(|(i, _)| CreateSelectMenuOption::new(i.name.clone(), i.id.to_string()))
@@ -75,10 +77,13 @@ pub async fn initiate_resolve(
         },
     );
 
-    let label = vec![CreateModalComponent::Label(
-        CreateLabel::select_menu("Option", menu)
-            .description("Select the winning option from the list"),
-    )];
+    let label = vec![
+        CreateModalComponent::TextDisplay(question),
+        CreateModalComponent::Label(
+            CreateLabel::select_menu("Option", menu)
+                .description("Select the winning option from the list"),
+        ),
+    ];
 
     let title = format!("Resolving Market {}", format_market_id(market.id));
     let modal =
