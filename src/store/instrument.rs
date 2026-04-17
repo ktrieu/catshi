@@ -44,7 +44,7 @@ pub async fn insert_market_instruments(
 pub async fn get_instrument_by_id(
     exec: impl Executor<'_, Database = Sqlite>,
     id: i64,
-) -> anyhow::Result<Option<Instrument>> {
+) -> anyhow::Result<Instrument> {
     let instrument = query_as!(
         Instrument,
         r#"
@@ -59,7 +59,7 @@ pub async fn get_instrument_by_id(
         "#,
         id
     )
-    .fetch_optional(exec)
+    .fetch_one(exec)
     .await?;
 
     Ok(instrument)

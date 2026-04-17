@@ -77,7 +77,7 @@ pub async fn set_market_message_id(
 pub async fn get_market_by_id(
     exec: impl Executor<'_, Database = Sqlite>,
     id: i64,
-) -> anyhow::Result<Option<Market>> {
+) -> anyhow::Result<Market> {
     let market = query_as!(
         Market,
         r#"
@@ -95,7 +95,7 @@ pub async fn get_market_by_id(
         "#,
         id
     )
-    .fetch_optional(exec)
+    .fetch_one(exec)
     .await?;
 
     Ok(market)
@@ -104,7 +104,7 @@ pub async fn get_market_by_id(
 pub async fn get_market_by_instrument_id(
     exec: impl Executor<'_, Database = Sqlite>,
     instrument_id: i64,
-) -> anyhow::Result<Option<Market>> {
+) -> anyhow::Result<Market> {
     let market = query_as!(
         Market,
         r#"
@@ -124,7 +124,7 @@ pub async fn get_market_by_instrument_id(
         "#,
         instrument_id
     )
-    .fetch_optional(exec)
+    .fetch_one(exec)
     .await?;
 
     Ok(market)

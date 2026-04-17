@@ -82,9 +82,7 @@ impl Handler {
                 )
                 .await?;
 
-                let user = store::user::get_user_by_id(&mut *tx, user.id)
-                    .await?
-                    .expect("user should exist");
+                let user = store::user::get_user_by_id(&mut *tx, user.id).await?;
 
                 // We're only in this branch if user query above didn't return a user.
                 Ok(user)

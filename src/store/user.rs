@@ -59,7 +59,7 @@ pub async fn get_user_by_discord_id(
 pub async fn get_user_by_id(
     exec: impl Executor<'_, Database = Sqlite>,
     id: i64,
-) -> anyhow::Result<Option<DbUser>> {
+) -> anyhow::Result<DbUser> {
     let user = query_as!(
         DbUser,
         r#"SELECT
@@ -72,7 +72,7 @@ pub async fn get_user_by_id(
             id = $1"#,
         id,
     )
-    .fetch_optional(exec)
+    .fetch_one(exec)
     .await?;
 
     Ok(user)

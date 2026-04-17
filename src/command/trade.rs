@@ -133,17 +133,12 @@ pub async fn initiate_trade(
     action: TradeAction,
     instrument_id: i64,
 ) -> anyhow::Result<()> {
-    let market = store::market::get_market_by_instrument_id(&handler.pool, instrument_id)
-        .await?
-        .ok_or(anyhow!("market not found for instrument {}", instrument_id))?;
-
+    let market = store::market::get_market_by_instrument_id(&handler.pool, instrument_id).await?;
     let instruments =
         store::instrument::get_instruments_with_share_counts_for_market(&handler.pool, market.id)
             .await?;
 
-    let instrument = store::instrument::get_instrument_by_id(&handler.pool, instrument_id)
-        .await?
-        .ok_or(anyhow!("instrument {} not found", instrument_id))?;
+    let instrument = store::instrument::get_instrument_by_id(&handler.pool, instrument_id).await?;
 
     let max_shares = match action {
         TradeAction::Buy => {

@@ -43,9 +43,7 @@ pub async fn initiate_resolve(
     component: &ComponentInteraction,
     user: &DbUser,
 ) -> anyhow::Result<()> {
-    let market = store::market::get_market_by_id(&handler.pool, market_id)
-        .await?
-        .ok_or(anyhow!("market {market_id} not found"))?;
+    let market = store::market::get_market_by_id(&handler.pool, market_id).await?;
 
     if market.owner_id != user.id {
         component
@@ -95,9 +93,7 @@ pub async fn resolve(
     modal: &ModalInteraction,
     user: &DbUser,
 ) -> anyhow::Result<()> {
-    let market = store::market::get_market_by_id(&handler.pool, market_id)
-        .await?
-        .ok_or(anyhow!("market {market_id} not found"))?;
+    let market = store::market::get_market_by_id(&handler.pool, market_id).await?;
 
     // This shouldn't happen and should be caught by the modal initiation logic. Double-check here
     // but just raise a raw error.
@@ -180,9 +176,7 @@ pub async fn resolve(
     }
 
     // Refetch and re-render market message.
-    let market = store::market::get_market_by_id(&handler.pool, market_id)
-        .await?
-        .ok_or(anyhow!("market {market_id} not found"))?;
+    let market = store::market::get_market_by_id(&handler.pool, market_id).await?;
     let instruments = store::instrument::get_instruments_with_share_counts_for_market(
         &handler.pool,
         input.market.id,

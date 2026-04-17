@@ -208,18 +208,13 @@ impl TradeInput {
         quantity: i64,
         user: DbUser,
     ) -> anyhow::Result<Self> {
-        let traded_instrument = store::instrument::get_instrument_by_id(&mut **tx, instrument_id)
-            .await?
-            .ok_or(anyhow!("instrument {instrument_id} not found"))?;
+        let traded_instrument =
+            store::instrument::get_instrument_by_id(&mut **tx, instrument_id).await?;
 
-        let market = store::market::get_market_by_id(&mut **tx, traded_instrument.market_id)
-            .await?
-            .ok_or(anyhow!("market {} not found", traded_instrument.market_id))?;
+        let market =
+            store::market::get_market_by_id(&mut **tx, traded_instrument.market_id).await?;
 
-        let market_owner = store::user::get_user_by_id(&mut **tx, market.owner_id)
-            .await?
-            .ok_or(anyhow!("user {} not found", market.owner_id))?;
-
+        let market_owner = store::user::get_user_by_id(&mut **tx, market.owner_id).await?;
         let position =
             store::position::get_user_position(&mut **tx, &traded_instrument, &user).await?;
 
@@ -478,13 +473,8 @@ impl ResolveInput {
         market_id: i64,
         winning_instrument_id: i64,
     ) -> anyhow::Result<Self> {
-        let market = store::market::get_market_by_id(&mut **tx, market_id)
-            .await?
-            .ok_or(anyhow!("market {market_id} not found"))?;
-
-        let market_owner = store::user::get_user_by_id(&mut **tx, market.owner_id)
-            .await?
-            .ok_or(anyhow!("market owner {} not found", market.owner_id))?;
+        let market = store::market::get_market_by_id(&mut **tx, market_id).await?;
+        let market_owner = store::user::get_user_by_id(&mut **tx, market.owner_id).await?;
 
         let market_instruments =
             store::instrument::get_instruments_with_share_counts_for_market(&mut **tx, market_id)
