@@ -85,22 +85,6 @@ pub async fn get_system_user(exec: impl Executor<'_, Database = Sqlite>) -> anyh
         .ok_or(anyhow!("system user not found"))
 }
 
-pub async fn increment_balance(
-    exec: impl Executor<'_, Database = Sqlite>,
-    user: &DbUser,
-    amount: Currency,
-) -> anyhow::Result<()> {
-    query!(
-        r#"UPDATE users SET cash_balance = cash_balance + $1 WHERE id = $2"#,
-        amount,
-        user.id,
-    )
-    .execute(exec)
-    .await?;
-
-    Ok(())
-}
-
 pub async fn increment_balance_by_user_id(
     conn: &mut SqliteConnection,
     id: i64,

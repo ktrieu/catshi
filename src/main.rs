@@ -73,14 +73,14 @@ impl Handler {
                 .await?;
 
                 // Credit the user their initial balance.
-                trade::system_credit_user(
-                    &mut tx,
+                let transfer = trade::create_system_credit(
                     &user,
                     &system_user,
                     INITIAL_BALANCE,
                     "Initial account funding. Have fun.",
-                )
-                .await?;
+                );
+
+                store::transfer::persist_transfer(&mut tx, &transfer).await?;
 
                 let user = store::user::get_user_by_id(&mut *tx, user.id).await?;
 

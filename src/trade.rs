@@ -1,9 +1,6 @@
-use sqlx::{Sqlite, Transaction};
-
 use crate::{
     currency::Currency,
     store::{
-        self,
         instrument::{Instrument, InstrumentWithShares},
         market::FullMarket,
         order::{CreateOrder, OrderDirection},
@@ -14,7 +11,7 @@ use crate::{
     ui::instrument_display_text,
 };
 
-fn make_transfer_create(
+fn create_transfer(
     sender: &DbUser,
     receiver: &DbUser,
     amount: Currency,
@@ -28,59 +25,22 @@ fn make_transfer_create(
     }
 }
 
-fn make_system_debit_create_transfer(
+fn create_system_debit(
     user: &DbUser,
     system_user: &DbUser,
     amount: Currency,
     memo: &str,
 ) -> CreateTransfer {
-    make_transfer_create(user, system_user, amount, memo)
+    create_transfer(user, system_user, amount, memo)
 }
 
-fn make_system_credit_create_transfer(
+pub fn create_system_credit(
     user: &DbUser,
     system_user: &DbUser,
     amount: Currency,
     memo: &str,
 ) -> CreateTransfer {
-    make_transfer_create(system_user, user, amount, memo)
-}
-
-async fn transfer_cash(
-    tx: &mut Transaction<'_, Sqlite>,
-    sender: &DbUser,
-    receiver: &DbUser,
-    amount: Currency,
-    memo: &str,
-) -> anyhow::Result<()> {
-    // 1. Create the transfer.
-    let create = CreateTransfer {
-        amount,
-        sender: sender.id,
-        receiver: receiver.id,
-        memo: memo.to_owned(),
-    };
-    store::transfer::insert_transfer(&mut **tx, &create).await?;
-
-    // 2. Credit the receiving account.
-    store::user::increment_balance(&mut **tx, receiver, amount).await?;
-
-    // 3. Debit the sending account.
-    store::user::increment_balance(&mut **tx, sender, -amount).await?;
-
-    Ok(())
-}
-
-pub async fn system_credit_user(
-    tx: &mut Transaction<'_, Sqlite>,
-    user: &DbUser,
-    system_user: &DbUser,
-    amount: Currency,
-    memo: &str,
-) -> anyhow::Result<()> {
-    transfer_cash(tx, system_user, user, amount, memo).await?;
-
-    Ok(())
+    create_transfer(system_user, user, amount, memo)
 }
 
 pub const MARKET_B: f32 = 70.0f32;
@@ -269,15 +229,14 @@ pub fn buy(
         quantity,
         instrument_display_text(instrument, &market.row)
     );
-    let shares_transfer =
-        make_system_debit_create_transfer(user, system_user, prices.shares_price, &shares_memo);
+    let shares_transfer = create_system_debit(user, system_user, prices.shares_price, &shares_memo);
 
     let fees_memo = format!(
         "BUY FEES {} shares {}",
         quantity,
         instrument_display_text(instrument, &market.row)
     );
-    let fees_transfer = make_transfer_create(user, &market.owner, prices.fees, &fees_memo);
+    let fees_transfer = create_transfer(user, &market.owner, prices.fees, &fees_memo);
 
     let existing_cost_basis = existing_position
         .map(|p| p.cost_basis)
@@ -343,14 +302,14 @@ pub fn sell(
         instrument_display_text(instrument, &market.row)
     );
     let shares_transfer =
-        make_system_credit_create_transfer(user, system_user, prices.shares_price, &shares_memo);
+        create_system_credit(user, system_user, prices.shares_price, &shares_memo);
 
     let fees_memo = format!(
         "SELL FEES {} shares {}",
         quantity,
         instrument_display_text(instrument, &market.row)
     );
-    let fees_transfer = make_transfer_create(user, &market.owner, prices.fees, &fees_memo);
+    let fees_transfer = create_transfer(user, &market.owner, prices.fees, &fees_memo);
 
     let position = CreatePosition {
         quantity: position.quantity - quantity,
@@ -432,13 +391,13 @@ pub fn resolve(
                 instrument_display_text(winner, &market.row)
             );
             let shares_transfer =
-                make_system_credit_create_transfer(user, system_user, shares_price, &shares_memo);
+                create_system_credit(user, system_user, shares_price, &shares_memo);
 
             let fees_memo = format!(
                 "RESOLVE FEES {quantity} shares {}",
                 instrument_display_text(winner, &market.row)
             );
-            let fees_transfer = make_transfer_create(user, &market.owner, prices.fees, &fees_memo);
+            let fees_transfer = create_transfer(user, &market.owner, prices.fees, &fees_memo);
 
             transfers.push(shares_transfer);
             transfers.push(fees_transfer);

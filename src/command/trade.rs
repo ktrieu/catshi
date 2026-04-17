@@ -234,7 +234,7 @@ pub async fn trade(
 
     match result {
         Ok(result) => {
-            store::order::create_order_struct(&mut *tx, &result.order).await?;
+            store::order::create_order(&mut *tx, &result.order).await?;
             store::position::upsert_position(&mut *tx, &result.position).await?;
             for t in &result.transfers {
                 store::transfer::persist_transfer(&mut tx, t).await?;

@@ -36,10 +36,7 @@ pub struct CreateOrder {
     pub owner_id: i64,
 }
 
-pub async fn create_order_struct(
-    exec: &mut SqliteConnection,
-    c: &CreateOrder,
-) -> anyhow::Result<Order> {
+pub async fn create_order(exec: &mut SqliteConnection, c: &CreateOrder) -> anyhow::Result<Order> {
     let order = query_as!(
         Order,
         r#"

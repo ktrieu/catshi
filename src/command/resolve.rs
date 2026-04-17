@@ -131,7 +131,7 @@ pub async fn resolve(
     let results = trade::resolve(&market, &winner, &positions, &system_user)?;
 
     for r in &results {
-        store::order::create_order_struct(&mut *tx, &r.order).await?;
+        store::order::create_order(&mut *tx, &r.order).await?;
 
         for t in &r.transfers {
             store::transfer::persist_transfer(&mut tx, &t).await?;
