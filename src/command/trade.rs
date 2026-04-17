@@ -12,7 +12,7 @@ use crate::{
     store::{
         self, instrument::Instrument, market::FullMarket, order::OrderDirection, user::DbUser,
     },
-    trade::{self, BuyError, SellError, TradeInput, calc_buy_prices},
+    trade::{self, TradeError, TradeResult, calc_buy_prices},
     ui::{
         instrument_display_text,
         market_message::render_market_message,
@@ -207,109 +207,101 @@ pub async fn trade(
 
     let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
 
-    let input = TradeInput::new(&mut tx, instrument_id, quantity, (*user).clone()).await?;
-
     let market = FullMarket::new_from_instrument_id(&mut *tx, instrument_id).await?;
     let traded_instrument = &market.get_instrument(instrument_id)?.0;
     let position = store::position::get_user_position(&mut *tx, traded_instrument, user).await?;
 
     let system_user = store::user::get_system_user(&handler.pool).await?;
 
-    if action == TradeAction::Buy {
-        let result = trade::buy(
+    let result = match action {
+        TradeAction::Buy => trade::buy(
             quantity,
             traded_instrument,
             &market,
-            position,
+            position.as_ref(),
             user,
             &system_user,
-        );
-        match result {
-            Ok(result) => {
-                store::order::create_order_struct(&mut *tx, &result.order).await?;
-                store::position::upsert_position(&mut *tx, &result.position).await?;
-                for t in &result.transfers {
-                    store::transfer::persist_transfer(&mut tx, t).await?;
-                }
+        ),
+        TradeAction::Sell => trade::sell(
+            quantity,
+            traded_instrument,
+            &market,
+            position.as_ref(),
+            user,
+            &system_user,
+        ),
+    };
 
-                let msg = format!(
-                    "Bought {} shares of {}. Total: {} ({} + {} fees)",
-                    result.quantity,
-                    instrument_display_text(traded_instrument, &market.row),
-                    result.total(),
-                    result.shares_price,
-                    result.fees
-                );
-                modal
-                    .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
-                    .await?;
+    match result {
+        Ok(result) => {
+            store::order::create_order_struct(&mut *tx, &result.order).await?;
+            store::position::upsert_position(&mut *tx, &result.position).await?;
+            for t in &result.transfers {
+                store::transfer::persist_transfer(&mut tx, t).await?;
             }
-            Err(BuyError::InsufficientFunds(total)) => {
-                let message = format!(
-                    "Insufficient funds: your order cost {total} and you only have {} in cash.",
-                    input.user.cash_balance
-                );
-                modal
-                    .create_response(
-                        &ctx.http,
-                        utils::text_interaction_response(message.as_str(), true),
-                    )
-                    .await?;
-                return Ok(());
-            }
+
+            let verb = match action {
+                TradeAction::Buy => "Bought",
+                TradeAction::Sell => "Sold",
+            };
+            let fee_sign = match action {
+                TradeAction::Buy => "+",
+                TradeAction::Sell => "-",
+            };
+
+            let TradeResult {
+                shares_price,
+                quantity,
+                fees,
+                ..
+            } = result;
+            let total = result.total();
+            let disp = instrument_display_text(traded_instrument, &market.row);
+
+            let msg = format!(
+                "{verb} {quantity} shares of {disp}. Total: {total} ({shares_price} {fee_sign} {fees} fees)",
+            );
+            modal
+                .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
+                .await?;
         }
-    } else {
-        let result = trade::sell(&input).await;
-        match result {
-            Ok(result) => {
-                result.persist(&mut tx, &system_user).await?;
-
-                let msg = format!(
-                    "Sold {} shares of {}. Total: {} ({} - {} fees). Profit {}",
-                    quantity,
-                    instrument_display_text(&input.traded_instrument, &input.market),
-                    result.net(),
-                    result.shares_price,
-                    result.fees,
-                    result.profit()
-                );
-                modal
-                    .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
-                    .await?;
-            }
-            Err(SellError::InsufficientShares) => {
-                let held_shares = input.position.map(|p| p.quantity).unwrap_or(0);
-                let message = format!("You have only {held_shares} shares to sell.");
-                modal
-                    .create_response(
-                        &ctx.http,
-                        utils::text_interaction_response(message.as_str(), true),
+        Err(trade_error) => {
+            let message = match trade_error {
+                TradeError::InsufficientFunds(total) => format!(
+                    "Insufficient funds: your order cost {} and you only have {} in cash.",
+                    total, user.cash_balance
+                ),
+                TradeError::InsufficientShares => {
+                    let held_shares = position.as_ref().map(|p| p.quantity).unwrap_or(0);
+                    format!(
+                        "Insufficient shares: you only have {} shares to sell.",
+                        held_shares
                     )
-                    .await?;
-                return Ok(());
-            }
+                }
+            };
+            modal
+                .create_response(
+                    &ctx.http,
+                    utils::text_interaction_response(message.as_str(), true),
+                )
+                .await?;
+            return Ok(());
         }
     }
 
     tx.commit().await?;
 
-    let msg_id = input
-        .market
+    let msg_id = market
+        .row
         .message_id
         .as_ref()
-        .ok_or(anyhow!(
-            "message ID not found for market {}",
-            input.market.id
-        ))?
+        .ok_or(anyhow!("message ID not found for market {}", market.row.id))?
         .parse::<u64>()?;
-    let channel_id = input
-        .market
+    let channel_id = market
+        .row
         .channel_id
         .as_ref()
-        .ok_or(anyhow!(
-            "channel ID not found for market {}",
-            input.market.id
-        ))?
+        .ok_or(anyhow!("channel ID not found for market {}", market.row.id))?
         .parse::<u64>()?;
 
     let mut msg = ctx
@@ -320,17 +312,15 @@ pub async fn trade(
     // Refetch the instruments after the trade is complete to update the market.
     let instruments = store::instrument::get_instruments_with_share_counts_for_market(
         &handler.pool,
-        input.market.id,
+        market.row.id,
     )
     .await?;
-    let market_message =
-        render_market_message(&input.market, &input.market_owner, instruments.iter());
+    let market_message = render_market_message(&market.row, &market.owner, instruments.iter());
 
     msg.edit(&ctx.http, EditMessage::new().components(market_message))
         .await?;
 
-    let market_message =
-        render_market_message(&input.market, &input.market_owner, instruments.iter());
+    let market_message = render_market_message(&market.row, &market.owner, instruments.iter());
 
     msg.edit(&ctx.http, EditMessage::new().components(market_message))
         .await?;
