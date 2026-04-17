@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use serenity::all::{Label, ModalInteraction};
+use anyhow::anyhow;
+use serenity::all::{Context, GenericChannelId, Label, Message, MessageId, ModalInteraction};
 
 use crate::store::{instrument::Instrument, market::Market};
 
@@ -49,6 +50,26 @@ pub fn instrument_display_text(instrument: &Instrument, market: &Market) -> Stri
         instrument.name,
         format_market_id(market.id)
     )
+}
+
+pub async fn get_market_message(market: &Market, ctx: &Context) -> anyhow::Result<Message> {
+    let msg_id = market
+        .message_id
+        .as_ref()
+        .ok_or(anyhow!("message ID not found for market {}", market.id))?
+        .parse::<u64>()?;
+    let channel_id = market
+        .channel_id
+        .as_ref()
+        .ok_or(anyhow!("channel ID not found for market {}", market.id))?
+        .parse::<u64>()?;
+
+    let msg = ctx
+        .http
+        .get_message(GenericChannelId::new(channel_id), MessageId::new(msg_id))
+        .await?;
+
+    Ok(msg)
 }
 
 const TABULATE_ROW_SEPARATOR: char = '|';

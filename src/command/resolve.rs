@@ -3,7 +3,7 @@ use std::{cmp::Reverse, collections::HashMap};
 use serenity::all::{
     ComponentInteraction, Context, CreateInteractionResponse, CreateLabel, CreateModal,
     CreateModalComponent, CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption,
-    CreateTextDisplay, EditMessage, GenericChannelId, MessageId, ModalInteraction,
+    CreateTextDisplay, EditMessage, ModalInteraction,
 };
 
 use crate::{
@@ -16,7 +16,10 @@ use crate::{
         user::DbUser,
     },
     trade::{self},
-    ui::{extract_modal_values, format_market_id, market_message::render_market_message, tabulate},
+    ui::{
+        self, extract_modal_values, format_market_id, market_message::render_market_message,
+        tabulate,
+    },
     utils,
 };
 use anyhow::{anyhow, bail};
@@ -197,28 +200,13 @@ pub async fn resolve(
     // Refetch and re-render market message.
     let market =
         store::market::FullMarket::new_from_instrument_id(&mut conn, instrument_id).await?;
-    let market_message =
+    let new_market_message =
         render_market_message(&market.row, &market.owner, market.instruments.iter());
 
-    let msg_id = market
-        .row
-        .message_id
-        .as_ref()
-        .ok_or(anyhow!("message ID not found for market {}", market.row.id))?
-        .parse::<u64>()?;
-    let channel_id = market
-        .row
-        .channel_id
-        .as_ref()
-        .ok_or(anyhow!("channel ID not found for market {}", market.row.id))?
-        .parse::<u64>()?;
+    let mut market_message = ui::get_market_message(&market.row, &ctx).await?;
 
-    let mut msg = ctx
-        .http
-        .get_message(GenericChannelId::new(channel_id), MessageId::new(msg_id))
-        .await?;
-
-    msg.edit(&ctx.http, EditMessage::new().components(market_message))
+    market_message
+        .edit(&ctx.http, EditMessage::new().components(new_market_message))
         .await?;
 
     Ok(())

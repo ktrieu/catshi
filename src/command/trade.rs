@@ -1,9 +1,7 @@
 use std::str::FromStr;
 
-use anyhow::anyhow;
 use serenity::all::{
-    ComponentInteraction, Context, CreateInteractionResponse, EditMessage, GenericChannelId,
-    MessageId, ModalInteraction,
+    ComponentInteraction, Context, CreateInteractionResponse, EditMessage, ModalInteraction,
 };
 
 use crate::{
@@ -14,7 +12,7 @@ use crate::{
     },
     trade::{self, TradeError, TradeResult, calc_buy_prices},
     ui::{
-        instrument_display_text,
+        self, instrument_display_text,
         market_message::render_market_message,
         trade_flow::{create_trade_modal, extract_quantity_from_trade_modal},
     },
@@ -290,39 +288,17 @@ pub async fn trade(
     }
 
     tx.commit().await?;
-
-    let msg_id = market
-        .row
-        .message_id
-        .as_ref()
-        .ok_or(anyhow!("message ID not found for market {}", market.row.id))?
-        .parse::<u64>()?;
-    let channel_id = market
-        .row
-        .channel_id
-        .as_ref()
-        .ok_or(anyhow!("channel ID not found for market {}", market.row.id))?
-        .parse::<u64>()?;
-
-    let mut msg = ctx
-        .http
-        .get_message(GenericChannelId::new(channel_id), MessageId::new(msg_id))
-        .await?;
-
     // Refetch the instruments after the trade is complete to update the market.
     let instruments = store::instrument::get_instruments_with_share_counts_for_market(
         &handler.pool,
         market.row.id,
     )
     .await?;
-    let market_message = render_market_message(&market.row, &market.owner, instruments.iter());
+    let new_market_message = render_market_message(&market.row, &market.owner, instruments.iter());
+    let mut market_message = ui::get_market_message(&market.row, ctx).await?;
 
-    msg.edit(&ctx.http, EditMessage::new().components(market_message))
-        .await?;
-
-    let market_message = render_market_message(&market.row, &market.owner, instruments.iter());
-
-    msg.edit(&ctx.http, EditMessage::new().components(market_message))
+    market_message
+        .edit(&ctx.http, EditMessage::new().components(new_market_message))
         .await?;
 
     Ok(())
