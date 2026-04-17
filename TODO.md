@@ -18,6 +18,10 @@
     - display prices for some fixed quantity when selecting share count
     - but allow freetext entry of arbitary amount
 - ~~view open positions for market~~
+- buy/sell/resolve refactors to further separate store and trade code
+- BUG: UI render error when clicking SELL on market with no positions
+- BUG: sell prices in prefill and actual order fills not matching
+- show question when resolving
 - e-transfer command
 - order history
     - PV/total gain calculations
