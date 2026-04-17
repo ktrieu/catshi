@@ -9,7 +9,7 @@ use serenity::all::{
 use crate::{
     Handler,
     currency::Currency,
-    store::{self, DbUser, Instrument, OrderDirection},
+    store::{self, instrument::Instrument, order::OrderDirection, user::DbUser},
     trade::{self, BuyError, SellError, TradeInput, calc_buy_prices},
     ui::{
         instrument_display_text,
@@ -74,7 +74,8 @@ async fn calc_max_buy_shares(
     instrument_id: i64,
 ) -> anyhow::Result<i64> {
     let shares =
-        store::get_instruments_with_share_counts_for_market(&handler.pool, market_id).await?;
+        store::instrument::get_instruments_with_share_counts_for_market(&handler.pool, market_id)
+            .await?;
 
     let (max_shares, prices) =
         trade::get_max_buy_shares(balance, instrument_id, shares.iter(), trade::MARKET_B);
@@ -92,7 +93,7 @@ async fn calc_max_sell_shares(
     instrument: &Instrument,
     user: &DbUser,
 ) -> anyhow::Result<i64> {
-    let position = store::get_user_position(&handler.pool, instrument, user).await?;
+    let position = store::position::get_user_position(&handler.pool, instrument, user).await?;
 
     match position {
         Some(position) => Ok(position.quantity),
@@ -132,14 +133,15 @@ pub async fn initiate_trade(
     action: TradeAction,
     instrument_id: i64,
 ) -> anyhow::Result<()> {
-    let market = store::get_market_by_instrument_id(&handler.pool, instrument_id)
+    let market = store::market::get_market_by_instrument_id(&handler.pool, instrument_id)
         .await?
         .ok_or(anyhow!("market not found for instrument {}", instrument_id))?;
 
     let instruments =
-        store::get_instruments_with_share_counts_for_market(&handler.pool, market.id).await?;
+        store::instrument::get_instruments_with_share_counts_for_market(&handler.pool, market.id)
+            .await?;
 
-    let instrument = store::get_instrument_by_id(&handler.pool, instrument_id)
+    let instrument = store::instrument::get_instrument_by_id(&handler.pool, instrument_id)
         .await?
         .ok_or(anyhow!("instrument {} not found", instrument_id))?;
 
@@ -210,7 +212,7 @@ pub async fn trade(
 
     let input = TradeInput::new(&mut tx, instrument_id, quantity, (*user).clone()).await?;
 
-    let system_user = store::get_system_user(&handler.pool).await?;
+    let system_user = store::user::get_system_user(&handler.pool).await?;
 
     if action == TradeAction::Buy {
         let result = trade::buy(&input).await;
@@ -304,8 +306,11 @@ pub async fn trade(
         .await?;
 
     // Refetch the instruments after the trade is complete to update the market.
-    let instruments =
-        store::get_instruments_with_share_counts_for_market(&handler.pool, input.market.id).await?;
+    let instruments = store::instrument::get_instruments_with_share_counts_for_market(
+        &handler.pool,
+        input.market.id,
+    )
+    .await?;
     let market_message =
         render_market_message(&input.market, &input.market_owner, instruments.iter());
 

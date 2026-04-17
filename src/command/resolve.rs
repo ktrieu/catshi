@@ -9,10 +9,7 @@ use serenity::all::{
 use crate::{
     Handler,
     currency::Currency,
-    store::{
-        self, DbUser, InstrumentState, Market, MarketState,
-        get_instruments_with_share_counts_for_market,
-    },
+    store::{self, instrument::InstrumentState, market::Market, market::MarketState, user::DbUser},
     trade::{self, ResolveInput},
     ui::{extract_modal_values, format_market_id, market_message::render_market_message, tabulate},
     utils,
@@ -46,7 +43,7 @@ pub async fn initiate_resolve(
     component: &ComponentInteraction,
     user: &DbUser,
 ) -> anyhow::Result<()> {
-    let market = store::get_market_by_id(&handler.pool, market_id)
+    let market = store::market::get_market_by_id(&handler.pool, market_id)
         .await?
         .ok_or(anyhow!("market {market_id} not found"))?;
 
@@ -60,7 +57,8 @@ pub async fn initiate_resolve(
     }
 
     let instruments =
-        get_instruments_with_share_counts_for_market(&handler.pool, market_id).await?;
+        store::instrument::get_instruments_with_share_counts_for_market(&handler.pool, market_id)
+            .await?;
 
     let options: Vec<CreateSelectMenuOption> = instruments
         .iter()
@@ -97,7 +95,7 @@ pub async fn resolve(
     modal: &ModalInteraction,
     user: &DbUser,
 ) -> anyhow::Result<()> {
-    let market = store::get_market_by_id(&handler.pool, market_id)
+    let market = store::market::get_market_by_id(&handler.pool, market_id)
         .await?
         .ok_or(anyhow!("market {market_id} not found"))?;
 
@@ -117,7 +115,7 @@ pub async fn resolve(
     let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
 
     let input = ResolveInput::new(&mut tx, market_id, instrument_id).await?;
-    let system_user = store::get_system_user(&handler.pool).await?;
+    let system_user = store::user::get_system_user(&handler.pool).await?;
 
     let results = trade::resolve(&input).await?;
 
@@ -126,7 +124,7 @@ pub async fn resolve(
     }
 
     // Set the market/instrument states.
-    store::set_market_state(&mut *tx, &market, MarketState::Closed).await?;
+    store::market::set_market_state(&mut *tx, &market, MarketState::Closed).await?;
     for (i, _) in &input.market_instruments {
         let state = if i.id == instrument_id {
             InstrumentState::Winner
@@ -134,14 +132,15 @@ pub async fn resolve(
             InstrumentState::Loser
         };
 
-        store::set_instrument_state(&mut *tx, &i, state).await?;
+        store::instrument::set_instrument_state(&mut *tx, &i, state).await?;
     }
 
     tx.commit().await?;
 
     // Only show the profit result msg if there were actually any positions closed out.
     if results.len() != 0 {
-        let users = store::get_users_with_positions_in_market(&handler.pool, market.id).await?;
+        let users =
+            store::user::get_users_with_positions_in_market(&handler.pool, market.id).await?;
 
         let mut profits: HashMap<i64, (&DbUser, Currency)> = users
             .iter()
@@ -181,11 +180,14 @@ pub async fn resolve(
     }
 
     // Refetch and re-render market message.
-    let market = store::get_market_by_id(&handler.pool, market_id)
+    let market = store::market::get_market_by_id(&handler.pool, market_id)
         .await?
         .ok_or(anyhow!("market {market_id} not found"))?;
-    let instruments =
-        store::get_instruments_with_share_counts_for_market(&handler.pool, input.market.id).await?;
+    let instruments = store::instrument::get_instruments_with_share_counts_for_market(
+        &handler.pool,
+        input.market.id,
+    )
+    .await?;
     let market_message = render_market_message(&market, &input.market_owner, instruments.iter());
 
     let msg_id = input

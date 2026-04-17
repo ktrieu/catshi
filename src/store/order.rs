@@ -1,0 +1,76 @@
+use sqlx::{Executor, Sqlite, query_as};
+
+use crate::{
+    currency::Currency,
+    store::{instrument::Instrument, user::DbUser},
+};
+
+#[derive(Debug, sqlx::Type)]
+#[sqlx(rename_all = "lowercase")]
+pub enum OrderDirection {
+    Buy,
+    Sell,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+#[allow(dead_code)]
+pub struct Order {
+    pub id: i64,
+    pub direction: OrderDirection,
+    pub quantity: i64,
+    pub shares_price: Currency,
+    pub fees: Currency,
+    // Same as shares_price + fees for buys but based on position cost basis for sells.
+    // Allows us to calculate the profit on a sell.
+    pub cost_basis: Currency,
+    pub instrument_id: i64,
+    pub owner_id: i64,
+    pub created_at: i64,
+}
+
+pub async fn create_order(
+    exec: impl Executor<'_, Database = Sqlite>,
+    direction: OrderDirection,
+    quantity: i64,
+    shares_price: Currency,
+    fees: Currency,
+    cost_basis: Currency,
+    instrument: &Instrument,
+    owner: &DbUser,
+) -> anyhow::Result<Order> {
+    let order = query_as!(
+        Order,
+        r#"
+            INSERT INTO orders (
+                direction,
+                quantity,
+                shares_price,
+                fees,
+                cost_basis,
+                instrument_id,
+                owner_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING
+                id,
+                direction as "direction: OrderDirection",
+                quantity,
+                shares_price as "shares_price: Currency",
+                fees as "fees: Currency",
+                cost_basis as "cost_basis: Currency",
+                instrument_id,
+                owner_id,
+                created_at
+        "#,
+        direction,
+        quantity,
+        shares_price,
+        fees,
+        cost_basis,
+        instrument.id,
+        owner.id
+    )
+    .fetch_one(exec)
+    .await?;
+
+    Ok(order)
+}

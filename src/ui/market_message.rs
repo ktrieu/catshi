@@ -4,7 +4,10 @@ use serenity::all::{
 
 use crate::{
     command::trade::{TradeAction, get_trade_button_id},
-    store::{DbUser, InstrumentState, InstrumentWithShares, Market, MarketState},
+    store::{
+        instrument::InstrumentState, instrument::InstrumentWithShares, market::Market,
+        market::MarketState, user::DbUser,
+    },
     trade,
 };
 

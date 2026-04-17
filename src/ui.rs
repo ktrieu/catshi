@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serenity::all::{Label, ModalInteraction};
 
-use crate::store::{Instrument, Market};
+use crate::store::{instrument::Instrument, market::Market};
 
 pub mod market_create_modal;
 pub mod market_message;

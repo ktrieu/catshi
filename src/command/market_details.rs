@@ -14,9 +14,11 @@ pub async fn view_market_details(
     component: &ComponentInteraction,
 ) -> anyhow::Result<()> {
     let instruments =
-        store::get_instruments_with_share_counts_for_market(&handler.pool, market_id).await?;
+        store::instrument::get_instruments_with_share_counts_for_market(&handler.pool, market_id)
+            .await?;
 
-    let mut all_positions = store::get_all_market_positions(&handler.pool, market_id).await?;
+    let mut all_positions =
+        store::position::get_all_market_positions(&handler.pool, market_id).await?;
     all_positions.sort_by_key(|p| (p.position.instrument_id, p.position.quantity));
 
     let mut rows = vec![[

@@ -8,7 +8,7 @@ use serenity::all::{
 use crate::{
     command::trade::TradeAction,
     currency::Currency,
-    store::{Instrument, Market},
+    store::{instrument::Instrument, market::Market},
     ui::{self, extract_modal_values},
 };
 

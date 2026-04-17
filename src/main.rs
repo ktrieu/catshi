@@ -15,7 +15,7 @@ use sqlx::SqlitePool;
 use crate::{
     command::{resolve::parse_market_resolve_modal_id, trade::parse_trade_button_id},
     currency::Currency,
-    store::DbUser,
+    store::user::DbUser,
     ui::{
         market_message::{parse_market_details_button_id, parse_market_resolve_button_id},
         trade_flow::parse_trade_modal_id,
@@ -51,11 +51,11 @@ impl Handler {
     async fn authenticate(&self, ctx: &Context, discord_user: &User) -> anyhow::Result<DbUser> {
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
 
-        let user = store::get_user_by_discord_id(&self.pool, &discord_user.id).await?;
+        let user = store::user::get_user_by_discord_id(&self.pool, &discord_user.id).await?;
         let user = match user {
             Some(user) => anyhow::Ok(user),
             None => {
-                let system_user = store::get_system_user(&mut *tx).await?;
+                let system_user = store::user::get_system_user(&mut *tx).await?;
                 // Automatically register if we haven't seen them before.
                 let server_nickname = discord_user.nick_in(ctx, self.guild_id).await;
 
@@ -64,9 +64,13 @@ impl Handler {
                     .unwrap_or(discord_user.name.as_str());
                 let user_id = &discord_user.id.to_string();
 
-                let user =
-                    store::insert_user_if_not_exists(&mut *tx, &user_id, &name, Currency::from(0))
-                        .await?;
+                let user = store::user::insert_user_if_not_exists(
+                    &mut *tx,
+                    &user_id,
+                    &name,
+                    Currency::from(0),
+                )
+                .await?;
 
                 // Credit the user their initial balance.
                 trade::system_credit_user(
@@ -78,7 +82,7 @@ impl Handler {
                 )
                 .await?;
 
-                let user = store::get_user_by_id(&mut *tx, user.id)
+                let user = store::user::get_user_by_id(&mut *tx, user.id)
                     .await?
                     .expect("user should exist");
 

@@ -4,8 +4,9 @@ use sqlx::{Sqlite, Transaction};
 use crate::{
     currency::Currency,
     store::{
-        self, CreateTransfer, DbUser, Instrument, InstrumentWithShares, Market, OrderDirection,
-        Position, PositionWithUser,
+        self, instrument::Instrument, instrument::InstrumentWithShares, market::Market,
+        order::OrderDirection, position::Position, position::PositionWithUser,
+        transfer::CreateTransfer, user::DbUser,
     },
 };
 
@@ -23,13 +24,13 @@ async fn transfer_cash(
         receiver: receiver.id,
         memo: memo.to_owned(),
     };
-    store::insert_transfer(&mut **tx, create).await?;
+    store::transfer::insert_transfer(&mut **tx, create).await?;
 
     // 2. Credit the receiving account.
-    store::increment_balance(&mut **tx, receiver, amount).await?;
+    store::user::increment_balance(&mut **tx, receiver, amount).await?;
 
     // 3. Debit the sending account.
-    store::increment_balance(&mut **tx, sender, -amount).await?;
+    store::user::increment_balance(&mut **tx, sender, -amount).await?;
 
     Ok(())
 }
@@ -207,22 +208,24 @@ impl TradeInput {
         quantity: i64,
         user: DbUser,
     ) -> anyhow::Result<Self> {
-        let traded_instrument = store::get_instrument_by_id(&mut **tx, instrument_id)
+        let traded_instrument = store::instrument::get_instrument_by_id(&mut **tx, instrument_id)
             .await?
             .ok_or(anyhow!("instrument {instrument_id} not found"))?;
 
-        let market = store::get_market_by_id(&mut **tx, traded_instrument.market_id)
+        let market = store::market::get_market_by_id(&mut **tx, traded_instrument.market_id)
             .await?
             .ok_or(anyhow!("market {} not found", traded_instrument.market_id))?;
 
-        let market_owner = store::get_user_by_id(&mut **tx, market.owner_id)
+        let market_owner = store::user::get_user_by_id(&mut **tx, market.owner_id)
             .await?
             .ok_or(anyhow!("user {} not found", market.owner_id))?;
 
-        let position = store::get_user_position(&mut **tx, &traded_instrument, &user).await?;
+        let position =
+            store::position::get_user_position(&mut **tx, &traded_instrument, &user).await?;
 
         let market_instruments =
-            store::get_instruments_with_share_counts_for_market(&mut **tx, market.id).await?;
+            store::instrument::get_instruments_with_share_counts_for_market(&mut **tx, market.id)
+                .await?;
 
         Ok(Self {
             quantity,
@@ -253,7 +256,7 @@ impl<'a> BuyResult<'a> {
         system_user: &DbUser,
     ) -> anyhow::Result<()> {
         if self.input.position.is_none() {
-            store::create_new_position(
+            store::position::create_new_position(
                 &mut **tx,
                 self.input.quantity,
                 self.total(),
@@ -262,7 +265,7 @@ impl<'a> BuyResult<'a> {
             )
             .await?;
         } else {
-            store::increase_position(
+            store::position::increase_position(
                 &mut **tx,
                 self.input.quantity,
                 self.total(),
@@ -272,9 +275,9 @@ impl<'a> BuyResult<'a> {
             .await?;
         }
 
-        store::create_order(
+        store::order::create_order(
             &mut **tx,
-            store::OrderDirection::Buy,
+            store::order::OrderDirection::Buy,
             self.input.quantity,
             self.shares_price,
             self.fees,
@@ -372,7 +375,7 @@ impl<'i> SellResult<'i> {
 
         let new_position_cost_basis = position.cost_basis - self.order_cost_basis;
 
-        store::decrease_position(
+        store::position::decrease_position(
             &mut **tx,
             self.input.quantity,
             new_position_cost_basis,
@@ -381,9 +384,9 @@ impl<'i> SellResult<'i> {
         )
         .await?;
 
-        store::create_order(
+        store::order::create_order(
             &mut **tx,
-            store::OrderDirection::Sell,
+            OrderDirection::Sell,
             self.input.quantity,
             self.shares_price,
             self.fees,
@@ -475,16 +478,17 @@ impl ResolveInput {
         market_id: i64,
         winning_instrument_id: i64,
     ) -> anyhow::Result<Self> {
-        let market = store::get_market_by_id(&mut **tx, market_id)
+        let market = store::market::get_market_by_id(&mut **tx, market_id)
             .await?
             .ok_or(anyhow!("market {market_id} not found"))?;
 
-        let market_owner = store::get_user_by_id(&mut **tx, market.owner_id)
+        let market_owner = store::user::get_user_by_id(&mut **tx, market.owner_id)
             .await?
             .ok_or(anyhow!("market owner {} not found", market.owner_id))?;
 
         let market_instruments =
-            store::get_instruments_with_share_counts_for_market(&mut **tx, market_id).await?;
+            store::instrument::get_instruments_with_share_counts_for_market(&mut **tx, market_id)
+                .await?;
 
         let winner = market_instruments
             .iter()
@@ -500,7 +504,7 @@ impl ResolveInput {
             ))?
             .clone();
 
-        let all_positions = store::get_all_market_positions(&mut **tx, market_id).await?;
+        let all_positions = store::position::get_all_market_positions(&mut **tx, market_id).await?;
 
         Ok(Self {
             market,
@@ -530,7 +534,7 @@ impl<'i> ResolveResult<'i> {
         system_user: &DbUser,
     ) -> anyhow::Result<()> {
         // Close out the position.
-        store::decrease_position(
+        store::position::decrease_position(
             &mut **tx,
             self.quantity,
             Currency::from(0),
@@ -540,9 +544,9 @@ impl<'i> ResolveResult<'i> {
         .await?;
 
         // Create the sell order.
-        store::create_order(
+        store::order::create_order(
             &mut **tx,
-            store::OrderDirection::Sell,
+            OrderDirection::Sell,
             self.quantity,
             self.shares_price,
             self.fees,
