@@ -274,7 +274,6 @@ pub fn sell(
     system_user: &DbUser,
 ) -> Result<TradeResult, TradeError> {
     let prices = calc_sell_prices(quantity, instrument.id, market.instruments.iter(), MARKET_B);
-    let total = prices.total(OrderDirection::Sell);
 
     let position = match existing_position {
         Some(position) => position,
@@ -290,11 +289,12 @@ pub fn sell(
 
     let sold_ratio = quantity as f32 / position.quantity as f32;
     let new_cost_basis = position.cost_basis * (1.0f32 - sold_ratio);
+    let order_cost_basis = position.cost_basis - new_cost_basis;
 
     let order = CreateOrder {
         direction: OrderDirection::Sell,
         quantity,
-        cost_basis: total,
+        cost_basis: order_cost_basis,
         shares_price: prices.shares_price,
         fees: prices.fees,
         instrument_id: instrument.id,
