@@ -182,11 +182,15 @@ pub struct TradeResult {
     pub shares_price: Currency,
     pub fees: Currency,
     pub quantity: i64,
+    pub direction: OrderDirection,
 }
 
 impl TradeResult {
     pub fn total(&self) -> Currency {
-        self.shares_price + self.fees
+        match self.direction {
+            OrderDirection::Buy => self.shares_price + self.fees,
+            OrderDirection::Sell => self.shares_price - self.fees,
+        }
     }
 }
 
@@ -257,6 +261,7 @@ pub fn buy(
         shares_price: prices.shares_price,
         fees: prices.fees,
         quantity,
+        direction: OrderDirection::Buy,
     })
 }
 
@@ -325,6 +330,7 @@ pub fn sell(
         shares_price: prices.shares_price,
         fees: prices.fees,
         quantity,
+        direction: OrderDirection::Sell,
     })
 }
 

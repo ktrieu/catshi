@@ -10,7 +10,7 @@ use crate::{
     store::{
         self, instrument::Instrument, market::FullMarket, order::OrderDirection, user::DbUser,
     },
-    trade::{self, TradeError, TradeResult, calc_buy_prices},
+    trade::{self, TradeError, TradeResult, calc_buy_prices, calc_sell_prices},
     ui::{
         self, instrument_display_text,
         market_message::render_market_message,
@@ -115,7 +115,7 @@ fn get_prefilled_quantity(
                 .total(OrderDirection::Buy)
         }
         TradeAction::Sell => {
-            calc_buy_prices(quantity, instrument_id, instruments.iter(), trade::MARKET_B)
+            calc_sell_prices(quantity, instrument_id, instruments.iter(), trade::MARKET_B)
                 .total(OrderDirection::Sell)
         }
     };
