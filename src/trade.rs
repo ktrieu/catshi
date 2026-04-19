@@ -182,19 +182,8 @@ pub struct TradeResult {
     pub order: CreateOrder,
     pub transfers: Vec<CreateTransfer>,
     pub position: CreatePosition,
-    pub shares_price: Currency,
-    pub fees: Currency,
+    pub prices: OrderPrices,
     pub quantity: i64,
-    pub direction: OrderDirection,
-}
-
-impl TradeResult {
-    pub fn total(&self) -> Currency {
-        match self.direction {
-            OrderDirection::Buy => self.shares_price + self.fees,
-            OrderDirection::Sell => self.shares_price - self.fees,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -261,10 +250,8 @@ pub fn buy(
         order,
         transfers: vec![shares_transfer, fees_transfer],
         position,
-        shares_price: prices.shares_price,
-        fees: prices.fees,
+        prices,
         quantity,
-        direction: OrderDirection::Buy,
     })
 }
 
@@ -330,10 +317,8 @@ pub fn sell(
         order,
         position,
         transfers: vec![shares_transfer, fees_transfer],
-        shares_price: prices.shares_price,
-        fees: prices.fees,
+        prices,
         quantity,
-        direction: OrderDirection::Sell,
     })
 }
 

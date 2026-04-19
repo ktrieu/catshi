@@ -244,13 +244,12 @@ pub async fn trade(
             };
 
             let TradeResult {
-                shares_price,
-                quantity,
-                fees,
-                ..
+                quantity, prices, ..
             } = result;
-            let total = result.total();
+            let total = prices.total();
             let disp = instrument_display_text(traded_instrument, &market.row);
+            let shares_price = prices.shares_price;
+            let fees = prices.fees;
 
             let msg = format!(
                 "{verb} {quantity} shares of {disp}. Total: {total} ({shares_price} {fee_sign} {fees} fees)",
