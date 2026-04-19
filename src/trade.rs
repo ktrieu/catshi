@@ -51,7 +51,7 @@ fn cost(share_counts: impl IntoIterator<Item = i64>, b: f32) -> f32 {
     b * summed.ln()
 }
 
-pub fn calc_cost_delta<'s>(
+fn calc_cost_delta<'s>(
     quantity: i64,
     instrument_id: i64,
     shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
@@ -76,7 +76,7 @@ pub fn calc_cost_delta<'s>(
     Currency::from_instrument_price(total_price)
 }
 
-pub fn calc_price_raw<'s>(
+fn calc_price_raw<'s>(
     instrument_id: i64,
     shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
