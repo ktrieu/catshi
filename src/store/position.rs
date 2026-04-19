@@ -42,7 +42,7 @@ pub async fn get_user_position(
     Ok(position)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreatePosition {
     pub quantity: i64,
     pub cost_basis: Currency,

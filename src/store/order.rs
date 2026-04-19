@@ -2,7 +2,7 @@ use sqlx::{SqliteConnection, query_as};
 
 use crate::currency::Currency;
 
-#[derive(Debug, sqlx::Type, Clone)]
+#[derive(Debug, sqlx::Type, Clone, PartialEq, Eq)]
 #[sqlx(rename_all = "lowercase")]
 pub enum OrderDirection {
     Buy,
@@ -25,7 +25,7 @@ pub struct Order {
     pub created_at: i64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreateOrder {
     pub direction: OrderDirection,
     pub quantity: i64,

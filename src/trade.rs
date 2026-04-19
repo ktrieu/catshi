@@ -131,6 +131,7 @@ pub fn calc_fees(shares_price: Currency) -> Currency {
     shares_price * 0.02f32
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct OrderPrices {
     pub shares_price: Currency,
     pub fees: Currency,
@@ -207,6 +208,7 @@ fn format_transfer_memo(
     format!("{prefix} {qty} shares {display_text}")
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct TradeResult {
     pub order: CreateOrder,
     pub transfers: Vec<CreateTransfer>,
@@ -215,7 +217,7 @@ pub struct TradeResult {
     pub quantity: i64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TradeError {
     InsufficientFunds(Currency),
     InsufficientShares,
@@ -448,4 +450,258 @@ pub fn resolve(
     }
 
     Ok(results)
+}
+
+#[cfg(test)]
+mod test {
+    use crate::store::{
+        instrument::InstrumentState,
+        market::{Market, MarketState},
+    };
+
+    use super::*;
+
+    fn test_trade_data() -> (FullMarket, DbUser, DbUser) {
+        let market_owner = DbUser {
+            id: 0,
+            discord_id: "000".to_string(),
+            name: "market_owner".to_string(),
+            cash_balance: Currency::from(0),
+        };
+
+        let market = FullMarket {
+            row: Market {
+                id: 0,
+                description: "test".to_string(),
+                state: MarketState::Open,
+                owner_id: market_owner.id,
+                message_id: Some("0".to_string()),
+                channel_id: Some("0".to_string()),
+            },
+            instruments: vec![
+                (
+                    Instrument {
+                        id: 0,
+                        name: "yes".to_string(),
+                        state: InstrumentState::Open,
+                        market_id: 0,
+                    },
+                    0,
+                ),
+                (
+                    Instrument {
+                        id: 1,
+                        name: "no".to_string(),
+                        state: InstrumentState::Open,
+                        market_id: 0,
+                    },
+                    0,
+                ),
+            ],
+            owner: market_owner,
+        };
+
+        let system_user = DbUser {
+            id: 1,
+            discord_id: "0".to_string(),
+            name: "system_user".to_string(),
+            cash_balance: Currency::from(0),
+        };
+
+        let user = DbUser {
+            id: 2,
+            discord_id: "222".to_string(),
+            name: "user".to_string(),
+            cash_balance: Currency::new_yp(20),
+        };
+
+        (market, system_user, user)
+    }
+
+    #[test]
+    fn test_buy_no_position() {
+        let (market, system_user, user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let qty = 5;
+
+        let result = buy(
+            qty,
+            instrument,
+            &market,
+            None,
+            &user,
+            &system_user,
+            MARKET_B,
+        )
+        .expect("buy should succeed");
+
+        let prices = calc_buy_prices(qty, instrument.id, market.instruments.iter(), MARKET_B);
+        // Don't directly assert the prices - just assert that it matches our internal calculation.
+        // We'll test the math separately.
+        assert_eq!(result.prices, prices);
+
+        let expected_order = CreateOrder {
+            direction: OrderDirection::Buy,
+            quantity: qty,
+            shares_price: prices.shares_price,
+            fees: prices.fees,
+            cost_basis: prices.shares_price + prices.fees,
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.order, expected_order);
+
+        let expected_position = CreatePosition {
+            quantity: qty,
+            cost_basis: prices.shares_price + prices.fees,
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.position, expected_position);
+
+        assert_eq!(result.quantity, qty);
+    }
+
+    #[test]
+    fn test_buy_existing_position() {
+        let (market, system_user, user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let existing_position = Position {
+            id: 0,
+            quantity: 10,
+            cost_basis: Currency::new_yp(2),
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+
+        let qty = 5;
+
+        let result = buy(
+            qty,
+            instrument,
+            &market,
+            Some(&existing_position),
+            &user,
+            &system_user,
+            MARKET_B,
+        )
+        .expect("buy should succeed");
+
+        let prices = calc_buy_prices(qty, instrument.id, market.instruments.iter(), MARKET_B);
+        // Don't directly assert the prices - just assert that it matches our internal calculation.
+        // We'll test the math separately.
+        assert_eq!(result.prices, prices);
+
+        let expected_order = CreateOrder {
+            direction: OrderDirection::Buy,
+            quantity: qty,
+            shares_price: prices.shares_price,
+            fees: prices.fees,
+            cost_basis: prices.shares_price + prices.fees,
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.order, expected_order);
+
+        let expected_position = CreatePosition {
+            quantity: qty + existing_position.quantity,
+            cost_basis: existing_position.cost_basis + prices.shares_price + prices.fees,
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.position, expected_position);
+
+        assert_eq!(result.quantity, qty);
+    }
+
+    #[test]
+    fn test_buy_transfers() {
+        let (market, system_user, user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let qty = 5;
+
+        let result = buy(
+            qty,
+            instrument,
+            &market,
+            None,
+            &user,
+            &system_user,
+            MARKET_B,
+        )
+        .expect("buy should succeed");
+
+        let prices = calc_buy_prices(qty, instrument.id, market.instruments.iter(), MARKET_B);
+
+        let shares_transfer = CreateTransfer {
+            amount: prices.shares_price,
+            sender: user.id,
+            receiver: system_user.id,
+            memo: format_transfer_memo(TransferType::Buy, false, qty, instrument, &market.row),
+        };
+        assert!(result.transfers.contains(&shares_transfer));
+
+        let fees_transfer = CreateTransfer {
+            amount: prices.fees,
+            sender: user.id,
+            receiver: market.owner.id,
+            memo: format_transfer_memo(TransferType::Buy, true, qty, instrument, &market.row),
+        };
+        assert!(result.transfers.contains(&fees_transfer));
+    }
+
+    #[test]
+    fn test_buy_insufficient_funds() {
+        let (market, system_user, mut user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let qty = 5;
+        let prices = calc_buy_prices(qty, instrument.id, market.instruments.iter(), MARKET_B);
+
+        user.cash_balance = Currency::from(0);
+
+        let result = buy(
+            qty,
+            instrument,
+            &market,
+            None,
+            &user,
+            &system_user,
+            MARKET_B,
+        );
+
+        assert_eq!(
+            result,
+            Err(TradeError::InsufficientFunds(
+                prices.shares_price + prices.fees
+            ))
+        );
+    }
+
+    #[test]
+    fn test_buy_insufficient_funds_overdraft() {
+        let (market, system_user, mut user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let qty = 5;
+        let prices = calc_buy_prices(qty, instrument.id, market.instruments.iter(), MARKET_B);
+
+        // User has 0.5yp less than they need to complete the purchase. this should be allowed since we allow up to 1.0yp overdraft.
+        user.cash_balance = prices.total() - Currency::from(500);
+
+        let result = buy(
+            qty,
+            instrument,
+            &market,
+            None,
+            &user,
+            &system_user,
+            MARKET_B,
+        );
+
+        result.expect("buy with overdraft should succeed");
+    }
 }
