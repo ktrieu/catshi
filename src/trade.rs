@@ -2,7 +2,7 @@ use crate::{
     currency::Currency,
     store::{
         instrument::{Instrument, InstrumentWithShares},
-        market::FullMarket,
+        market::{FullMarket, Market},
         order::{CreateOrder, OrderDirection},
         position::{CreatePosition, Position, PositionWithUser},
         transfer::CreateTransfer,
@@ -178,6 +178,35 @@ pub fn calc_sell_prices<'s>(
     }
 }
 
+enum TransferType {
+    Buy,
+    Sell,
+    Resolve,
+}
+
+fn format_transfer_memo(
+    ty: TransferType,
+    is_fees: bool,
+    qty: i64,
+    instrument: &Instrument,
+    market: &Market,
+) -> String {
+    let mut prefix = match ty {
+        TransferType::Buy => "BUY",
+        TransferType::Sell => "SELL",
+        TransferType::Resolve => "RESOLVE",
+    }
+    .to_string();
+
+    if is_fees {
+        prefix += " FEES";
+    };
+
+    let display_text = instrument_display_text(instrument, market);
+
+    format!("{prefix} {qty} shares {display_text}")
+}
+
 pub struct TradeResult {
     pub order: CreateOrder,
     pub transfers: Vec<CreateTransfer>,
@@ -221,19 +250,19 @@ pub fn buy(
         owner_id: user.id,
     };
 
-    let shares_memo = format!(
-        "BUY {} shares {}",
-        quantity,
-        instrument_display_text(instrument, &market.row)
+    let shares_transfer = create_system_debit(
+        user,
+        system_user,
+        prices.shares_price,
+        &format_transfer_memo(TransferType::Buy, false, quantity, instrument, &market.row),
     );
-    let shares_transfer = create_system_debit(user, system_user, prices.shares_price, &shares_memo);
 
-    let fees_memo = format!(
-        "BUY FEES {} shares {}",
-        quantity,
-        instrument_display_text(instrument, &market.row)
+    let fees_transfer = create_transfer(
+        user,
+        &market.owner,
+        prices.fees,
+        &format_transfer_memo(TransferType::Buy, true, quantity, instrument, &market.row),
     );
-    let fees_transfer = create_transfer(user, &market.owner, prices.fees, &fees_memo);
 
     let existing_cost_basis = existing_position
         .map(|p| p.cost_basis)
@@ -293,20 +322,19 @@ pub fn sell(
         owner_id: user.id,
     };
 
-    let shares_memo = format!(
-        "SELL {} shares {}",
-        quantity,
-        instrument_display_text(instrument, &market.row)
+    let shares_transfer = create_system_credit(
+        user,
+        system_user,
+        prices.shares_price,
+        &format_transfer_memo(TransferType::Sell, false, quantity, instrument, &market.row),
     );
-    let shares_transfer =
-        create_system_credit(user, system_user, prices.shares_price, &shares_memo);
 
-    let fees_memo = format!(
-        "SELL FEES {} shares {}",
-        quantity,
-        instrument_display_text(instrument, &market.row)
+    let fees_transfer = create_transfer(
+        user,
+        &market.owner,
+        prices.fees,
+        &format_transfer_memo(TransferType::Sell, true, quantity, instrument, &market.row),
     );
-    let fees_transfer = create_transfer(user, &market.owner, prices.fees, &fees_memo);
 
     let position = CreatePosition {
         quantity: position.quantity - quantity,
@@ -383,18 +411,19 @@ pub fn resolve(
         let mut transfers = Vec::new();
 
         if is_winning_position {
-            let shares_memo = format!(
-                "RESOLVE {quantity} shares {}",
-                instrument_display_text(winner, &market.row)
+            let shares_transfer = create_system_credit(
+                user,
+                system_user,
+                shares_price,
+                &format_transfer_memo(TransferType::Resolve, false, quantity, winner, &market.row),
             );
-            let shares_transfer =
-                create_system_credit(user, system_user, shares_price, &shares_memo);
 
-            let fees_memo = format!(
-                "RESOLVE FEES {quantity} shares {}",
-                instrument_display_text(winner, &market.row)
+            let fees_transfer = create_transfer(
+                user,
+                &market.owner,
+                prices.fees,
+                &format_transfer_memo(TransferType::Resolve, true, quantity, winner, &market.row),
             );
-            let fees_transfer = create_transfer(user, &market.owner, prices.fees, &fees_memo);
 
             transfers.push(shares_transfer);
             transfers.push(fees_transfer);
