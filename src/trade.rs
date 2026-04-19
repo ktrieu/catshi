@@ -199,8 +199,9 @@ pub fn buy(
     existing_position: Option<&Position>,
     user: &DbUser,
     system_user: &DbUser,
+    b: f32,
 ) -> Result<TradeResult, TradeError> {
-    let prices = calc_buy_prices(quantity, instrument.id, market.instruments.iter(), MARKET_B);
+    let prices = calc_buy_prices(quantity, instrument.id, market.instruments.iter(), b);
     let total = prices.total();
 
     // Check that we have enough money to actually purchase these shares.
@@ -262,8 +263,9 @@ pub fn sell(
     existing_position: Option<&Position>,
     user: &DbUser,
     system_user: &DbUser,
+    b: f32,
 ) -> Result<TradeResult, TradeError> {
-    let prices = calc_sell_prices(quantity, instrument.id, market.instruments.iter(), MARKET_B);
+    let prices = calc_sell_prices(quantity, instrument.id, market.instruments.iter(), b);
 
     let position = match existing_position {
         Some(position) => position,

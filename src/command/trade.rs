@@ -8,7 +8,7 @@ use crate::{
     Handler,
     currency::Currency,
     store::{self, instrument::Instrument, market::FullMarket, user::DbUser},
-    trade::{self, TradeError, TradeResult, calc_buy_prices, calc_sell_prices},
+    trade::{self, MARKET_B, TradeError, TradeResult, calc_buy_prices, calc_sell_prices},
     ui::{
         self, instrument_display_text,
         market_message::render_market_message,
@@ -215,6 +215,7 @@ pub async fn trade(
             position.as_ref(),
             user,
             &system_user,
+            MARKET_B,
         ),
         TradeAction::Sell => trade::sell(
             quantity,
@@ -223,6 +224,7 @@ pub async fn trade(
             position.as_ref(),
             user,
             &system_user,
+            MARKET_B,
         ),
     };
 
