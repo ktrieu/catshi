@@ -7,9 +7,7 @@ use serenity::all::{
 use crate::{
     Handler,
     currency::Currency,
-    store::{
-        self, instrument::Instrument, market::FullMarket, order::OrderDirection, user::DbUser,
-    },
+    store::{self, instrument::Instrument, market::FullMarket, user::DbUser},
     trade::{self, TradeError, TradeResult, calc_buy_prices, calc_sell_prices},
     ui::{
         self, instrument_display_text,
@@ -81,7 +79,7 @@ async fn calc_max_buy_shares(
         trade::get_max_buy_shares(balance, instrument_id, shares.iter(), trade::MARKET_B);
 
     // If adding fees puts us over the top subtract our max_shares by 1.
-    if prices.total(OrderDirection::Buy) > balance {
+    if prices.total() > balance {
         Ok(max_shares - 1)
     } else {
         Ok(max_shares)
@@ -111,12 +109,10 @@ fn get_prefilled_quantity(
     // TODO: we should really harmonize this.
     let total = match action {
         TradeAction::Buy => {
-            calc_buy_prices(quantity, instrument_id, instruments.iter(), trade::MARKET_B)
-                .total(OrderDirection::Buy)
+            calc_buy_prices(quantity, instrument_id, instruments.iter(), trade::MARKET_B).total()
         }
         TradeAction::Sell => {
-            calc_sell_prices(quantity, instrument_id, instruments.iter(), trade::MARKET_B)
-                .total(OrderDirection::Sell)
+            calc_sell_prices(quantity, instrument_id, instruments.iter(), trade::MARKET_B).total()
         }
     };
 

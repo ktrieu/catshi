@@ -134,11 +134,12 @@ pub fn calc_fees(shares_price: Currency) -> Currency {
 pub struct OrderPrices {
     pub shares_price: Currency,
     pub fees: Currency,
+    pub direction: OrderDirection,
 }
 
 impl OrderPrices {
-    pub fn total(&self, direction: OrderDirection) -> Currency {
-        match direction {
+    pub fn total(&self) -> Currency {
+        match self.direction {
             OrderDirection::Buy => self.shares_price + self.fees,
             OrderDirection::Sell => self.shares_price - self.fees,
         }
@@ -156,6 +157,7 @@ pub fn calc_buy_prices<'s>(
     OrderPrices {
         shares_price,
         fees: calc_fees(shares_price),
+        direction: OrderDirection::Buy,
     }
 }
 
@@ -172,6 +174,7 @@ pub fn calc_sell_prices<'s>(
     OrderPrices {
         shares_price,
         fees: calc_fees(shares_price),
+        direction: OrderDirection::Sell,
     }
 }
 
@@ -209,7 +212,7 @@ pub fn buy(
     system_user: &DbUser,
 ) -> Result<TradeResult, TradeError> {
     let prices = calc_buy_prices(quantity, instrument.id, market.instruments.iter(), MARKET_B);
-    let total = prices.total(OrderDirection::Buy);
+    let total = prices.total();
 
     // Check that we have enough money to actually purchase these shares.
     // To be generous, (and avoid annoying fractional YPs lying around) we'll let people go 1 YP into overdraft.
@@ -249,7 +252,7 @@ pub fn buy(
 
     let position = CreatePosition {
         quantity: held_shares + quantity,
-        cost_basis: existing_cost_basis + prices.total(OrderDirection::Buy),
+        cost_basis: existing_cost_basis + prices.total(),
         instrument_id: instrument.id,
         owner_id: user.id,
     };
@@ -377,6 +380,7 @@ pub fn resolve(
         let prices = OrderPrices {
             shares_price,
             fees: calc_fees(shares_price),
+            direction: OrderDirection::Sell,
         };
 
         let order = CreateOrder {
