@@ -15,7 +15,7 @@ use sqlx::SqlitePool;
 use crate::{
     command::{resolve::parse_market_resolve_modal_id, trade::parse_trade_button_id},
     currency::Currency,
-    store::user::DbUser,
+    store::{transfer::TransferSource, user::DbUser},
     ui::{
         market_message::{parse_market_details_button_id, parse_market_resolve_button_id},
         trade_flow::parse_trade_modal_id,
@@ -78,6 +78,7 @@ impl Handler {
                     &system_user,
                     INITIAL_BALANCE,
                     "Initial account funding. Have fun.",
+                    TransferSource::Deposit,
                 );
 
                 store::transfer::persist_transfer(&mut tx, &transfer).await?;

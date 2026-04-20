@@ -5,7 +5,7 @@ use crate::{
         market::{FullMarket, Market},
         order::{CreateOrder, OrderDirection},
         position::{CreatePosition, Position, PositionWithUser},
-        transfer::CreateTransfer,
+        transfer::{CreateTransfer, TransferSource},
         user::DbUser,
     },
     ui::instrument_display_text,
@@ -16,12 +16,14 @@ fn create_transfer(
     receiver: &DbUser,
     amount: Currency,
     memo: &str,
+    source: TransferSource,
 ) -> CreateTransfer {
     CreateTransfer {
         amount,
         sender: sender.id,
         receiver: receiver.id,
         memo: memo.to_owned(),
+        source,
     }
 }
 
@@ -30,8 +32,9 @@ fn create_system_debit(
     system_user: &DbUser,
     amount: Currency,
     memo: &str,
+    source: TransferSource,
 ) -> CreateTransfer {
-    create_transfer(user, system_user, amount, memo)
+    create_transfer(user, system_user, amount, memo, source)
 }
 
 pub fn create_system_credit(
@@ -39,8 +42,9 @@ pub fn create_system_credit(
     system_user: &DbUser,
     amount: Currency,
     memo: &str,
+    source: TransferSource,
 ) -> CreateTransfer {
-    create_transfer(system_user, user, amount, memo)
+    create_transfer(system_user, user, amount, memo, source)
 }
 
 pub const MARKET_B: f32 = 70.0f32;
@@ -257,6 +261,7 @@ pub fn buy(
         system_user,
         prices.shares_price,
         &format_transfer_memo(TransferType::Buy, false, quantity, instrument, &market.row),
+        TransferSource::Order,
     );
 
     let fees_transfer = create_transfer(
@@ -264,6 +269,7 @@ pub fn buy(
         &market.owner,
         prices.fees,
         &format_transfer_memo(TransferType::Buy, true, quantity, instrument, &market.row),
+        TransferSource::TradeFee,
     );
 
     let existing_cost_basis = existing_position
@@ -329,6 +335,7 @@ pub fn sell(
         system_user,
         prices.shares_price,
         &format_transfer_memo(TransferType::Sell, false, quantity, instrument, &market.row),
+        TransferSource::Order,
     );
 
     let fees_transfer = create_transfer(
@@ -336,6 +343,7 @@ pub fn sell(
         &market.owner,
         prices.fees,
         &format_transfer_memo(TransferType::Sell, true, quantity, instrument, &market.row),
+        TransferSource::TradeFee,
     );
 
     let position = CreatePosition {
@@ -425,6 +433,7 @@ pub fn resolve(
                     &instrument,
                     &market.row,
                 ),
+                TransferSource::Order,
             );
 
             let fees_transfer = create_transfer(
@@ -438,6 +447,7 @@ pub fn resolve(
                     &instrument,
                     &market.row,
                 ),
+                TransferSource::TradeFee,
             );
 
             transfers.push(shares_transfer);
@@ -470,6 +480,7 @@ mod test {
     use crate::store::{
         instrument::InstrumentState,
         market::{Market, MarketState},
+        transfer::TransferSource,
     };
 
     use super::*;
@@ -654,6 +665,7 @@ mod test {
             sender: user.id,
             receiver: system_user.id,
             memo: format_transfer_memo(TransferType::Buy, false, qty, instrument, &market.row),
+            source: TransferSource::Order,
         };
         assert!(result.transfers.contains(&shares_transfer));
 
@@ -662,6 +674,7 @@ mod test {
             sender: user.id,
             receiver: market.owner.id,
             memo: format_transfer_memo(TransferType::Buy, true, qty, instrument, &market.row),
+            source: TransferSource::TradeFee,
         };
         assert!(result.transfers.contains(&fees_transfer));
     }
@@ -860,6 +873,7 @@ mod test {
             sender: system_user.id,
             receiver: user.id,
             memo: format_transfer_memo(TransferType::Sell, false, qty, instrument, &market.row),
+            source: TransferSource::Order,
         };
         assert!(result.transfers.contains(&shares_transfer));
 
@@ -868,6 +882,7 @@ mod test {
             sender: user.id,
             receiver: market.owner.id,
             memo: format_transfer_memo(TransferType::Sell, true, qty, instrument, &market.row),
+            source: TransferSource::TradeFee,
         };
         assert!(result.transfers.contains(&fees_transfer));
     }
@@ -969,6 +984,7 @@ mod test {
             sender: system_user.id,
             receiver: user.id,
             memo: format_transfer_memo(TransferType::Resolve, false, 10, instrument, &market.row),
+            source: TransferSource::Order,
         };
         assert!(result.transfers.contains(&shares_transfer));
 
@@ -977,6 +993,7 @@ mod test {
             sender: user.id,
             receiver: market.owner.id,
             memo: format_transfer_memo(TransferType::Resolve, true, 10, instrument, &market.row),
+            source: TransferSource::TradeFee,
         };
         assert!(result.transfers.contains(&fees_transfer));
     }
@@ -1086,6 +1103,7 @@ mod test {
             sender: system_user.id,
             receiver: user.id,
             memo: format_transfer_memo(TransferType::Resolve, false, 10, winner, &market.row),
+            source: TransferSource::Order,
         };
         assert!(result.transfers.contains(&shares_transfer));
 
@@ -1094,6 +1112,7 @@ mod test {
             sender: user.id,
             receiver: market.owner.id,
             memo: format_transfer_memo(TransferType::Resolve, true, 10, winner, &market.row),
+            source: TransferSource::TradeFee,
         };
         assert!(result.transfers.contains(&fees_transfer));
 
@@ -1129,6 +1148,7 @@ mod test {
             sender: system_user.id,
             receiver: other_user.id,
             memo: format_transfer_memo(TransferType::Resolve, false, 10, winner, &market.row),
+            source: TransferSource::Order,
         };
         assert!(result.transfers.contains(&shares_transfer));
 
@@ -1137,6 +1157,7 @@ mod test {
             sender: other_user.id,
             receiver: market.owner.id,
             memo: format_transfer_memo(TransferType::Resolve, true, 10, winner, &market.row),
+            source: TransferSource::TradeFee,
         };
         assert!(result.transfers.contains(&fees_transfer));
     }
