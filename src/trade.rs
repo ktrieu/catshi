@@ -381,6 +381,7 @@ pub fn resolve(
     for p in positions {
         let position = &p.position;
         let user = &p.user;
+        let instrument = &market.get_instrument(position.instrument_id)?.0;
 
         // We're closing out the whole position.
         let quantity = position.quantity;
@@ -406,7 +407,7 @@ pub fn resolve(
             shares_price,
             fees: prices.fees,
             cost_basis,
-            instrument_id: winner.id,
+            instrument_id: instrument.id,
             owner_id: user.id,
         };
 
@@ -417,14 +418,26 @@ pub fn resolve(
                 user,
                 system_user,
                 shares_price,
-                &format_transfer_memo(TransferType::Resolve, false, quantity, winner, &market.row),
+                &format_transfer_memo(
+                    TransferType::Resolve,
+                    false,
+                    quantity,
+                    &instrument,
+                    &market.row,
+                ),
             );
 
             let fees_transfer = create_transfer(
                 user,
                 &market.owner,
                 prices.fees,
-                &format_transfer_memo(TransferType::Resolve, true, quantity, winner, &market.row),
+                &format_transfer_memo(
+                    TransferType::Resolve,
+                    true,
+                    quantity,
+                    &instrument,
+                    &market.row,
+                ),
             );
 
             transfers.push(shares_transfer);
@@ -905,5 +918,226 @@ mod test {
         );
 
         assert_eq!(result, Err(TradeError::InsufficientShares));
+    }
+
+    #[test]
+    fn test_resolve_no_positions() {
+        let (market, system_user, _user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let result = resolve(&market, instrument, &Vec::new(), &system_user)
+            .expect("resolve should succeed");
+
+        assert!(result.len() == 0);
+    }
+
+    #[test]
+    fn test_resolve_winning_position() {
+        let (market, system_user, user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let positions = vec![PositionWithUser {
+            position: Position {
+                id: 0,
+                quantity: 10,
+                cost_basis: Currency::new_yp(2),
+                instrument_id: instrument.id,
+                owner_id: user.id,
+            },
+            user: user.clone(),
+        }];
+
+        let result =
+            resolve(&market, instrument, &positions, &system_user).expect("resolve should succeed");
+
+        assert!(result.len() == 1);
+        let result = &result[0];
+
+        let expected_order = CreateOrder {
+            direction: OrderDirection::Sell,
+            quantity: 10,
+            shares_price: Currency::new_yp(10),
+            fees: Currency::new_yp(10) * 0.02,
+            cost_basis: Currency::new_yp(2),
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.order, expected_order);
+
+        let shares_transfer = CreateTransfer {
+            amount: Currency::new_yp(10),
+            sender: system_user.id,
+            receiver: user.id,
+            memo: format_transfer_memo(TransferType::Resolve, false, 10, instrument, &market.row),
+        };
+        assert!(result.transfers.contains(&shares_transfer));
+
+        let fees_transfer = CreateTransfer {
+            amount: Currency::new_yp(10) * 0.02,
+            sender: user.id,
+            receiver: market.owner.id,
+            memo: format_transfer_memo(TransferType::Resolve, true, 10, instrument, &market.row),
+        };
+        assert!(result.transfers.contains(&fees_transfer));
+    }
+
+    #[test]
+    fn test_resolve_losing_position() {
+        let (market, system_user, user) = test_trade_data();
+        let winner = &market.instruments[0].0;
+        let loser = &market.instruments[1].0;
+
+        let positions = vec![PositionWithUser {
+            position: Position {
+                id: 0,
+                quantity: 10,
+                cost_basis: Currency::new_yp(2),
+                instrument_id: loser.id,
+                owner_id: user.id,
+            },
+            user: user.clone(),
+        }];
+
+        let result =
+            resolve(&market, winner, &positions, &system_user).expect("resolve should succeed");
+
+        assert!(result.len() == 1);
+        let result = &result[0];
+
+        let expected_order = CreateOrder {
+            direction: OrderDirection::Sell,
+            quantity: 10,
+            shares_price: Currency::new_yp(0),
+            fees: Currency::new_yp(0),
+            cost_basis: Currency::new_yp(2),
+            instrument_id: loser.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.order, expected_order);
+        assert_eq!(result.transfers.len(), 0);
+    }
+
+    #[test]
+    fn test_resolve_multi_positions() {
+        let (market, system_user, user) = test_trade_data();
+        let winner = &market.instruments[0].0;
+        let loser = &market.instruments[1].0;
+
+        let other_user = DbUser {
+            id: 3,
+            discord_id: "333".to_string(),
+            name: "other_user".to_string(),
+            cash_balance: Currency::new_yp(2),
+        };
+
+        let positions = vec![
+            PositionWithUser {
+                position: Position {
+                    id: 0,
+                    quantity: 10,
+                    cost_basis: Currency::new_yp(2),
+                    instrument_id: winner.id,
+                    owner_id: user.id,
+                },
+                user: user.clone(),
+            },
+            PositionWithUser {
+                position: Position {
+                    id: 0,
+                    quantity: 10,
+                    cost_basis: Currency::new_yp(2),
+                    instrument_id: loser.id,
+                    owner_id: user.id,
+                },
+                user: user.clone(),
+            },
+            PositionWithUser {
+                position: Position {
+                    id: 0,
+                    quantity: 10,
+                    cost_basis: Currency::new_yp(2),
+                    instrument_id: winner.id,
+                    owner_id: other_user.id,
+                },
+                user: other_user.clone(),
+            },
+        ];
+
+        let results =
+            resolve(&market, winner, &positions, &system_user).expect("resolve should succeed");
+
+        assert!(results.len() == 3);
+
+        // First position
+        let result = &results[0];
+        let expected_order = CreateOrder {
+            direction: OrderDirection::Sell,
+            quantity: 10,
+            shares_price: Currency::new_yp(10),
+            fees: Currency::new_yp(10) * 0.02,
+            cost_basis: Currency::new_yp(2),
+            instrument_id: winner.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.order, expected_order);
+
+        let shares_transfer = CreateTransfer {
+            amount: Currency::new_yp(10),
+            sender: system_user.id,
+            receiver: user.id,
+            memo: format_transfer_memo(TransferType::Resolve, false, 10, winner, &market.row),
+        };
+        assert!(result.transfers.contains(&shares_transfer));
+
+        let fees_transfer = CreateTransfer {
+            amount: Currency::new_yp(10) * 0.02,
+            sender: user.id,
+            receiver: market.owner.id,
+            memo: format_transfer_memo(TransferType::Resolve, true, 10, winner, &market.row),
+        };
+        assert!(result.transfers.contains(&fees_transfer));
+
+        // Second position
+        let result = &results[1];
+        let expected_order = CreateOrder {
+            direction: OrderDirection::Sell,
+            quantity: 10,
+            shares_price: Currency::new_yp(0),
+            fees: Currency::new_yp(0),
+            cost_basis: Currency::new_yp(2),
+            instrument_id: loser.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.order, expected_order);
+        assert_eq!(result.transfers.len(), 0);
+
+        // Third position
+        let result = &results[2];
+        let expected_order = CreateOrder {
+            direction: OrderDirection::Sell,
+            quantity: 10,
+            shares_price: Currency::new_yp(10),
+            fees: Currency::new_yp(10) * 0.02,
+            cost_basis: Currency::new_yp(2),
+            instrument_id: winner.id,
+            owner_id: other_user.id,
+        };
+        assert_eq!(result.order, expected_order);
+
+        let shares_transfer = CreateTransfer {
+            amount: Currency::new_yp(10),
+            sender: system_user.id,
+            receiver: other_user.id,
+            memo: format_transfer_memo(TransferType::Resolve, false, 10, winner, &market.row),
+        };
+        assert!(result.transfers.contains(&shares_transfer));
+
+        let fees_transfer = CreateTransfer {
+            amount: Currency::new_yp(10) * 0.02,
+            sender: other_user.id,
+            receiver: market.owner.id,
+            memo: format_transfer_memo(TransferType::Resolve, true, 10, winner, &market.row),
+        };
+        assert!(result.transfers.contains(&fees_transfer));
     }
 }
