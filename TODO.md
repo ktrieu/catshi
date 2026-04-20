@@ -30,7 +30,7 @@
         - calculate net deposits from transfer table
 - ~~add info about owner of market to market message~~
 - global leaderboard
-- unit tests for trade flow
+- ~~unit tests for trade flow~~
 - add resolved at time to market message
 - command to list all open markets
 - richer metadata for transfers
