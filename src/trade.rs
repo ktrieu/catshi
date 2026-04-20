@@ -704,4 +704,206 @@ mod test {
 
         result.expect("buy with overdraft should succeed");
     }
+
+    #[test]
+    fn test_sell_existing_position() {
+        let (market, system_user, user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let existing_position = Position {
+            id: 0,
+            quantity: 10,
+            cost_basis: Currency::new_yp(2),
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+
+        let qty = 5;
+
+        let result = sell(
+            qty,
+            instrument,
+            &market,
+            Some(&existing_position),
+            &user,
+            &system_user,
+            MARKET_B,
+        )
+        .expect("sell should succeed");
+
+        let prices = calc_sell_prices(qty, instrument.id, market.instruments.iter(), MARKET_B);
+        // Don't directly assert the prices - just assert that it matches our internal calculation.
+        // We'll test the math separately.
+        assert_eq!(result.prices, prices);
+
+        // We're selling 5 shares out of a position of 10. half the cost basis should go to the order, and half
+        // should remain in the original position.
+
+        let expected_order = CreateOrder {
+            direction: OrderDirection::Sell,
+            quantity: qty,
+            shares_price: prices.shares_price,
+            fees: prices.fees,
+            cost_basis: Currency::new_yp(1),
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.order, expected_order);
+
+        let expected_position = CreatePosition {
+            quantity: 5,
+            cost_basis: Currency::new_yp(1),
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.position, expected_position);
+
+        assert_eq!(result.quantity, qty);
+    }
+
+    #[test]
+    fn test_sellout_position() {
+        let (market, system_user, user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let existing_position = Position {
+            id: 0,
+            quantity: 10,
+            cost_basis: Currency::new_yp(2),
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+
+        let qty = 10;
+
+        let result = sell(
+            qty,
+            instrument,
+            &market,
+            Some(&existing_position),
+            &user,
+            &system_user,
+            MARKET_B,
+        )
+        .expect("sell should succeed");
+
+        let prices = calc_sell_prices(qty, instrument.id, market.instruments.iter(), MARKET_B);
+        // Don't directly assert the prices - just assert that it matches our internal calculation.
+        // We'll test the math separately.
+        assert_eq!(result.prices, prices);
+
+        let expected_order = CreateOrder {
+            direction: OrderDirection::Sell,
+            quantity: qty,
+            shares_price: prices.shares_price,
+            fees: prices.fees,
+            cost_basis: Currency::new_yp(2),
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.order, expected_order);
+
+        let expected_position = CreatePosition {
+            quantity: 0,
+            cost_basis: Currency::new_yp(0),
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+        assert_eq!(result.position, expected_position);
+
+        assert_eq!(result.quantity, qty);
+    }
+
+    #[test]
+    fn test_sell_transfers() {
+        let (market, system_user, user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let existing_position = Position {
+            id: 0,
+            quantity: 10,
+            cost_basis: Currency::new_yp(2),
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+
+        let qty = 5;
+
+        let result = sell(
+            qty,
+            instrument,
+            &market,
+            Some(&existing_position),
+            &user,
+            &system_user,
+            MARKET_B,
+        )
+        .expect("buy should succeed");
+
+        let prices = calc_sell_prices(qty, instrument.id, market.instruments.iter(), MARKET_B);
+
+        let shares_transfer = CreateTransfer {
+            amount: prices.shares_price,
+            sender: system_user.id,
+            receiver: user.id,
+            memo: format_transfer_memo(TransferType::Sell, false, qty, instrument, &market.row),
+        };
+        assert!(result.transfers.contains(&shares_transfer));
+
+        let fees_transfer = CreateTransfer {
+            amount: prices.fees,
+            sender: user.id,
+            receiver: market.owner.id,
+            memo: format_transfer_memo(TransferType::Sell, true, qty, instrument, &market.row),
+        };
+        assert!(result.transfers.contains(&fees_transfer));
+    }
+
+    #[test]
+    fn test_insufficient_shares_existing_position() {
+        let (market, system_user, user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let existing_position = Position {
+            id: 0,
+            quantity: 10,
+            cost_basis: Currency::new_yp(2),
+            instrument_id: instrument.id,
+            owner_id: user.id,
+        };
+
+        let qty = 15;
+
+        let result = sell(
+            qty,
+            instrument,
+            &market,
+            Some(&existing_position),
+            &user,
+            &system_user,
+            MARKET_B,
+        );
+
+        assert_eq!(result, Err(TradeError::InsufficientShares));
+    }
+
+    #[test]
+    fn test_insufficient_shares_no_position() {
+        let (market, system_user, user) = test_trade_data();
+        let instrument = &market.instruments[0].0;
+
+        let qty = 15;
+
+        let result = sell(
+            qty,
+            instrument,
+            &market,
+            None,
+            &user,
+            &system_user,
+            MARKET_B,
+        );
+
+        assert_eq!(result, Err(TradeError::InsufficientShares));
+    }
 }
