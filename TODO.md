@@ -34,7 +34,7 @@
 - ~~unit tests for trade flow~~
 - add resolved at time to market message
 - command to list all open markets
-- richer metadata for transfers
+- ~~richer metadata for transfers~~
     - funds source (fees/order proceeds)
 - market hours?
 - daily digest for markets
