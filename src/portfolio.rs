@@ -79,20 +79,22 @@ impl PortfolioValue {
         self.net_deposits + self.net_user_transfers
     }
 
-    pub fn table_header() -> [String; 4] {
+    pub fn table_header() -> [String; 5] {
         [
             "User".to_string(),
             "Balance".to_string(),
             "Deposits".to_string(),
+            "Positions".to_string(),
             "Profit".to_string(),
         ]
     }
 
-    pub fn to_table_row(&self) -> [String; 4] {
+    pub fn to_table_row(&self) -> [String; 5] {
         [
             self.user.name.clone(),
             self.user.cash_balance.to_string(),
             self.deposits().to_string(),
+            self.positions_value.to_string(),
             self.net_profit().to_string(),
         ]
     }
