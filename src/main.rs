@@ -24,6 +24,7 @@ use crate::{
 
 mod command;
 mod currency;
+mod portfolio;
 mod store;
 mod trade;
 mod ui;
@@ -97,7 +98,10 @@ impl Handler {
 
     async fn ready(&self, ctx: &Context) {
         self.guild_id
-            .set_commands(&ctx.http, &[command::market::create()])
+            .set_commands(
+                &ctx.http,
+                &[command::market::create(), command::leaderboard::create()],
+            )
             .await
             .expect("command registration should succeed");
     }
@@ -152,6 +156,7 @@ impl Handler {
 
         match command.data.name.as_str() {
             command::market::NAME => command::market::run(&ctx, self, &command).await?,
+            command::leaderboard::NAME => command::leaderboard::run(&ctx, self, &command).await?,
             _ => {
                 warn!("Unrecognized command {}", command.data.name);
             }

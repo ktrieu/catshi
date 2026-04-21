@@ -129,3 +129,44 @@ pub async fn get_all_market_positions(
 
     Ok(positions)
 }
+
+#[derive(Debug)]
+pub struct PositionWithMarketId {
+    pub position: Position,
+    pub market_id: i64,
+}
+
+pub async fn get_all_positions_with_market_id(
+    exec: impl Executor<'_, Database = Sqlite>,
+) -> anyhow::Result<Vec<PositionWithMarketId>> {
+    let positions = query!(
+        r#"
+        SELECT
+            positions.id,
+            positions.quantity,
+            positions.cost_basis,
+            positions.instrument_id,
+            positions.owner_id,
+            instruments.market_id as market_id
+        FROM positions
+        JOIN
+            instruments ON instruments.id = instrument_id
+        "#,
+    )
+    .fetch_all(exec)
+    .await?
+    .into_iter()
+    .map(|r| PositionWithMarketId {
+        position: Position {
+            id: r.id,
+            quantity: r.quantity,
+            cost_basis: Currency::from(r.cost_basis),
+            instrument_id: r.instrument_id,
+            owner_id: r.owner_id,
+        },
+        market_id: r.market_id,
+    })
+    .collect();
+
+    Ok(positions)
+}

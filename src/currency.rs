@@ -1,5 +1,6 @@
 use std::{
     fmt::Display,
+    iter::Sum,
     ops::{Add, Mul, Neg, Sub},
 };
 
@@ -51,6 +52,12 @@ impl Add for Currency {
 
     fn add(self, rhs: Self) -> Self::Output {
         Currency(self.0 + rhs.0)
+    }
+}
+
+impl Sum for Currency {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Currency::from(0), Add::add)
     }
 }
 

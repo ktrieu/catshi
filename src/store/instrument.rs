@@ -131,3 +131,43 @@ pub async fn get_instruments_with_share_counts_for_market(
         })
         .collect())
 }
+
+pub async fn get_all_open_instruments_with_share_counts(
+    exec: impl Executor<'_, Database = Sqlite>,
+) -> anyhow::Result<Vec<InstrumentWithShares>> {
+    // Maybe one day we'll cache this data on the instrument but it seems fine for now?
+    let rows = query!(
+        r#"
+            SELECT
+                instruments.id,
+                instruments.name,
+                instruments.state as "state: InstrumentState",
+                instruments.market_id,
+                COALESCE(SUM(quantity), 0) as shares
+            FROM
+                instruments
+                LEFT JOIN
+                positions ON instruments.id = positions.instrument_id
+            WHERE instruments.state = $1
+            GROUP BY instruments.id
+        "#,
+        InstrumentState::Open
+    )
+    .fetch_all(exec)
+    .await?;
+
+    Ok(rows
+        .iter()
+        .map(|r| {
+            (
+                Instrument {
+                    id: r.id,
+                    name: r.name.clone(),
+                    state: r.state,
+                    market_id: r.market_id,
+                },
+                r.shares,
+            )
+        })
+        .collect())
+}

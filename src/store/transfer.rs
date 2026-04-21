@@ -1,8 +1,11 @@
-use sqlx::{Sqlite, Transaction, query_as};
+use sqlx::{Executor, Sqlite, Transaction, query, query_as};
 
-use crate::{currency::Currency, store::user};
+use crate::{
+    currency::Currency,
+    store::user::{self, DbUser},
+};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, sqlx::Type)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, sqlx::Type)]
 #[sqlx(rename_all = "lowercase")]
 pub enum TransferSource {
     Unknown,
@@ -74,4 +77,59 @@ pub async fn persist_transfer(
     user::increment_balance_by_user_id(&mut **tx, create.sender, -create.amount).await?;
 
     Ok(transfer)
+}
+
+pub struct UserTransfersBySource {
+    pub user: DbUser,
+    pub source: TransferSource,
+    pub net: Currency,
+}
+
+pub async fn get_net_user_transfers_by_source(
+    exec: impl Executor<'_, Database = Sqlite>,
+) -> anyhow::Result<Vec<UserTransfersBySource>> {
+    let rows = query!(
+        r#"
+        SELECT
+            users.id,
+            users.name,
+            users.discord_id,
+            users.cash_balance as "cash_balance: Currency",
+            source as "source: TransferSource",
+            SUM(net_amount) AS "net: Currency"
+        FROM (
+            SELECT
+                receiver AS user_id,
+                source,
+                amount AS net_amount
+            FROM transfers
+            UNION ALL
+            SELECT
+                sender AS user_id,
+                source,
+                -amount AS net_amount
+            FROM transfers
+        ) t
+        JOIN users ON users.id = user_id
+        GROUP BY user_id, source
+        "#,
+    )
+    .fetch_all(exec)
+    .await?;
+
+    let sums = rows
+        .into_iter()
+        .map(|r| UserTransfersBySource {
+            user: DbUser {
+                id: r.id,
+                discord_id: r.discord_id,
+                name: r.name,
+                cash_balance: r.cash_balance,
+            },
+            source: r.source,
+            net: r.net,
+        })
+        .collect();
+
+    Ok(sums)
 }
