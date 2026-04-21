@@ -24,6 +24,7 @@
 - ~~BUG: sell prices in prefill and actual order fills not matching~~
     - fixed with refactor I think?
 - ~~show question when resolving~~
+- delete positions with 0 quantity
 - e-transfer command
 - order history
     - PV/total gain calculations
