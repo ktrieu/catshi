@@ -101,7 +101,9 @@ pub fn extract_quantity_from_trade_modal(modal: &ModalInteraction) -> Option<i64
 
     let prefilled = values.get(TRADE_MODAL_QUANTITY_PREFILL);
 
-    let custom = values.get(TRADE_MODAL_QUANTITY_FREEFORM_ID);
+    let custom = values
+        .get(TRADE_MODAL_QUANTITY_FREEFORM_ID)
+        .filter(|v| **v != "");
 
     custom
         .or(prefilled)
