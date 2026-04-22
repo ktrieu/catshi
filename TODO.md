@@ -24,6 +24,7 @@
 - ~~BUG: sell prices in prefill and actual order fills not matching~~
     - fixed with refactor I think?
 - ~~show question when resolving~~
+- BUG: custom quantity not used when option selected
 - delete positions with 0 quantity
 - e-transfer command
 - order history
@@ -36,6 +37,8 @@
 - command to list all open markets
 - ~~richer metadata for transfers~~
     - funds source (fees/order proceeds)
+- last modified for positions
+- public order feed?
 - market hours?
 - daily digest for markets
     - price movement last day - can use orders table to aggregate by day
