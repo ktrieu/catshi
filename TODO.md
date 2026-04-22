@@ -19,7 +19,7 @@
     - but allow freetext entry of arbitary amount
 - ~~view open positions for market~~
 - ~~buy/sell/resolve refactors to further separate store and trade code~~
-- BUG: UI render error when clicking SELL on market with no positions
+- ~~BUG: UI render error when clicking SELL on market with no positions~~
     - cannot repro
 - ~~BUG: sell prices in prefill and actual order fills not matching~~
     - fixed with refactor I think?

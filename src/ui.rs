@@ -52,6 +52,22 @@ pub fn instrument_display_text(instrument: &Instrument, market: &Market) -> Stri
     )
 }
 
+pub fn truncate_text(text: &str, size: usize) -> String {
+    if text.len() <= size {
+        text.to_string()
+    } else {
+        let mut truncated = text.to_string();
+        truncated.truncate(size - 3);
+        truncated.push_str("...");
+
+        truncated
+    }
+}
+
+pub fn truncate_text_for_modal_header(text: &str) -> String {
+    truncate_text(text, 45)
+}
+
 pub async fn get_market_message(market: &Market, ctx: &Context) -> anyhow::Result<Message> {
     let msg_id = market
         .message_id

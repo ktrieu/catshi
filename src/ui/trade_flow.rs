@@ -2,14 +2,15 @@ use std::str::FromStr;
 
 use serenity::all::{
     CreateInputText, CreateLabel, CreateModal, CreateModalComponent, CreateSelectMenu,
-    CreateSelectMenuKind, CreateSelectMenuOption, InputTextStyle, ModalInteraction,
+    CreateSelectMenuKind, CreateSelectMenuOption, CreateTextDisplay, InputTextStyle,
+    ModalInteraction,
 };
 
 use crate::{
     command::trade::TradeAction,
     currency::Currency,
     store::{instrument::Instrument, market::Market},
-    ui::{self, extract_modal_values},
+    ui::{extract_modal_values, truncate_text_for_modal_header},
 };
 
 pub fn generate_trade_modal_id(action: TradeAction, instrument_id: i64) -> String {
@@ -38,17 +39,21 @@ const TRADE_MODAL_QUANTITY_FREEFORM_ID: &'static str = "trade_modal_quantity_fre
 
 pub fn create_trade_modal(
     action: TradeAction,
-    market: &Market,
+    _market: &Market,
     instrument: &Instrument,
     max_shares: i64,
     prefilled: Vec<(i64, Currency)>,
     balance: Currency,
 ) -> CreateModal<'static> {
-    let instrument_text = ui::instrument_display_text(instrument, market);
-    let verb = match action {
-        TradeAction::Buy => "Buying",
-        TradeAction::Sell => "Selling",
+    let balance_info = match action {
+        TradeAction::Buy => {
+            format!("You have {balance} in cash and can buy up to {max_shares} shares.")
+        }
+        TradeAction::Sell => {
+            format!("You have a maximum of {max_shares} shares available to sell.")
+        }
     };
+    let balance_info_display = CreateTextDisplay::new(balance_info);
 
     let options: Vec<CreateSelectMenuOption> = prefilled
         .iter()
@@ -69,27 +74,24 @@ pub fn create_trade_modal(
     )
     .description("Select from this menu or enter a custom amount below.");
 
-    let description = match action {
-        TradeAction::Buy => {
-            format!("You have {balance} in cash and can buy up to {max_shares} shares.")
-        }
-        TradeAction::Sell => {
-            format!("You have a maximum of {max_shares} shares available to sell.")
-        }
-    };
     let freeform_label = CreateLabel::input_text(
         "Custom Quantity",
         CreateInputText::new(InputTextStyle::Short, TRADE_MODAL_QUANTITY_FREEFORM_ID)
             .required(false),
-    )
-    .description(description);
+    );
 
     let components = vec![
+        CreateModalComponent::TextDisplay(balance_info_display),
         CreateModalComponent::Label(prefilled_label),
         CreateModalComponent::Label(freeform_label),
     ];
 
-    let header = format!("{verb} {instrument_text}").to_string();
+    let verb = match action {
+        TradeAction::Buy => "Buying",
+        TradeAction::Sell => "Selling",
+    };
+
+    let header = truncate_text_for_modal_header(&format!("{verb} {}", instrument.name));
     let modal_id = generate_trade_modal_id(action, instrument.id);
     CreateModal::new(modal_id, header).components(components)
 }
