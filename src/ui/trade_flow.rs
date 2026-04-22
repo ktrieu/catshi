@@ -103,8 +103,8 @@ pub fn extract_quantity_from_trade_modal(modal: &ModalInteraction) -> Option<i64
 
     let custom = values.get(TRADE_MODAL_QUANTITY_FREEFORM_ID);
 
-    prefilled
-        .or(custom)
+    custom
+        .or(prefilled)
         .map(|val| val.parse::<i64>().ok())
         .flatten()
 }

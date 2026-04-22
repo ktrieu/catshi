@@ -24,7 +24,7 @@
 - ~~BUG: sell prices in prefill and actual order fills not matching~~
     - fixed with refactor I think?
 - ~~show question when resolving~~
-- BUG: custom quantity not used when option selected
+- ~~BUG: custom quantity not used when option selected~~
 - delete positions with 0 quantity
 - e-transfer command
 - order history
