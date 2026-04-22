@@ -231,7 +231,16 @@ pub async fn trade(
     match result {
         Ok(result) => {
             store::order::create_order(&mut *tx, &result.order).await?;
-            store::position::upsert_position(&mut *tx, &result.position).await?;
+            if result.position.quantity == 0 {
+                store::position::delete_position(
+                    &mut *tx,
+                    result.position.instrument_id,
+                    result.position.owner_id,
+                )
+                .await?;
+            } else {
+                store::position::upsert_position(&mut *tx, &result.position).await?;
+            }
             for t in &result.transfers {
                 store::transfer::persist_transfer(&mut tx, t).await?;
             }

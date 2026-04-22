@@ -1,5 +1,6 @@
 use std::{cmp::Reverse, collections::HashMap};
 
+use log::warn;
 use serenity::all::{
     ComponentInteraction, Context, CreateInteractionResponse, CreateLabel, CreateModal,
     CreateModalComponent, CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption,
@@ -139,8 +140,20 @@ pub async fn resolve(
         for t in &r.transfers {
             store::transfer::persist_transfer(&mut tx, &t).await?;
         }
-
-        store::position::upsert_position(&mut *tx, &r.position).await?;
+        if r.position.quantity == 0 {
+            store::position::delete_position(
+                &mut *tx,
+                r.position.instrument_id,
+                r.position.owner_id,
+            )
+            .await?;
+        } else {
+            warn!(
+                "non-zero position quantity when resolving! {} {}",
+                r.position.instrument_id, r.position.owner_id
+            );
+            store::position::upsert_position(&mut *tx, &r.position).await?;
+        }
     }
 
     // Set the market/instrument states.

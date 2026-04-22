@@ -75,6 +75,22 @@ pub async fn upsert_position(
     Ok(position)
 }
 
+pub async fn delete_position(
+    conn: &mut SqliteConnection,
+    instrument_id: i64,
+    owner_id: i64,
+) -> anyhow::Result<()> {
+    query!(
+        "DELETE FROM positions WHERE instrument_id = $1 AND owner_id = $2",
+        instrument_id,
+        owner_id
+    )
+    .execute(conn)
+    .await?;
+
+    Ok(())
+}
+
 #[derive(Debug)]
 pub struct PositionWithUser {
     pub position: Position,
