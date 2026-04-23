@@ -26,7 +26,7 @@
 - ~~show question when resolving~~
 - ~~BUG: custom quantity not used when option selected~~
 - ~~delete positions with 0 quantity~~
-- e-transfer command
+- ~~e-transfer command~~
 - order history
     - PV/total gain calculations
         - calculate net deposits from transfer table
