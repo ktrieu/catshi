@@ -100,7 +100,11 @@ impl Handler {
         self.guild_id
             .set_commands(
                 &ctx.http,
-                &[command::market::create(), command::leaderboard::create()],
+                &[
+                    command::market::create(),
+                    command::leaderboard::create(),
+                    command::transfer::create(),
+                ],
             )
             .await
             .expect("command registration should succeed");
@@ -152,11 +156,12 @@ impl Handler {
         ctx: &Context,
         command: &CommandInteraction,
     ) -> anyhow::Result<()> {
-        let _user = self.authenticate(ctx, &command.user).await?;
+        let user = self.authenticate(ctx, &command.user).await?;
 
         match command.data.name.as_str() {
             command::market::NAME => command::market::run(&ctx, self, &command).await?,
             command::leaderboard::NAME => command::leaderboard::run(&ctx, self, &command).await?,
+            command::transfer::NAME => command::transfer::run(&ctx, self, &user, &command).await?,
             _ => {
                 warn!("Unrecognized command {}", command.data.name);
             }

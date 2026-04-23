@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
-use serenity::all::{Context, GenericChannelId, Label, Message, MessageId, ModalInteraction};
+use serenity::all::{
+    CommandDataOptionValue, CommandInteraction, Context, GenericChannelId, Label, Message,
+    MessageId, ModalInteraction, UserId,
+};
 
 use crate::store::{instrument::Instrument, market::Market};
 
@@ -38,6 +41,30 @@ pub fn extract_modal_values(modal: &'_ ModalInteraction) -> HashMap<&str, &str> 
             _ => None,
         })
         .collect()
+}
+
+pub fn get_command_option_value<'i>(
+    command: &'i CommandInteraction,
+    name: &str,
+) -> Option<&'i CommandDataOptionValue> {
+    command
+        .data
+        .options
+        .iter()
+        .find(|o| o.name == name)
+        .map(|o| &o.value)
+}
+
+pub fn get_command_option_str<'i>(command: &'i CommandInteraction, name: &str) -> Option<&'i str> {
+    get_command_option_value(command, name).and_then(|o| o.as_str())
+}
+
+pub fn get_command_option_number<'i>(command: &'i CommandInteraction, name: &str) -> Option<f64> {
+    get_command_option_value(command, name).and_then(|o| o.as_f64())
+}
+
+pub fn get_command_option_user<'i>(command: &'i CommandInteraction, name: &str) -> Option<UserId> {
+    get_command_option_value(command, name).and_then(|o| o.as_user_id())
 }
 
 pub fn format_market_id(id: i64) -> String {

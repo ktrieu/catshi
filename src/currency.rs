@@ -30,6 +30,11 @@ impl Currency {
     pub const fn new_yp(yp: i64) -> Self {
         Currency(yp * BIPS_PER_YP)
     }
+
+    pub const fn new_yp_fractional(yp: f64) -> Self {
+        // Divide by BIPS_PER_YP and round.
+        Self((yp * BIPS_PER_YP as f64).round_ties_even() as i64)
+    }
 }
 
 impl Display for Currency {
@@ -128,6 +133,14 @@ mod tests {
     #[test]
     fn test_new_yp() {
         assert_eq!(Currency::new_yp(12).0, 12000);
+    }
+
+    #[test]
+    fn test_new_yp_fractional() {
+        assert_eq!(Currency::new_yp_fractional(1.5).0, 1500);
+        assert_eq!(Currency::new_yp_fractional(0.0).0, 0);
+        assert_eq!(Currency::new_yp_fractional(3.1415).0, 3142);
+        assert_eq!(Currency::new_yp_fractional(-1.5).0, -1500);
     }
 
     #[test]
