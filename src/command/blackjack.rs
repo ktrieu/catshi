@@ -7,7 +7,7 @@ use serenity::all::{
 
 use crate::{
     Handler,
-    blackjack::{Blackjack, BlackjackAction, RngDeck},
+    blackjack::{Blackjack, BlackjackAction, Card, RngDeck, tests::RiggedDeck},
     currency::Currency,
     store::{
         self,
@@ -69,7 +69,14 @@ pub async fn run(
         return Ok(());
     }
 
-    let game = Blackjack::new(bet, RngDeck::new());
+    let rigged = RiggedDeck::new(vec![
+        Card::Numeric(2),
+        Card::Numeric(2),
+        Card::Ace,
+        Card::Numeric(10),
+    ]);
+
+    let (game, payout) = Blackjack::new(bet, rigged);
 
     let resp_components = ui::blackjack::render_blackjack_message(&game, &user);
 
@@ -90,9 +97,6 @@ pub async fn run(
 
     let system_user = store::user::get_system_user(&mut *tx).await?;
 
-    let create = game.to_db_create(&user, response.channel_id.expect_channel(), response.id);
-    store::blackjack::create_blackjack(&mut *tx, &create).await?;
-
     // Transfer the initial bet now. Otherwise if a game wasn't going well you could just never complete the game.
     let initial_bet = CreateTransfer {
         amount: bet,
@@ -101,8 +105,23 @@ pub async fn run(
         memo: "Blackjack: initial bet".to_string(),
         source: TransferSource::Gambling,
     };
-
     store::transfer::persist_transfer(&mut tx, &initial_bet).await?;
+
+    // If you won on a natural, transfer that as well.
+    if let Some(payout) = payout {
+        let natural_payout = CreateTransfer {
+            amount: payout,
+            sender: system_user.id,
+            receiver: user.id,
+            memo: "Blackjack: winnings".to_string(),
+            source: TransferSource::Gambling,
+        };
+
+        store::transfer::persist_transfer(&mut tx, &natural_payout).await?;
+    }
+
+    let create = game.to_db_create(&user, response.channel_id.expect_channel(), response.id);
+    store::blackjack::create_blackjack(&mut *tx, &create).await?;
 
     tx.commit().await?;
 

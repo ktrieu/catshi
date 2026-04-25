@@ -42,8 +42,14 @@ pub fn render_blackjack_message<'a, D: Deck>(
             crate::blackjack::GameWinner::Player => {
                 format!("{} wins {}.", owner.name, blackjack.staked * 2)
             }
-            crate::blackjack::GameWinner::Push => {
+            crate::blackjack::GameWinner::Push | crate::blackjack::GameWinner::PushNatural => {
                 format!("Push. {} receives {} back.", owner.name, blackjack.staked)
+            }
+            crate::blackjack::GameWinner::DealerNatural => {
+                format!("Dealer gets natural 21. You lost {}", blackjack.staked)
+            }
+            crate::blackjack::GameWinner::PlayerNatural => {
+                format!("You got a natural 21. You win {}", blackjack.staked * 2.5)
             }
         },
     };

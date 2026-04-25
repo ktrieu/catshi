@@ -161,8 +161,11 @@ pub enum BlackjackAction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameWinner {
     Dealer,
+    DealerNatural,
     Player,
+    PlayerNatural,
     Push,
+    PushNatural,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -240,7 +243,7 @@ impl<D: Deck> Blackjack<D> {
         self.player.push(drawn);
     }
 
-    pub fn new(staked: Currency, deck: D) -> Self {
+    pub fn new(staked: Currency, deck: D) -> (Self, Option<Currency>) {
         let mut game = Self {
             dealer: Vec::new(),
             player: Vec::new(),
@@ -255,7 +258,26 @@ impl<D: Deck> Blackjack<D> {
         game.draw_player();
         game.draw_player();
 
-        game
+        let winner = game.winner();
+        if matches!(
+            winner,
+            GameWinner::DealerNatural | GameWinner::PlayerNatural | GameWinner::PushNatural
+        ) {
+            game.state = BlackjackState::Closed;
+        }
+
+        match game.winner() {
+            GameWinner::DealerNatural => {
+                // You lose.
+                (game, None)
+            }
+            GameWinner::PlayerNatural => {
+                // Player gets a natural! we pay 3:2 for this.
+                (game, Some(staked + staked * 1.5))
+            }
+            GameWinner::PushNatural => (game, Some(staked)),
+            _ => (game, None),
+        }
     }
 
     pub fn is_action_valid(&self, action: BlackjackAction) -> bool {
@@ -325,6 +347,10 @@ impl<D: Deck> Blackjack<D> {
                 GameWinner::Dealer => None,
                 GameWinner::Player => Some(self.staked * 2),
                 GameWinner::Push => Some(self.staked),
+                // Technically, these get immediately resolved on create but whatever.
+                GameWinner::DealerNatural => None,
+                GameWinner::PlayerNatural => Some(self.staked * 2.5),
+                GameWinner::PushNatural => Some(self.staked),
             }
         } else {
             None
@@ -347,7 +373,16 @@ impl<D: Deck> Blackjack<D> {
         let player_value = value_cards(&self.player);
         let dealer_value = value_cards(&self.dealer);
 
-        if player_value > 21 {
+        let dealer_natural = dealer_value == 21 && self.dealer.len() == 2;
+        let player_natural = player_value == 21 && self.player.len() == 2;
+
+        if dealer_natural && player_natural {
+            GameWinner::PushNatural
+        } else if dealer_natural {
+            GameWinner::DealerNatural
+        } else if player_natural {
+            GameWinner::PlayerNatural
+        } else if player_value > 21 {
             GameWinner::Dealer
         } else if dealer_value > 21 {
             GameWinner::Player
@@ -437,9 +472,8 @@ impl<D: Deck> Blackjack<D> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    struct RiggedDeck {
+pub mod tests {
+    pub struct RiggedDeck {
         seq: Vec<Card>,
         idx: usize,
     }
@@ -464,16 +498,72 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_new_game() {
-        let rigged = RiggedDeck::new(vec![Card::King, Card::Queen, Card::Jack, Card::Numeric(2)]);
-        let game = Blackjack::new(Currency::from(2), rigged);
+    fn test_new_game_normal() {
+        let rigged = RiggedDeck::new(vec![Card::Numeric(2)]);
+        let (game, payout) = Blackjack::new(Currency::from(2), rigged);
 
-        assert_eq!(game.dealer, vec![Card::King, Card::Queen]);
-        assert_eq!(game.player, vec![Card::Jack, Card::Numeric(2)]);
+        assert_eq!(game.dealer, vec![Card::Numeric(2), Card::Numeric(2)]);
+        assert_eq!(game.player, vec![Card::Numeric(2), Card::Numeric(2)]);
 
         assert_eq!(game.state, BlackjackState::Betting);
 
         assert_eq!(game.staked, Currency::from(2));
+        assert_eq!(payout, None)
+    }
+
+    #[test]
+    fn test_new_game_natural_push() {
+        let rigged = RiggedDeck::new(vec![Card::Numeric(10), Card::Ace]);
+        let (game, payout) = Blackjack::new(Currency::from(100), rigged);
+
+        assert_eq!(game.dealer, vec![Card::Numeric(10), Card::Ace]);
+        assert_eq!(game.player, vec![Card::Numeric(10), Card::Ace]);
+
+        assert_eq!(game.state, BlackjackState::Closed);
+
+        // Dealer and player get a natural. That's a push.
+        assert_eq!(game.staked, Currency::from(100));
+        assert_eq!(payout, Some(Currency::from(100)))
+    }
+
+    #[test]
+    fn test_new_game_natural_dealer() {
+        let rigged = RiggedDeck::new(vec![
+            Card::Numeric(10),
+            Card::Ace,
+            Card::Numeric(2),
+            Card::Numeric(2),
+        ]);
+        let (game, payout) = Blackjack::new(Currency::from(100), rigged);
+
+        assert_eq!(game.dealer, vec![Card::Numeric(10), Card::Ace]);
+        assert_eq!(game.player, vec![Card::Numeric(2), Card::Numeric(2)]);
+
+        assert_eq!(game.state, BlackjackState::Closed);
+
+        // Dealer gets a natural. We lose immediately.
+        assert_eq!(game.staked, Currency::from(100));
+        assert_eq!(payout, None)
+    }
+
+    #[test]
+    fn test_new_game_natural_player() {
+        let rigged = RiggedDeck::new(vec![
+            Card::Numeric(2),
+            Card::Numeric(2),
+            Card::Numeric(10),
+            Card::Ace,
+        ]);
+        let (game, payout) = Blackjack::new(Currency::from(100), rigged);
+
+        assert_eq!(game.dealer, vec![Card::Numeric(2), Card::Numeric(2)]);
+        assert_eq!(game.player, vec![Card::Numeric(10), Card::Ace]);
+
+        assert_eq!(game.state, BlackjackState::Closed);
+
+        // Player gets a natural. This pays 3:2.
+        assert_eq!(game.staked, Currency::from(100));
+        assert_eq!(payout, Some(Currency::from(250)))
     }
 
     #[test]
