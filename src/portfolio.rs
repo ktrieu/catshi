@@ -15,6 +15,7 @@ pub struct PortfolioValue {
     net_deposits: Currency,
     trades_profit: Currency,
     fees_profit: Currency,
+    gambling_winnings: Currency,
     net_user_transfers: Currency,
     positions_value: Currency,
 }
@@ -42,6 +43,10 @@ impl PortfolioValue {
             .get(&(user.id, TransferSource::UserInitiated))
             .unwrap_or(&Currency::from(0));
 
+        let gambling_winnings = *net_transfers
+            .get(&(user.id, TransferSource::Gambling))
+            .unwrap_or(&Currency::from(0));
+
         let net_position_value: anyhow::Result<Currency> = positions
             .iter()
             .map(|p| -> anyhow::Result<Currency> {
@@ -66,13 +71,14 @@ impl PortfolioValue {
             net_deposits,
             trades_profit,
             fees_profit,
+            gambling_winnings,
             net_user_transfers,
             positions_value: net_position_value?,
         })
     }
 
     pub fn net_profit(&self) -> Currency {
-        self.trades_profit + self.fees_profit + self.positions_value
+        self.trades_profit + self.fees_profit + self.positions_value + self.gambling_winnings
     }
 
     pub fn deposits(&self) -> Currency {
