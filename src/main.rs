@@ -17,11 +17,13 @@ use crate::{
     currency::Currency,
     store::{transfer::TransferSource, user::DbUser},
     ui::{
+        blackjack::parse_blackjack_action,
         market_message::{parse_market_details_button_id, parse_market_resolve_button_id},
         trade_flow::parse_trade_modal_id,
     },
 };
 
+mod blackjack;
 mod command;
 mod currency;
 mod portfolio;
@@ -101,6 +103,7 @@ impl Handler {
             .set_commands(
                 &ctx.http,
                 &[
+                    command::blackjack::create(),
                     command::market::create(),
                     command::leaderboard::create(),
                     command::transfer::create(),
@@ -159,6 +162,9 @@ impl Handler {
         let user = self.authenticate(ctx, &command.user).await?;
 
         match command.data.name.as_str() {
+            command::blackjack::NAME => {
+                command::blackjack::run(&ctx, self, &user, &command).await?
+            }
             command::market::NAME => command::market::run(&ctx, self, &command).await?,
             command::leaderboard::NAME => command::leaderboard::run(&ctx, self, &command).await?,
             command::transfer::NAME => command::transfer::run(&ctx, self, &user, &command).await?,
@@ -200,6 +206,8 @@ impl Handler {
             command::resolve::initiate_resolve(ctx, &self, market_id, &component, &user).await?;
         } else if let Some(market_id) = parse_market_details_button_id(&component.data.custom_id) {
             command::market_details::view_market_details(ctx, &self, market_id, component).await?;
+        } else if let Some(action) = parse_blackjack_action(&component.data.custom_id) {
+            command::blackjack::interact(ctx, &self, &user, component, action).await?;
         } else {
             warn!(
                 "Unrecognized component interaction {}",

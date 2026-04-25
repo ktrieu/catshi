@@ -1,3 +1,4 @@
+pub mod blackjack;
 pub mod instrument;
 pub mod market;
 pub mod order;

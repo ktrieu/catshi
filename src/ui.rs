@@ -6,8 +6,9 @@ use serenity::all::{
     MessageId, ModalInteraction, UserId,
 };
 
-use crate::store::{instrument::Instrument, market::Market};
+use crate::store::{blackjack::DbBlackjack, instrument::Instrument, market::Market};
 
+pub mod blackjack;
 pub mod market_create_modal;
 pub mod market_message;
 pub mod trade_flow;
@@ -106,6 +107,21 @@ pub async fn get_market_message(market: &Market, ctx: &Context) -> anyhow::Resul
         .as_ref()
         .ok_or(anyhow!("channel ID not found for market {}", market.id))?
         .parse::<u64>()?;
+
+    let msg = ctx
+        .http
+        .get_message(GenericChannelId::new(channel_id), MessageId::new(msg_id))
+        .await?;
+
+    Ok(msg)
+}
+
+pub async fn get_blackjack_message(
+    blackjack: &DbBlackjack,
+    ctx: &Context,
+) -> anyhow::Result<Message> {
+    let msg_id = blackjack.message_id.parse::<u64>()?;
+    let channel_id = blackjack.channel_id.parse::<u64>()?;
 
     let msg = ctx
         .http
