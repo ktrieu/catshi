@@ -472,8 +472,9 @@ impl<D: Deck> Blackjack<D> {
     }
 }
 
-pub mod tests {
-    pub struct RiggedDeck {
+#[cfg(test)]
+mod tests {
+    struct RiggedDeck {
         seq: Vec<Card>,
         idx: usize,
     }

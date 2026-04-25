@@ -7,7 +7,7 @@ use serenity::all::{
 
 use crate::{
     Handler,
-    blackjack::{Blackjack, BlackjackAction, Card, RngDeck, tests::RiggedDeck},
+    blackjack::{Blackjack, BlackjackAction, RngDeck},
     currency::Currency,
     store::{
         self,
@@ -69,14 +69,7 @@ pub async fn run(
         return Ok(());
     }
 
-    let rigged = RiggedDeck::new(vec![
-        Card::Numeric(2),
-        Card::Numeric(2),
-        Card::Ace,
-        Card::Numeric(10),
-    ]);
-
-    let (game, payout) = Blackjack::new(bet, rigged);
+    let (game, payout) = Blackjack::new(bet, RngDeck::new());
 
     let resp_components = ui::blackjack::render_blackjack_message(&game, &user);
 
