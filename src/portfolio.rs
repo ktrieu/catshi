@@ -7,6 +7,7 @@ use crate::{
         user::DbUser,
     },
     trade::{self, calc_sell_prices},
+    ui,
 };
 use anyhow::anyhow;
 
@@ -78,29 +79,31 @@ impl PortfolioValue {
     }
 
     pub fn net_profit(&self) -> Currency {
-        self.trades_profit + self.fees_profit + self.positions_value + self.gambling_winnings
+        self.trades_profit + self.fees_profit + self.positions_value
     }
 
     pub fn deposits(&self) -> Currency {
         self.net_deposits + self.net_user_transfers
     }
 
-    pub fn table_header() -> [String; 5] {
+    pub fn table_header() -> [String; 6] {
         [
             "User".to_string(),
             "Balance".to_string(),
-            "Deposits".to_string(),
             "Positions".to_string(),
+            "Deposits".to_string(),
+            "Gambling".to_string(),
             "Profit".to_string(),
         ]
     }
 
-    pub fn to_table_row(&self) -> [String; 5] {
+    pub fn to_table_row(&self) -> [String; 6] {
         [
-            self.user.name.clone(),
+            ui::user_shortname(&self.user.name),
             self.user.cash_balance.to_string(),
-            self.deposits().to_string(),
             self.positions_value.to_string(),
+            self.deposits().to_string(),
+            self.gambling_winnings.to_string(),
             self.net_profit().to_string(),
         ]
     }

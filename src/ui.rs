@@ -96,6 +96,13 @@ pub fn truncate_text_for_modal_header(text: &str) -> String {
     truncate_text(text, 45)
 }
 
+pub fn user_shortname(name: &str) -> String {
+    let mut shortname = name.to_uppercase();
+    shortname.truncate(3);
+
+    shortname
+}
+
 pub async fn get_market_message(market: &Market, ctx: &Context) -> anyhow::Result<Message> {
     let msg_id = market
         .message_id

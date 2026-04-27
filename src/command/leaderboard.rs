@@ -79,7 +79,7 @@ pub async fn run(
 
     portfolio_values.sort_by_key(|p| Reverse(p.net_profit()));
 
-    let mut rows: Vec<[String; 5]> = Vec::with_capacity(portfolio_values.len() + 1);
+    let mut rows: Vec<[String; 6]> = Vec::with_capacity(portfolio_values.len() + 1);
     rows.push(PortfolioValue::table_header());
 
     for p in portfolio_values {
