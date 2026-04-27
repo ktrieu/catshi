@@ -19,7 +19,7 @@ use crate::{
     trade::{self},
     ui::{
         self, code_block, extract_modal_values, format_market_id,
-        market_message::render_market_message, tabulate,
+        market_message::render_market_message, tabulate, user_shortname,
     },
     utils,
 };
@@ -187,7 +187,7 @@ pub async fn resolve(
 
         let profits: Vec<[String; 2]> = profits
             .into_iter()
-            .map(|(user, profit)| [user.name.clone(), profit.to_string()])
+            .map(|(user, profit)| [user_shortname(&user.name), profit.to_string()])
             .collect();
 
         let mut rows: Vec<[String; 2]> = vec![["Name".to_string(), "Profit".to_string()]];
