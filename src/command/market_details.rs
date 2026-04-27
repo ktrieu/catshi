@@ -5,7 +5,7 @@ use serenity::all::{ComponentInteraction, Context};
 use crate::{
     Handler,
     store::{self, position::PositionWithUser},
-    ui::{self, tabulate},
+    ui::{self, code_block, tabulate},
     utils,
 };
 
@@ -73,7 +73,7 @@ pub async fn view_market_details(
         lines.push(result);
     }
 
-    let details = lines.join("\n");
+    let details = code_block(&lines.join("\n"));
 
     component
         .create_response(&ctx.http, utils::text_interaction_response(&details, true))

@@ -103,6 +103,10 @@ pub fn user_shortname(name: &str) -> String {
     shortname
 }
 
+pub fn code_block(s: &str) -> String {
+    format!("```\n{s}```")
+}
+
 pub async fn get_market_message(market: &Market, ctx: &Context) -> anyhow::Result<Message> {
     let msg_id = market
         .message_id
@@ -156,10 +160,9 @@ pub fn tabulate<const N: usize>(rows: Vec<[String; N]>) -> String {
     let row_length = sizes.iter().sum::<usize>() + (num_cols + 1);
 
     // Add num rows for the newlines and 6 more for the Discord monospace backticks.
-    let table_length = (row_length * num_rows) + num_rows + 6;
+    let table_length = (row_length * num_rows) + num_rows;
 
     let mut tabulated = String::with_capacity(table_length);
-    tabulated.push_str("```");
 
     for r in &rows {
         for (i, cell) in r.iter().enumerate() {
@@ -176,6 +179,5 @@ pub fn tabulate<const N: usize>(rows: Vec<[String; N]>) -> String {
         tabulated.push('\n');
     }
 
-    tabulated.push_str("```");
     tabulated
 }

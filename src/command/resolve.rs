@@ -18,8 +18,8 @@ use crate::{
     },
     trade::{self},
     ui::{
-        self, extract_modal_values, format_market_id, market_message::render_market_message,
-        tabulate,
+        self, code_block, extract_modal_values, format_market_id,
+        market_message::render_market_message, tabulate,
     },
     utils,
 };
@@ -196,7 +196,7 @@ pub async fn resolve(
         let final_resp = format!(
             "Market {} resolved.\n{}",
             format_market_id(market_id),
-            tabulate(rows)
+            code_block(&tabulate(rows)),
         );
 
         modal

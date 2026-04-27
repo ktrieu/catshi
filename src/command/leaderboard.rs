@@ -10,7 +10,7 @@ use crate::{
         self, instrument::InstrumentWithShares, position::PositionWithMarketId,
         transfer::TransferSource, user::DbUser,
     },
-    ui::tabulate,
+    ui::{code_block, tabulate},
     utils,
 };
 
@@ -86,7 +86,7 @@ pub async fn run(
         rows.push(p.to_table_row());
     }
 
-    let msg = tabulate(rows);
+    let msg = code_block(&tabulate(rows));
 
     command
         .create_response(&ctx.http, utils::text_interaction_response(&msg, false))
