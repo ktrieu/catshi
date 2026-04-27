@@ -77,7 +77,7 @@ pub async fn run(
         )?);
     }
 
-    portfolio_values.sort_by_key(|p| Reverse(p.net_profit()));
+    portfolio_values.sort_by_key(|p| Reverse(p.user.cash_balance));
 
     let mut rows: Vec<[String; 6]> = Vec::with_capacity(portfolio_values.len() + 1);
     rows.push(PortfolioValue::table_header());

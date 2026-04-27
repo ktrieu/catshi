@@ -12,13 +12,13 @@ use crate::{
 use anyhow::anyhow;
 
 pub struct PortfolioValue {
-    user: DbUser,
-    net_deposits: Currency,
-    trades_profit: Currency,
-    fees_profit: Currency,
-    gambling_winnings: Currency,
-    net_user_transfers: Currency,
-    positions_value: Currency,
+    pub user: DbUser,
+    pub net_deposits: Currency,
+    pub trades_profit: Currency,
+    pub fees_profit: Currency,
+    pub gambling_winnings: Currency,
+    pub net_user_transfers: Currency,
+    pub positions_value: Currency,
 }
 
 impl PortfolioValue {
