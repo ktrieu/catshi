@@ -69,6 +69,8 @@ pub async fn run(
         return Ok(());
     }
 
+    let mut tx = handler.pool.begin().await?;
+
     let (game, payout) = Blackjack::new(bet, RngDeck::new());
 
     let resp_components = ui::blackjack::render_blackjack_message(&game, &user);
@@ -85,8 +87,6 @@ pub async fn run(
         .await?;
 
     let response = command.get_response(&ctx.http).await?;
-
-    let mut tx = handler.pool.begin().await?;
 
     let system_user = store::user::get_system_user(&mut *tx).await?;
 
