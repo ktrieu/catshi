@@ -69,7 +69,7 @@ pub async fn run(
         return Ok(());
     }
 
-    let mut tx = handler.pool.begin().await?;
+    let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
 
     let (game, payout) = Blackjack::new(bet, RngDeck::new());
 
