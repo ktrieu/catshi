@@ -64,8 +64,6 @@ pub async fn run(
             .push(i);
     }
 
-    dbg!(&instruments_by_market);
-
     let empty = Vec::new();
     let mut portfolio_values = Vec::new();
 
