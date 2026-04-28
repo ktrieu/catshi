@@ -24,13 +24,13 @@ pub async fn run(
     let mut lines: Vec<String> = vec![format!("## OPEN MARKETS ({})", markets.len())];
 
     for m in markets {
-        let message = ui::get_market_message(&m, &ctx).await?;
+        let link = ui::get_market_message_link(&m).await?;
 
         let l = format!(
             "**{}**  {} - {}",
             ui::format_market_id(m.id),
             ui::truncate_text(&m.description, 17),
-            message.link(),
+            link,
         );
         lines.push(l);
     }

@@ -127,6 +127,23 @@ pub async fn get_market_message(market: &Market, ctx: &Context) -> anyhow::Resul
     Ok(msg)
 }
 
+pub async fn get_market_message_link(market: &Market) -> anyhow::Result<String> {
+    let msg_id = market
+        .message_id
+        .as_ref()
+        .ok_or(anyhow!("message ID not found for market {}", market.id))?
+        .parse::<u64>()?;
+    let channel_id = market
+        .channel_id
+        .as_ref()
+        .ok_or(anyhow!("channel ID not found for market {}", market.id))?
+        .parse::<u64>()?;
+
+    Ok(MessageId::new(msg_id)
+        .link(GenericChannelId::new(channel_id), None)
+        .to_string())
+}
+
 pub async fn get_blackjack_message(
     blackjack: &DbBlackjack,
     ctx: &Context,
