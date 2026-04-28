@@ -52,7 +52,11 @@ pub fn render_market_message<'a>(
     owner: &'a DbUser,
     instruments: impl Iterator<Item = &'a InstrumentWithShares> + Clone,
 ) -> Vec<CreateComponent<'a>> {
-    let title = CreateTextDisplay::new(format!("## Market #{:04}", market.id));
+    let status = match market.state {
+        MarketState::Open => "OPEN",
+        MarketState::Closed => "CLOSED",
+    };
+    let title = CreateTextDisplay::new(format!("## {} MARKET #{:04}", status, market.id));
     let owner_name = CreateTextDisplay::new(owner.name.clone());
 
     let desc = CreateTextDisplay::new(&market.description);
