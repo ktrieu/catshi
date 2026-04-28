@@ -73,7 +73,11 @@ pub async fn view_market_details(
         lines.push(result);
     }
 
-    let details = code_block(&lines.join("\n"));
+    let details = if lines.len() > 0 {
+        code_block(&lines.join("\n"))
+    } else {
+        "No open positions for this market.".to_string()
+    };
 
     component
         .create_response(&ctx.http, utils::text_interaction_response(&details, true))
