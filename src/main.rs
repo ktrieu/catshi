@@ -105,6 +105,7 @@ impl Handler {
                 &[
                     command::blackjack::create(),
                     command::market::create(),
+                    command::open_markets::create(),
                     command::leaderboard::create(),
                     command::transfer::create(),
                 ],
@@ -165,6 +166,7 @@ impl Handler {
             command::blackjack::NAME => {
                 command::blackjack::run(&ctx, self, &user, &command).await?
             }
+            command::open_markets::NAME => command::open_markets::run(&ctx, self, &command).await?,
             command::market::NAME => command::market::run(&ctx, self, &command).await?,
             command::leaderboard::NAME => command::leaderboard::run(&ctx, self, &command).await?,
             command::transfer::NAME => command::transfer::run(&ctx, self, &user, &command).await?,

@@ -134,6 +134,34 @@ pub async fn get_market_by_instrument_id(
     Ok(market)
 }
 
+pub async fn get_markets_by_state(
+    exec: &mut SqliteConnection,
+    state: MarketState,
+) -> anyhow::Result<Vec<Market>> {
+    let markets = query_as!(
+        Market,
+        r#"
+        SELECT
+            markets.id, 
+            markets.description, 
+            markets.state as "state: MarketState", 
+            markets.owner_id, 
+            markets.message_id,
+            markets.channel_id
+        FROM
+            markets
+        WHERE
+            state = $1
+        ORDER BY id ASC
+        "#,
+        state
+    )
+    .fetch_all(exec)
+    .await?;
+
+    Ok(markets)
+}
+
 pub async fn set_market_state(
     exec: impl Executor<'_, Database = Sqlite>,
     market: &Market,
