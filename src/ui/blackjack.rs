@@ -10,14 +10,12 @@ use crate::{
 pub const ACTION_HIT: &'static str = "blackjack|hit";
 pub const ACTION_STAND: &'static str = "blackjack|stand";
 pub const ACTION_DOUBLE: &'static str = "blackjack|double";
-pub const ACTION_REVEAL: &'static str = "blackjack|reveal";
 
 pub fn parse_blackjack_action(id: &str) -> Option<BlackjackAction> {
     match id {
         ACTION_HIT => Some(BlackjackAction::Hit),
         ACTION_STAND => Some(BlackjackAction::Stand),
         ACTION_DOUBLE => Some(BlackjackAction::DoubleDown),
-        ACTION_REVEAL => Some(BlackjackAction::Reveal),
         _ => None,
     }
 }
@@ -29,12 +27,6 @@ pub fn render_blackjack_message<'a, D: Deck>(
     let info = CreateTextDisplay::new(format!("{} ({} bet)", owner.name, blackjack.staked));
     let status_text = match blackjack.state {
         crate::store::blackjack::BlackjackState::Betting => "Betting in progress.".to_string(),
-        crate::store::blackjack::BlackjackState::Stand => {
-            "Player stood. Click to reveal dealer's cards.".to_string()
-        }
-        crate::store::blackjack::BlackjackState::PlayerBust => {
-            "Player busted. Click to reveal dealer's cards.".to_string()
-        }
         crate::store::blackjack::BlackjackState::Closed => match blackjack.winner() {
             crate::blackjack::GameWinner::Dealer => {
                 format!("Dealer wins. You lost {}.", blackjack.staked)
@@ -88,14 +80,6 @@ pub fn render_blackjack_message<'a, D: Deck>(
         buttons.push(
             CreateButton::new(ACTION_DOUBLE)
                 .label("Double down")
-                .style(ButtonStyle::Success),
-        );
-    }
-
-    if blackjack.is_action_valid(BlackjackAction::Reveal) {
-        buttons.push(
-            CreateButton::new(ACTION_REVEAL)
-                .label("Reveal")
                 .style(ButtonStyle::Success),
         );
     }

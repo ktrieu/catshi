@@ -177,8 +177,10 @@ pub async fn interact(
         return Ok(());
     }
 
-    if let Some(t) = result.transfer(&system_user, &user) {
-        store::transfer::persist_transfer(&mut tx, &t).await?;
+    for t in result.transfers(&system_user, &user) {
+        if let Some(t) = t {
+            store::transfer::persist_transfer(&mut tx, &t).await?;
+        }
     }
 
     let update = game.to_db_update();

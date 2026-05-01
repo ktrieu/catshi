@@ -7,8 +7,6 @@ use crate::currency::Currency;
 #[sqlx(rename_all = "lowercase")]
 pub enum BlackjackState {
     Betting,
-    Stand,
-    PlayerBust,
     Closed,
 }
 

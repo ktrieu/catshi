@@ -155,7 +155,6 @@ pub enum BlackjackAction {
     Hit,
     Stand,
     DoubleDown,
-    Reveal,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -176,7 +175,7 @@ pub struct ActResult {
 }
 
 impl ActResult {
-    pub fn transfer(&self, system_user: &DbUser, player: &DbUser) -> Option<CreateTransfer> {
+    pub fn transfers(&self, system_user: &DbUser, player: &DbUser) -> [Option<CreateTransfer>; 2] {
         let increase_transfer = self.bet_increase.map(|increase| CreateTransfer {
             amount: increase,
             sender: player.id,
@@ -193,10 +192,7 @@ impl ActResult {
             source: TransferSource::Gambling,
         });
 
-        // We should never get two of these at the same time.
-        assert!(increase_transfer.is_none() || payout_transfer.is_none());
-
-        increase_transfer.or(payout_transfer)
+        [increase_transfer, payout_transfer]
     }
 }
 
@@ -290,8 +286,6 @@ impl<D: Deck> Blackjack<D> {
                     action == BlackjackAction::Stand || action == BlackjackAction::Hit
                 }
             }
-            // If we stood or busted, you can only reveal the dealers.
-            BlackjackState::Stand | BlackjackState::PlayerBust => action == BlackjackAction::Reveal,
             // And if we're closed you can do nothing.
             BlackjackState::Closed => false,
         }
@@ -307,32 +301,25 @@ impl<D: Deck> Blackjack<D> {
             BlackjackAction::Hit => {
                 self.draw_player();
                 if value_cards(&self.player) > 21 {
-                    BlackjackState::PlayerBust
+                    BlackjackState::Closed
                 } else {
                     BlackjackState::Betting
                 }
             }
-            BlackjackAction::Stand => BlackjackState::Stand,
+            BlackjackAction::Stand => BlackjackState::Closed,
             BlackjackAction::DoubleDown => {
                 self.draw_player();
 
-                if value_cards(&self.player) > 21 {
-                    BlackjackState::PlayerBust
-                } else {
-                    BlackjackState::Stand
-                }
-            }
-            BlackjackAction::Reveal => {
-                // If the player has busted, no need to draw any more cards.
-                // The UI code will reveal the face down card.
-                if self.state != BlackjackState::PlayerBust {
-                    while value_cards(&self.dealer) < 17 {
-                        self.draw_dealer()
-                    }
-                }
                 BlackjackState::Closed
             }
         };
+
+        // If the game is closed and the player hasn't busted, draw dealer cards until they're over 16.
+        if next_state == BlackjackState::Closed && value_cards(&self.player) < 21 {
+            while value_cards(&self.dealer) < 17 {
+                self.draw_dealer()
+            }
+        }
 
         self.state = next_state;
 
@@ -341,6 +328,10 @@ impl<D: Deck> Blackjack<D> {
         } else {
             None
         };
+
+        if let Some(increase) = bet_increase {
+            self.staked = self.staked + increase;
+        }
 
         let payout = if next_state == BlackjackState::Closed {
             match self.winner() {
@@ -355,10 +346,6 @@ impl<D: Deck> Blackjack<D> {
         } else {
             None
         };
-
-        if let Some(increase) = bet_increase {
-            self.staked = self.staked + increase;
-        }
 
         let result = ActResult {
             next_state,
@@ -603,19 +590,59 @@ mod tests {
 
         let result = game.act(BlackjackAction::Hit).expect("should succeed");
         assert_eq!(result.bet_increase, None);
-        assert_eq!(result.next_state, BlackjackState::PlayerBust);
+        assert_eq!(result.next_state, BlackjackState::Closed);
         assert_eq!(result.payout, None);
 
         assert_eq!(
             game.player,
             vec![Card::Numeric(10), Card::Numeric(10), Card::King]
         );
-        assert_eq!(game.state, BlackjackState::PlayerBust);
+        assert_eq!(game.state, BlackjackState::Closed);
     }
 
     #[test]
-    fn test_stand() {
-        let rigged = RiggedDeck::new(vec![Card::King]);
+    fn test_stand_win() {
+        let rigged = RiggedDeck::new(vec![Card::Numeric(10)]);
+        let mut game = Blackjack {
+            dealer: vec![Card::King, Card::Numeric(6)],
+            player: vec![Card::Numeric(10), Card::Numeric(2)],
+            staked: Currency::from(2),
+            state: BlackjackState::Betting,
+            deck: rigged,
+        };
+
+        let result = game.act(BlackjackAction::Stand).expect("should succeed");
+        assert_eq!(result.bet_increase, None);
+        assert_eq!(result.next_state, BlackjackState::Closed);
+        assert_eq!(result.payout, Some(Currency::from(4)));
+
+        assert_eq!(game.player, vec![Card::Numeric(10), Card::Numeric(2)]);
+        assert_eq!(game.state, BlackjackState::Closed);
+    }
+
+    #[test]
+    fn test_stand_lose() {
+        let rigged = RiggedDeck::new(vec![Card::Ace]);
+        let mut game = Blackjack {
+            dealer: vec![Card::King, Card::Queen],
+            player: vec![Card::Numeric(10), Card::Numeric(2)],
+            staked: Currency::from(2),
+            state: BlackjackState::Betting,
+            deck: rigged,
+        };
+
+        let result = game.act(BlackjackAction::Stand).expect("should succeed");
+        assert_eq!(result.bet_increase, None);
+        assert_eq!(result.next_state, BlackjackState::Closed);
+        assert_eq!(result.payout, None);
+
+        assert_eq!(game.player, vec![Card::Numeric(10), Card::Numeric(2)]);
+        assert_eq!(game.state, BlackjackState::Closed);
+    }
+
+    #[test]
+    fn test_stand_push() {
+        let rigged = RiggedDeck::new(vec![Card::Ace]);
         let mut game = Blackjack {
             dealer: vec![Card::King, Card::Queen],
             player: vec![Card::Numeric(10), Card::Numeric(10)],
@@ -626,15 +653,15 @@ mod tests {
 
         let result = game.act(BlackjackAction::Stand).expect("should succeed");
         assert_eq!(result.bet_increase, None);
-        assert_eq!(result.next_state, BlackjackState::Stand);
-        assert_eq!(result.payout, None);
+        assert_eq!(result.next_state, BlackjackState::Closed);
+        assert_eq!(result.payout, Some(Currency::from(2)));
 
         assert_eq!(game.player, vec![Card::Numeric(10), Card::Numeric(10)]);
-        assert_eq!(game.state, BlackjackState::Stand);
+        assert_eq!(game.state, BlackjackState::Closed);
     }
 
     #[test]
-    fn test_double_down() {
+    fn test_double_down_lose() {
         let rigged = RiggedDeck::new(vec![Card::King]);
         let mut game = Blackjack {
             dealer: vec![Card::King, Card::Queen],
@@ -648,14 +675,14 @@ mod tests {
             .act(BlackjackAction::DoubleDown)
             .expect("should succeed");
         assert_eq!(result.bet_increase, Some(Currency::from(2)));
-        assert_eq!(result.next_state, BlackjackState::Stand);
+        assert_eq!(result.next_state, BlackjackState::Closed);
         assert_eq!(result.payout, None);
 
         assert_eq!(
             game.player,
             vec![Card::Numeric(2), Card::Numeric(2), Card::King]
         );
-        assert_eq!(game.state, BlackjackState::Stand);
+        assert_eq!(game.state, BlackjackState::Closed);
     }
 
     #[test]
@@ -673,163 +700,63 @@ mod tests {
             .act(BlackjackAction::DoubleDown)
             .expect("should succeed");
         assert_eq!(result.bet_increase, Some(Currency::from(2)));
-        assert_eq!(result.next_state, BlackjackState::PlayerBust);
+        assert_eq!(result.next_state, BlackjackState::Closed);
         assert_eq!(result.payout, None);
 
         assert_eq!(
             game.player,
             vec![Card::Numeric(10), Card::Numeric(10), Card::King]
         );
-        assert_eq!(game.state, BlackjackState::PlayerBust);
+        assert_eq!(game.state, BlackjackState::Closed);
     }
 
     #[test]
-    fn test_resolve_dealer_bust() {
-        let rigged = RiggedDeck::new(vec![Card::King]);
+    fn test_double_down_push() {
+        let rigged = RiggedDeck::new(vec![Card::Numeric(3)]);
         let mut game = Blackjack {
-            dealer: vec![Card::Numeric(10), Card::Numeric(6)],
+            dealer: vec![Card::King, Card::Queen],
+            player: vec![Card::Numeric(10), Card::Numeric(7)],
+            staked: Currency::from(2),
+            state: BlackjackState::Betting,
+            deck: rigged,
+        };
+
+        let result = game
+            .act(BlackjackAction::DoubleDown)
+            .expect("should succeed");
+        assert_eq!(result.bet_increase, Some(Currency::from(2)));
+        assert_eq!(result.next_state, BlackjackState::Closed);
+        assert_eq!(result.payout, Some(Currency::from(4)));
+
+        assert_eq!(
+            game.player,
+            vec![Card::Numeric(10), Card::Numeric(7), Card::Numeric(3)]
+        );
+        assert_eq!(game.state, BlackjackState::Closed);
+    }
+
+    #[test]
+    fn test_double_down_win() {
+        let rigged = RiggedDeck::new(vec![Card::Ace]);
+        let mut game = Blackjack {
+            dealer: vec![Card::King, Card::Queen],
             player: vec![Card::Numeric(10), Card::Numeric(10)],
             staked: Currency::from(2),
-            state: BlackjackState::Stand,
+            state: BlackjackState::Betting,
             deck: rigged,
         };
 
-        let result = game.act(BlackjackAction::Reveal).expect("should succeed");
-
-        // Dealer draws a King next and loses. We get the payout.
-        assert!(game.winner() == GameWinner::Player);
-        assert_eq!(result.bet_increase, None);
+        let result = game
+            .act(BlackjackAction::DoubleDown)
+            .expect("should succeed");
+        assert_eq!(result.bet_increase, Some(Currency::from(2)));
         assert_eq!(result.next_state, BlackjackState::Closed);
-        assert_eq!(result.payout, Some(game.staked * 2));
+        assert_eq!(result.payout, Some(Currency::from(8)));
 
         assert_eq!(
-            game.dealer,
-            vec![Card::Numeric(10), Card::Numeric(6), Card::King]
+            game.player,
+            vec![Card::Numeric(10), Card::Numeric(10), Card::Ace]
         );
-        assert_eq!(game.state, BlackjackState::Closed);
-    }
-
-    #[test]
-    fn test_resolve_player_bust() {
-        let rigged = RiggedDeck::new(vec![Card::King]);
-        let mut game = Blackjack {
-            dealer: vec![Card::Numeric(10), Card::Numeric(6)],
-            player: vec![Card::Numeric(10), Card::Numeric(10), Card::Numeric(10)],
-            staked: Currency::from(2),
-            state: BlackjackState::PlayerBust,
-            deck: rigged,
-        };
-
-        let result = game.act(BlackjackAction::Reveal).expect("should succeed");
-
-        // Player busts. No payouts. Dealer doesn't draw.
-        assert!(game.winner() == GameWinner::Dealer);
-        assert_eq!(result.bet_increase, None);
-        assert_eq!(result.next_state, BlackjackState::Closed);
-        assert_eq!(result.payout, None);
-
-        assert_eq!(game.dealer, vec![Card::Numeric(10), Card::Numeric(6)]);
-        assert_eq!(game.state, BlackjackState::Closed);
-    }
-
-    #[test]
-    fn test_resolve_neither_bust_player_wins() {
-        let rigged = RiggedDeck::new(vec![Card::Numeric(5)]);
-        let mut game = Blackjack {
-            dealer: vec![Card::Numeric(10), Card::Numeric(2)],
-            player: vec![Card::Numeric(10), Card::Numeric(10), Card::Ace],
-            staked: Currency::from(2),
-            state: BlackjackState::Stand,
-            deck: rigged,
-        };
-
-        let result = game.act(BlackjackAction::Reveal).expect("should succeed");
-
-        // Dealer draws a 5 next for a total of 17. Dealer stands while we have 21.
-        assert!(game.winner() == GameWinner::Player);
-        assert_eq!(result.bet_increase, None);
-        assert_eq!(result.next_state, BlackjackState::Closed);
-        assert_eq!(result.payout, Some(game.staked * 2));
-
-        assert_eq!(
-            game.dealer,
-            vec![Card::Numeric(10), Card::Numeric(2), Card::Numeric(5)],
-        );
-        assert_eq!(game.state, BlackjackState::Closed);
-    }
-
-    #[test]
-    fn test_resolve_neither_bust_dealer_wins() {
-        let rigged = RiggedDeck::new(vec![Card::Numeric(5)]);
-        let mut game = Blackjack {
-            dealer: vec![Card::Numeric(10), Card::Numeric(2)],
-            player: vec![Card::Numeric(2), Card::Numeric(2)],
-            staked: Currency::from(2),
-            state: BlackjackState::Stand,
-            deck: rigged,
-        };
-
-        let result = game.act(BlackjackAction::Reveal).expect("should succeed");
-
-        // We were dumb and stood on only 2. Dealer draws a 5 for 17 and wins.
-        assert!(game.winner() == GameWinner::Dealer);
-        assert_eq!(result.bet_increase, None);
-        assert_eq!(result.next_state, BlackjackState::Closed);
-        assert_eq!(result.payout, None);
-
-        assert_eq!(
-            game.dealer,
-            vec![Card::Numeric(10), Card::Numeric(2), Card::Numeric(5)],
-        );
-        assert_eq!(game.state, BlackjackState::Closed);
-    }
-
-    #[test]
-    fn test_resolve_push() {
-        let rigged = RiggedDeck::new(vec![Card::Numeric(5)]);
-        let mut game = Blackjack {
-            dealer: vec![Card::Numeric(10), Card::Numeric(6)],
-            player: vec![Card::Numeric(10), Card::Numeric(10), Card::Ace],
-            staked: Currency::from(2),
-            state: BlackjackState::Stand,
-            deck: rigged,
-        };
-
-        let result = game.act(BlackjackAction::Reveal).expect("should succeed");
-
-        // We both get 21. This is a push and the player gets their money back.
-        assert!(game.winner() == GameWinner::Push);
-        assert_eq!(result.bet_increase, None);
-        assert_eq!(result.next_state, BlackjackState::Closed);
-        assert_eq!(result.payout, Some(game.staked));
-
-        assert_eq!(
-            game.dealer,
-            vec![Card::Numeric(10), Card::Numeric(6), Card::Numeric(5)],
-        );
-        assert_eq!(game.state, BlackjackState::Closed);
-    }
-
-    #[test]
-    fn test_resolve_push_less_than_21() {
-        let rigged = RiggedDeck::new(vec![Card::Numeric(5)]);
-        let mut game = Blackjack {
-            dealer: vec![Card::Numeric(10), Card::Numeric(8)],
-            player: vec![Card::Numeric(10), Card::Numeric(8)],
-            staked: Currency::from(2),
-            state: BlackjackState::Stand,
-            deck: rigged,
-        };
-
-        let result = game.act(BlackjackAction::Reveal).expect("should succeed");
-
-        // We both stood at 18. This is a push as well.
-        assert!(game.winner() == GameWinner::Push);
-        assert_eq!(result.bet_increase, None);
-        assert_eq!(result.next_state, BlackjackState::Closed);
-        assert_eq!(result.payout, Some(game.staked));
-
-        assert_eq!(game.dealer, vec![Card::Numeric(10), Card::Numeric(8)],);
         assert_eq!(game.state, BlackjackState::Closed);
     }
 
@@ -875,74 +802,6 @@ mod tests {
         let _ = game
             .act(BlackjackAction::Stand)
             .expect_err("cannot double down on closed game");
-
-        assert!(!game.is_action_valid(BlackjackAction::Reveal));
-        let _ = game
-            .act(BlackjackAction::Reveal)
-            .expect_err("cannot double down on closed game");
-    }
-
-    #[test]
-    fn test_no_bet_on_stand() {
-        let rigged = RiggedDeck::new(vec![Card::King]);
-        let mut game = Blackjack {
-            dealer: vec![Card::King, Card::Queen],
-            player: vec![Card::Numeric(2), Card::Numeric(2), Card::Numeric(2)],
-            staked: Currency::from(2),
-            state: BlackjackState::Stand,
-            deck: rigged,
-        };
-
-        assert!(!game.is_action_valid(BlackjackAction::DoubleDown));
-        let _ = game
-            .act(BlackjackAction::DoubleDown)
-            .expect_err("cannot double down on stood game");
-        assert!(!game.is_action_valid(BlackjackAction::Hit));
-        let _ = game
-            .act(BlackjackAction::Hit)
-            .expect_err("cannot double down on stood game");
-        assert!(!game.is_action_valid(BlackjackAction::Stand));
-
-        let _ = game
-            .act(BlackjackAction::Stand)
-            .expect_err("cannot double down on stood game");
-
-        assert!(game.is_action_valid(BlackjackAction::Reveal));
-        let _ = game
-            .act(BlackjackAction::Reveal)
-            .expect("should reveal on stood game");
-    }
-
-    #[test]
-    fn test_no_bet_on_bust() {
-        let rigged = RiggedDeck::new(vec![Card::King]);
-        let mut game = Blackjack {
-            dealer: vec![Card::King, Card::Queen],
-            player: vec![Card::Numeric(2), Card::Numeric(2), Card::Numeric(2)],
-            staked: Currency::from(2),
-            state: BlackjackState::PlayerBust,
-            deck: rigged,
-        };
-
-        assert!(!game.is_action_valid(BlackjackAction::DoubleDown));
-        let _ = game
-            .act(BlackjackAction::DoubleDown)
-            .expect_err("cannot double down on busted game");
-
-        assert!(!game.is_action_valid(BlackjackAction::Hit));
-        let _ = game
-            .act(BlackjackAction::Hit)
-            .expect_err("cannot double down on busted game");
-
-        assert!(!game.is_action_valid(BlackjackAction::Stand));
-        let _ = game
-            .act(BlackjackAction::Stand)
-            .expect_err("cannot double down on busted game");
-
-        assert!(game.is_action_valid(BlackjackAction::Reveal));
-        let _ = game
-            .act(BlackjackAction::Reveal)
-            .expect("should reveal on busted game");
     }
 
     #[test]
@@ -1020,14 +879,17 @@ mod tests {
         };
 
         assert_eq!(
-            result.transfer(&system_user, &player),
-            Some(CreateTransfer {
-                amount: Currency::from(3),
-                sender: 1,
-                receiver: 2,
-                memo: "Blackjack: winnings".to_string(),
-                source: TransferSource::Gambling,
-            })
+            result.transfers(&system_user, &player),
+            [
+                None,
+                Some(CreateTransfer {
+                    amount: Currency::from(3),
+                    sender: 1,
+                    receiver: 2,
+                    memo: "Blackjack: winnings".to_string(),
+                    source: TransferSource::Gambling,
+                }),
+            ]
         )
     }
 
@@ -1054,14 +916,17 @@ mod tests {
         };
 
         assert_eq!(
-            result.transfer(&system_user, &player),
-            Some(CreateTransfer {
-                amount: Currency::from(3),
-                sender: 2,
-                receiver: 1,
-                memo: "Blackjack: Double down".to_string(),
-                source: TransferSource::Gambling,
-            })
+            result.transfers(&system_user, &player),
+            [
+                Some(CreateTransfer {
+                    amount: Currency::from(3),
+                    sender: 2,
+                    receiver: 1,
+                    memo: "Blackjack: Double down".to_string(),
+                    source: TransferSource::Gambling,
+                }),
+                None,
+            ]
         )
     }
 
@@ -1072,7 +937,7 @@ mod tests {
             dealer: vec![Card::King, Card::Queen],
             player: vec![Card::Numeric(2), Card::Numeric(2), Card::Numeric(2)],
             staked: Currency::from(2),
-            state: BlackjackState::PlayerBust,
+            state: BlackjackState::Betting,
             deck: rigged,
         };
 
@@ -1092,7 +957,7 @@ mod tests {
                 dealer: "K Q".to_string(),
                 player: "2 2 2".to_string(),
                 owner_id: player.id,
-                state: BlackjackState::PlayerBust,
+                state: BlackjackState::Betting,
                 staked: Currency::from(2),
                 channel_id: "7".to_string(),
                 message_id: "7".to_string(),
@@ -1107,7 +972,7 @@ mod tests {
             dealer: vec![Card::King, Card::Queen],
             player: vec![Card::Numeric(2), Card::Numeric(2), Card::Numeric(2)],
             staked: Currency::from(2),
-            state: BlackjackState::PlayerBust,
+            state: BlackjackState::Closed,
             deck: rigged,
         };
 
@@ -1117,7 +982,7 @@ mod tests {
                 dealer: "K Q".to_string(),
                 player: "2 2 2".to_string(),
                 staked: Currency::from(2),
-                state: BlackjackState::PlayerBust,
+                state: BlackjackState::Closed,
             },
         )
     }
