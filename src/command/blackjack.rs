@@ -29,7 +29,7 @@ pub fn create() -> CreateCommand<'static> {
     )
     // very clever, but no negative transfers.
     .required(true)
-    .min_number_value(0.0f64);
+    .min_number_value(0.1f64);
 
     CreateCommand::new(NAME)
         .description("play some blackjack")
