@@ -947,6 +947,38 @@ mod test {
     }
 
     #[test]
+    fn test_max_buy_max_price() {
+        let budget = Currency::new_yp(1);
+
+        // Price should essentially be 1.00 at a 1000:1 ratio.
+        let shares = vec![
+            (
+                Instrument {
+                    id: 1,
+                    name: "one".to_string(),
+                    state: InstrumentState::Open,
+                    market_id: 1,
+                },
+                0,
+            ),
+            (
+                Instrument {
+                    id: 2,
+                    name: "two".to_string(),
+                    state: InstrumentState::Open,
+                    market_id: 1,
+                },
+                1000,
+            ),
+        ];
+
+        let (max_buy, prices) = get_max_buy_shares(budget, 2, shares.iter(), 20.0f32);
+        assert_eq!(max_buy, 0);
+        assert_eq!(prices.shares_price, Currency::from(0));
+        assert_eq!(prices.fees, Currency::from(0));
+    }
+
+    #[test]
     fn test_resolve_winning_position() {
         let (market, system_user, user) = test_trade_data();
         let instrument = &market.instruments[0].0;
