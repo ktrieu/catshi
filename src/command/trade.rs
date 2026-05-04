@@ -75,15 +75,15 @@ async fn calc_max_buy_shares(
         store::instrument::get_instruments_with_share_counts_for_market(&handler.pool, market_id)
             .await?;
 
-    let (max_shares, prices) =
+    let (mut max_shares, prices) =
         trade::get_max_buy_shares(balance, instrument_id, shares.iter(), trade::MARKET_B);
 
     // If adding fees puts us over the top subtract our max_shares by 1.
-    if prices.total() > balance {
-        Ok(max_shares - 1)
-    } else {
-        Ok(max_shares)
-    }
+    if prices.total() > balance && max_shares > 0 {
+        max_shares -= 1;
+    };
+
+    Ok(max_shares)
 }
 
 async fn calc_max_sell_shares(
