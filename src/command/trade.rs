@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use serenity::all::{
-    ComponentInteraction, Context, CreateInteractionResponse, EditMessage, ModalInteraction,
+    ComponentInteraction, Context, CreateInteractionResponse, CreateMessage, EditMessage,
+    ModalInteraction,
 };
 
 use crate::{
@@ -10,8 +11,8 @@ use crate::{
     store::{self, instrument::Instrument, market::FullMarket, user::DbUser},
     trade::{self, MARKET_B, TradeError, TradeResult, calc_buy_prices, calc_sell_prices},
     ui::{
-        self, instrument_display_text,
-        market_message::render_market_message,
+        self, create_market_thread, instrument_display_text,
+        market_message::{render_details_message, render_market_message},
         trade_flow::{create_trade_modal, extract_quantity_from_trade_modal},
     },
     utils,
@@ -294,18 +295,54 @@ pub async fn trade(
     }
 
     tx.commit().await?;
-    // Refetch the instruments after the trade is complete to update the market.
+
+    // Refetch the instruments and positions after the trade is complete to update the market.
     let instruments = store::instrument::get_instruments_with_share_counts_for_market(
         &handler.pool,
         market.row.id,
     )
     .await?;
+    let all_positions =
+        store::position::get_all_market_positions(&handler.pool, market.row.id).await?;
+
     let new_market_message = render_market_message(&market.row, &market.owner, instruments.iter());
     let mut market_message = ui::get_market_message(&market.row, ctx).await?;
-
     market_message
         .edit(&ctx.http, EditMessage::new().components(new_market_message))
         .await?;
+
+    let new_details_message = render_details_message(&instruments, &all_positions);
+
+    // Backfill thread if it doesn't exist - we're rolling this out to potential existing market messages.
+    if market.row.thread_id.is_none() {
+        let thread = create_market_thread(
+            &market.row,
+            market_message.channel_id.expect_channel(),
+            market_message.id,
+            ctx,
+        )
+        .await?;
+
+        let details_msg = thread
+            .send_message(&ctx.http, CreateMessage::new().content(new_details_message))
+            .await?;
+
+        store::market::set_market_message_id(
+            &handler.pool,
+            market.row.id,
+            market_message.id,
+            market_message.channel_id,
+            thread.id,
+            details_msg.id,
+        )
+        .await?;
+    } else {
+        let mut details_message = ui::get_details_msg(&market.row, ctx).await?;
+
+        details_message
+            .edit(&ctx.http, EditMessage::new().content(new_details_message))
+            .await?;
+    }
 
     Ok(())
 }

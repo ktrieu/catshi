@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use anyhow::anyhow;
 use serenity::all::{
-    CommandDataOptionValue, CommandInteraction, Context, GenericChannelId, Label, Message,
-    MessageId, ModalInteraction, UserId,
+    ChannelId, CommandDataOptionValue, CommandInteraction, Context, CreateThread, GenericChannelId,
+    GuildThread, Label, Message, MessageId, ModalInteraction, UserId,
 };
 
 use crate::store::{blackjack::DbBlackjack, instrument::Instrument, market::Market};
@@ -125,6 +125,42 @@ pub async fn get_market_message(market: &Market, ctx: &Context) -> anyhow::Resul
         .await?;
 
     Ok(msg)
+}
+
+pub async fn get_details_msg(market: &Market, ctx: &Context) -> anyhow::Result<Message> {
+    let msg_id = market
+        .details_msg_id
+        .as_ref()
+        .ok_or(anyhow!("message ID not found for market {}", market.id))?
+        .parse::<u64>()?;
+
+    let thread_id = market
+        .thread_id
+        .as_ref()
+        .ok_or(anyhow!("message ID not found for market {}", market.id))?
+        .parse::<u64>()?;
+
+    let msg = ctx
+        .http
+        .get_message(GenericChannelId::new(thread_id), MessageId::new(msg_id))
+        .await?;
+
+    Ok(msg)
+}
+
+pub async fn create_market_thread(
+    market: &Market,
+    channel_id: ChannelId,
+    message_id: MessageId,
+    ctx: &Context,
+) -> anyhow::Result<GuildThread> {
+    let create_thread = CreateThread::new(format!("Market {}", format_market_id(market.id)));
+    let thread = ctx
+        .http
+        .create_thread_from_message(channel_id, message_id, &create_thread, None)
+        .await?;
+
+    Ok(thread)
 }
 
 pub async fn get_market_message_link(market: &Market) -> anyhow::Result<String> {

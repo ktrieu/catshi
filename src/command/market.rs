@@ -6,7 +6,10 @@ use serenity::all::{
 use crate::{
     Handler,
     store::{self, instrument::InstrumentWithShares, user::DbUser},
-    ui::{market_create_modal, market_message},
+    ui::{
+        create_market_thread, market_create_modal,
+        market_message::{self, render_details_message},
+    },
 };
 
 pub const NAME: &'static str = "market";
@@ -62,7 +65,29 @@ pub async fn modal_submit(
         )
         .await?;
 
-    store::market::set_market_message_id(&mut *tx, new_market.id, message.id, resp_channel).await?;
+    let thread =
+        create_market_thread(&new_market, resp_channel.expect_channel(), message.id, ctx).await?;
+
+    // We just created this market! So no positions.
+    let all_positions = Vec::new();
+    let details_message_content = render_details_message(&instruments_with_shares, &all_positions);
+
+    let details_message = thread
+        .send_message(
+            &ctx.http,
+            CreateMessage::new().content(details_message_content),
+        )
+        .await?;
+
+    store::market::set_market_message_id(
+        &mut *tx,
+        new_market.id,
+        message.id,
+        resp_channel,
+        thread.id,
+        details_message.id,
+    )
+    .await?;
 
     tx.commit().await?;
 

@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use serenity::all::{GenericChannelId, MessageId};
+use serenity::all::{GenericChannelId, MessageId, ThreadId};
 use sqlx::{Executor, Sqlite, SqliteConnection, query, query_as};
 
 use crate::store::{
@@ -23,6 +23,8 @@ pub struct Market {
     pub owner_id: i64,
     pub message_id: Option<String>,
     pub channel_id: Option<String>,
+    pub thread_id: Option<String>,
+    pub details_msg_id: Option<String>,
 }
 
 pub async fn create_new_market(
@@ -45,7 +47,9 @@ pub async fn create_new_market(
                 state as "state: MarketState", 
                 owner_id, 
                 message_id,
-                channel_id
+                channel_id,
+                markets.thread_id,
+                markets.details_msg_id
         "#,
         description,
         MarketState::Open,
@@ -62,14 +66,20 @@ pub async fn set_market_message_id(
     market_id: i64,
     message_id: MessageId,
     channel_id: GenericChannelId,
+    thread_id: ThreadId,
+    details_msg_id: MessageId,
 ) -> anyhow::Result<()> {
     let message_id = message_id.to_string();
     let channel_id = channel_id.to_string();
+    let thread_id = thread_id.to_string();
+    let details_msg_id = details_msg_id.to_string();
 
     query!(
-        "UPDATE markets SET message_id = $1, channel_id = $2 WHERE id = $3",
+        "UPDATE markets SET message_id = $1, channel_id = $2, thread_id = $3, details_msg_id = $4 WHERE id = $5",
         message_id,
         channel_id,
+        thread_id,
+        details_msg_id,
         market_id,
     )
     .execute(exec)
@@ -86,12 +96,14 @@ pub async fn get_market_by_id(
         Market,
         r#"
         SELECT
-             id, 
+            id, 
             description, 
             state as "state: MarketState", 
             owner_id, 
             message_id,
-            channel_id
+            channel_id,
+            markets.thread_id,
+            markets.details_msg_id
         FROM
             markets
         WHERE
@@ -118,7 +130,9 @@ pub async fn get_market_by_instrument_id(
             markets.state as "state: MarketState", 
             markets.owner_id, 
             markets.message_id,
-            markets.channel_id
+            markets.channel_id,
+            markets.thread_id,
+            markets.details_msg_id
         FROM
             markets
         JOIN
@@ -147,7 +161,9 @@ pub async fn get_markets_by_state(
             markets.state as "state: MarketState", 
             markets.owner_id, 
             markets.message_id,
-            markets.channel_id
+            markets.channel_id,
+            markets.thread_id,
+            markets.details_msg_id
         FROM
             markets
         WHERE
