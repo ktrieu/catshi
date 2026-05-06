@@ -34,24 +34,6 @@ pub fn parse_market_resolve_button_id(id: &str) -> Option<i64> {
     components[1].parse::<i64>().ok()
 }
 
-pub fn get_market_details_button_id(market: &Market) -> String {
-    format!("market_details_button|{}", market.id)
-}
-
-pub fn parse_market_details_button_id(id: &str) -> Option<i64> {
-    let components: Vec<&str> = id.split('|').collect();
-
-    if components.len() != 2 {
-        return None;
-    };
-
-    if components[0] != "market_details_button" {
-        return None;
-    }
-
-    components[1].parse::<i64>().ok()
-}
-
 pub fn render_market_message<'a>(
     market: &'a Market,
     owner: &'a DbUser,
@@ -113,9 +95,6 @@ pub fn render_market_message<'a>(
         let secondary_actions_row = vec![
             CreateButton::new(get_market_resolve_id(market))
                 .label("Resolve")
-                .style(ButtonStyle::Secondary),
-            CreateButton::new(get_market_details_button_id(market))
-                .label("Details")
                 .style(ButtonStyle::Secondary),
         ];
         components.push(CreateComponent::ActionRow(CreateActionRow::Buttons(

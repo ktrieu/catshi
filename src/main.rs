@@ -17,8 +17,7 @@ use crate::{
     currency::Currency,
     store::{transfer::TransferSource, user::DbUser},
     ui::{
-        blackjack::parse_blackjack_action,
-        market_message::{parse_market_details_button_id, parse_market_resolve_button_id},
+        blackjack::parse_blackjack_action, market_message::parse_market_resolve_button_id,
         trade_flow::parse_trade_modal_id,
     },
 };
@@ -206,8 +205,6 @@ impl Handler {
                 .await?;
         } else if let Some(market_id) = parse_market_resolve_button_id(&component.data.custom_id) {
             command::resolve::initiate_resolve(ctx, &self, market_id, &component, &user).await?;
-        } else if let Some(market_id) = parse_market_details_button_id(&component.data.custom_id) {
-            command::market_details::view_market_details(ctx, &self, market_id, component).await?;
         } else if let Some(action) = parse_blackjack_action(&component.data.custom_id) {
             command::blackjack::interact(ctx, &self, &user, component, action).await?;
         } else {
