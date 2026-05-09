@@ -5,7 +5,7 @@ use serenity::{
     Client,
     all::{
         CommandInteraction, ComponentInteraction, Context, EventHandler, FullEvent, GatewayIntents,
-        GuildId, Interaction, ModalInteraction, Token, User,
+        GuildId, Interaction, ModalInteraction, Reaction, ReactionType, Token, User,
     },
     async_trait,
 };
@@ -216,6 +216,49 @@ impl Handler {
 
         Ok(())
     }
+
+    async fn on_unicode_react(
+        &self,
+        ctx: &Context,
+        emote: &str,
+        reaction: &Reaction,
+    ) -> anyhow::Result<()> {
+        let discord_user = reaction.user(&ctx.http).await?;
+        let message = reaction.message(&ctx.http).await?;
+
+        let user = self.authenticate(ctx, &discord_user).await?;
+
+        if emote == "🪙" {
+            command::tip::on_tip(ctx, &self, &user, &message).await
+        } else {
+            Ok(())
+        }
+    }
+
+    async fn add_reaction(&self, ctx: &Context, reaction: &Reaction) {
+        if let Some(reaction_guild_id) = reaction.guild_id
+            && self.guild_id != reaction_guild_id
+        {
+            info!(
+                "Skipping reaction not targeted for this instance's guild. Reaction guild {} did not match our guild {}",
+                reaction_guild_id, self.guild_id
+            );
+            return;
+        }
+
+        let result = {
+            match &reaction.emoji {
+                ReactionType::Unicode(emote) => self.on_unicode_react(ctx, emote, reaction).await,
+                // Don't do anything here, we expect to get lots of reacts we don't respond to.
+                _ => Ok(()),
+            }
+        };
+
+        // We have no way of responding so just log the error.
+        if let Err(err) = result {
+            error!("Error processing reaction {:?}: {}", reaction, err);
+        }
+    }
 }
 
 #[async_trait]
@@ -225,6 +268,9 @@ impl EventHandler for Handler {
             FullEvent::Ready { .. } => self.ready(&ctx).await,
             FullEvent::InteractionCreate { interaction, .. } => {
                 self.interaction_create(ctx, interaction).await
+            }
+            FullEvent::ReactionAdd { add_reaction, .. } => {
+                self.add_reaction(ctx, add_reaction).await
             }
             _ => {}
         }
@@ -258,7 +304,7 @@ async fn main() {
 
     let discord_token =
         Token::from_env("DISCORD_TOKEN").expect("DISCORD_TOKEN should be present in env.");
-    let mut client = Client::builder(discord_token, GatewayIntents::empty())
+    let mut client = Client::builder(discord_token, GatewayIntents::GUILD_MESSAGE_REACTIONS)
         .event_handler(handler)
         .await
         .expect("client creation should succeed");

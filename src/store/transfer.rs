@@ -14,6 +14,7 @@ pub enum TransferSource {
     Order,
     TradeFee,
     Gambling,
+    MessageTip,
 }
 
 #[derive(Debug, sqlx::FromRow)]
