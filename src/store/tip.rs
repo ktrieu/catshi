@@ -18,8 +18,9 @@ pub struct Tip {
     transfer_id: i64,
 }
 
-pub async fn get_tip_by_message(
+pub async fn get_tip_by_message_and_user(
     conn: &mut SqliteConnection,
+    user: &DbUser,
     channel_id: GenericChannelId,
     message_id: MessageId,
 ) -> anyhow::Result<Option<Tip>> {
@@ -40,10 +41,11 @@ pub async fn get_tip_by_message(
         FROM
             tips
         WHERE
-            channel_id = $1 AND message_id = $2
+            channel_id = $1 AND message_id = $2 AND user_id = $3
         "#,
         channel_id,
-        message_id
+        message_id,
+        user.id
     )
     .fetch_optional(conn)
     .await?;
