@@ -127,6 +127,16 @@ pub async fn get_market_message(market: &Market, ctx: &Context) -> anyhow::Resul
     Ok(msg)
 }
 
+pub fn get_market_thread_id(market: &Market) -> anyhow::Result<GenericChannelId> {
+    let thread_id = market
+        .thread_id
+        .as_ref()
+        .ok_or(anyhow!("thread ID not found for market {}", market.id))?
+        .parse::<u64>()?;
+
+    Ok(GenericChannelId::new(thread_id))
+}
+
 pub async fn get_details_msg(market: &Market, ctx: &Context) -> anyhow::Result<Message> {
     let msg_id = market
         .details_msg_id

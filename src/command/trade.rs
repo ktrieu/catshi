@@ -263,12 +263,29 @@ pub async fn trade(
             let shares_price = prices.shares_price;
             let fees = prices.fees;
 
-            let msg = format!(
-                "{verb} {quantity} shares of {disp}. Total: {total} ({shares_price} {fee_sign} {fees} fees)",
-            );
+            let prices_msg = format!("Total: {total} ({shares_price} {fee_sign} {fees} fees)");
+
+            let msg = format!("{verb} {quantity} shares of {disp}. {prices_msg}",);
             modal
                 .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
                 .await?;
+
+            if market.row.thread_id.is_some() {
+                let thread_msg = format!(
+                    "{} {} {} shares of {}. {}",
+                    user.name,
+                    verb.to_lowercase(),
+                    quantity,
+                    traded_instrument.name,
+                    prices_msg
+                );
+                // This function doesn't return an Option because ideally
+                // all market should have a thread. We will backfill later to make this true.
+                let thread_id = ui::get_market_thread_id(&market.row)?;
+                thread_id
+                    .send_message(&ctx.http, CreateMessage::new().content(thread_msg))
+                    .await?;
+            }
         }
         Err(trade_error) => {
             let message = match trade_error {
