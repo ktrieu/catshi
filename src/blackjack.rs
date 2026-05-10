@@ -315,7 +315,7 @@ impl<D: Deck> Blackjack<D> {
         };
 
         // If the game is closed and the player hasn't busted, draw dealer cards until they're over 16.
-        if next_state == BlackjackState::Closed && value_cards(&self.player) < 21 {
+        if next_state == BlackjackState::Closed && value_cards(&self.player) <= 21 {
             while value_cards(&self.dealer) < 17 {
                 self.draw_dealer()
             }
