@@ -18,6 +18,7 @@ pub struct PortfolioValue {
     pub fees_profit: Currency,
     pub gambling_winnings: Currency,
     pub net_user_transfers: Currency,
+    pub tips: Currency,
     pub positions_value: Currency,
 }
 
@@ -48,6 +49,10 @@ impl PortfolioValue {
             .get(&(user.id, TransferSource::Gambling))
             .unwrap_or(&Currency::from(0));
 
+        let tips = *net_transfers
+            .get(&(user.id, TransferSource::MessageTip))
+            .unwrap_or(&Currency::from(0));
+
         let net_position_value: anyhow::Result<Currency> = positions
             .iter()
             .map(|p| -> anyhow::Result<Currency> {
@@ -74,6 +79,7 @@ impl PortfolioValue {
             fees_profit,
             gambling_winnings,
             net_user_transfers,
+            tips,
             positions_value: net_position_value?,
         })
     }
@@ -86,7 +92,7 @@ impl PortfolioValue {
         self.net_deposits + self.net_user_transfers
     }
 
-    pub fn table_header() -> [String; 6] {
+    pub fn table_header() -> [String; 7] {
         [
             "User".to_string(),
             "Balance".to_string(),
@@ -94,10 +100,11 @@ impl PortfolioValue {
             "Deposits".to_string(),
             "Gambling".to_string(),
             "Profit".to_string(),
+            "Tips".to_string(),
         ]
     }
 
-    pub fn to_table_row(&self) -> [String; 6] {
+    pub fn to_table_row(&self) -> [String; 7] {
         [
             ui::user_shortname(&self.user.name),
             self.user.cash_balance.to_string(),
@@ -105,6 +112,7 @@ impl PortfolioValue {
             self.deposits().to_string(),
             self.gambling_winnings.to_string(),
             self.net_profit().to_string(),
+            self.tips.to_string(),
         ]
     }
 }
