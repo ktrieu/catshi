@@ -11,8 +11,8 @@ use crate::{
     },
 };
 
-// Tip amount is 0.25yp = 250 bips.
-const TIP_AMOUNT: i64 = 250;
+// Tip amount is 1 yp = 1000 bips.
+const TIP_AMOUNT: i64 = 1000;
 
 pub async fn on_tip(
     ctx: &Context,
