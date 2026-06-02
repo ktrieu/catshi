@@ -501,6 +501,8 @@ mod test {
                 owner_id: market_owner.id,
                 message_id: Some("0".to_string()),
                 channel_id: Some("0".to_string()),
+                thread_id: None,
+                details_msg_id: None,
             },
             instruments: vec![
                 (
