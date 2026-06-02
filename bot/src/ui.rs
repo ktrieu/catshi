@@ -6,7 +6,7 @@ use serenity::all::{
     GuildThread, Label, Message, MessageId, ModalInteraction, UserId,
 };
 
-use crate::store::{blackjack::DbBlackjack, instrument::Instrument, market::Market};
+use common::store::{blackjack::DbBlackjack, instrument::Instrument, market::Market};
 
 pub mod blackjack;
 pub mod market_create_modal;

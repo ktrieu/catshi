@@ -3,15 +3,12 @@ use serenity::all::{
     CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
 };
 
-use crate::{
-    Handler,
-    currency::Currency,
-    store::{
-        self,
-        transfer::{CreateTransfer, TransferSource},
-        user::DbUser,
-    },
-    ui, utils,
+use crate::{Handler, ui, utils};
+use common::currency::Currency;
+use common::store::{
+    self,
+    transfer::{CreateTransfer, TransferSource},
+    user::DbUser,
 };
 
 pub const NAME: &'static str = "ctransfer";

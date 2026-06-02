@@ -7,10 +7,10 @@ use rand::rngs::StdRng;
 use rand::seq::IndexedRandom;
 use serenity::all::{ChannelId, MessageId};
 
-use crate::currency::Currency;
 use crate::store::blackjack::{BlackjackState, CreateBlackjack, DbBlackjack, UpdateBlackjack};
 use crate::store::transfer::{CreateTransfer, TransferSource};
 use crate::store::user::DbUser;
+use common::currency::Currency;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Card {

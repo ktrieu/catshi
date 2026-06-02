@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
 use crate::{
-    currency::Currency,
-    store::{
-        instrument::InstrumentWithShares, position::PositionWithMarketId, transfer::TransferSource,
-        user::DbUser,
-    },
     trade::{self, calc_sell_prices},
     ui,
 };
 use anyhow::anyhow;
+use common::currency::Currency;
+use common::store::{
+    instrument::InstrumentWithShares, position::PositionWithMarketId, transfer::TransferSource,
+    user::DbUser,
+};
 
 pub struct PortfolioValue {
     pub user: DbUser,

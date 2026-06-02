@@ -14,19 +14,18 @@ use sqlx::SqlitePool;
 
 use crate::{
     command::{resolve::parse_market_resolve_modal_id, trade::parse_trade_button_id},
-    currency::Currency,
-    store::{transfer::TransferSource, user::DbUser},
     ui::{
         blackjack::parse_blackjack_action, market_message::parse_market_resolve_button_id,
         trade_flow::parse_trade_modal_id,
     },
 };
+use common::currency::Currency;
+use common::store;
+use common::store::{transfer::TransferSource, user::DbUser};
 
 mod blackjack;
 mod command;
-mod currency;
 mod portfolio;
-mod store;
 mod trade;
 mod ui;
 mod utils;
@@ -35,7 +34,7 @@ pub async fn init_db(url: &str) -> anyhow::Result<SqlitePool> {
     let pool = SqlitePool::connect(url).await?;
     info!("Connected to database {url}");
 
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    store::run_migrations(&pool).await?;
     info!("Migrations run");
 
     Ok(pool)

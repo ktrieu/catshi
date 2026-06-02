@@ -1,15 +1,14 @@
 use log::info;
 use serenity::all::{Context, Message};
 
-use crate::{
-    Handler,
-    currency::Currency,
-    store::{
-        self,
-        transfer::{CreateTransfer, TransferSource},
-        user::DbUser,
-    },
+use common::currency::Currency;
+use common::store::{
+    self,
+    transfer::{CreateTransfer, TransferSource},
+    user::DbUser,
 };
+
+use crate::Handler;
 
 // Tip amount is 1 yp = 1000 bips.
 const TIP_AMOUNT: i64 = 1000;

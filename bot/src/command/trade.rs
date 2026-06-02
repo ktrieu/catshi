@@ -7,8 +7,6 @@ use serenity::all::{
 
 use crate::{
     Handler,
-    currency::Currency,
-    store::{self, instrument::Instrument, market::FullMarket, user::DbUser},
     trade::{self, MARKET_B, TradeError, TradeResult, calc_buy_prices, calc_sell_prices},
     ui::{
         self, create_market_thread, instrument_display_text,
@@ -17,6 +15,8 @@ use crate::{
     },
     utils,
 };
+use common::currency::Currency;
+use common::store::{self, instrument::Instrument, market::FullMarket, user::DbUser};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TradeAction {

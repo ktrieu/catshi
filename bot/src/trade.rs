@@ -1,14 +1,12 @@
-use crate::{
-    currency::Currency,
-    store::{
-        instrument::{Instrument, InstrumentWithShares},
-        market::{FullMarket, Market},
-        order::{CreateOrder, OrderDirection},
-        position::{CreatePosition, Position, PositionWithUser},
-        transfer::{CreateTransfer, TransferSource},
-        user::DbUser,
-    },
-    ui::instrument_display_text,
+use crate::ui::instrument_display_text;
+use common::currency::Currency;
+use common::store::{
+    instrument::{Instrument, InstrumentWithShares},
+    market::{FullMarket, Market},
+    order::{CreateOrder, OrderDirection},
+    position::{CreatePosition, Position, PositionWithUser},
+    transfer::{CreateTransfer, TransferSource},
+    user::DbUser,
 };
 
 fn create_transfer(

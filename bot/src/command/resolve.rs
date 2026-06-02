@@ -7,15 +7,16 @@ use serenity::all::{
     CreateTextDisplay, EditMessage, ModalInteraction,
 };
 
+use common::currency::Currency;
+use common::store::{
+    self,
+    instrument::InstrumentState,
+    market::{Market, MarketState},
+    user::DbUser,
+};
+
 use crate::{
     Handler,
-    currency::Currency,
-    store::{
-        self,
-        instrument::InstrumentState,
-        market::{Market, MarketState},
-        user::DbUser,
-    },
     trade::{self},
     ui::{
         self, code_block, extract_modal_values, format_market_id,
