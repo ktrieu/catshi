@@ -1,6 +1,7 @@
 use sqlx::SqlitePool;
 
 pub mod blackjack;
+pub mod catfishing;
 pub mod instrument;
 pub mod market;
 pub mod order;
