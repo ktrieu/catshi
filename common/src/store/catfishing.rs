@@ -4,14 +4,14 @@ use sqlx::{QueryBuilder, Sqlite, SqliteConnection, Transaction};
 use tokio::io::split;
 
 pub struct CatfishingArticle {
-    id: i64,
-    names: Vec<String>,
-    categories: Vec<String>,
+    pub id: i64,
+    pub names: Vec<String>,
+    pub categories: Vec<String>,
 }
 pub struct CatfishingGame {
-    id: i64,
-    published: bool,
-    articles: Vec<CatfishingArticle>,
+    pub id: i64,
+    pub published: bool,
+    pub articles: Vec<CatfishingArticle>,
 }
 
 fn split_list(s: &str) -> Vec<String> {
@@ -48,6 +48,7 @@ pub trait CatfishingStore {
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
+#[derive(Debug, Clone)]
 pub struct SqliteCatfishingStore {}
 
 impl SqliteCatfishingStore {
