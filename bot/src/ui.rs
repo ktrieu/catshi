@@ -96,6 +96,10 @@ pub fn truncate_text_for_modal_header(text: &str) -> String {
     truncate_text(text, 45)
 }
 
+pub fn truncate_text_for_form_option(text: &str) -> String {
+    truncate_text(text, 100)
+}
+
 pub fn user_shortname(name: &str) -> String {
     let mut shortname = name.to_uppercase();
     shortname.truncate(3);

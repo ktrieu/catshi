@@ -72,7 +72,10 @@ pub async fn initiate_resolve(
 
     let options: Vec<CreateSelectMenuOption> = instruments
         .iter()
-        .map(|(i, _)| CreateSelectMenuOption::new(i.name.clone(), i.id.to_string()))
+        .map(|(i, _)| {
+            let name = ui::truncate_text_for_form_option(&i.name);
+            CreateSelectMenuOption::new(name, i.id.to_string())
+        })
         .collect();
 
     let menu = CreateSelectMenu::new(
