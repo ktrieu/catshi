@@ -1,7 +1,6 @@
 use std::{collections::HashMap, future::Future};
 
 use sqlx::{QueryBuilder, Sqlite, SqliteConnection, Transaction};
-use tokio::io::split;
 
 pub struct CatfishingArticle {
     pub id: i64,
