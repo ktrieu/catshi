@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use serenity::all::{
     ComponentInteraction, Context, CreateInteractionResponse, CreateMessage, EditMessage,
-    ModalInteraction,
+    ModalInteraction, ThreadId, UserId,
 };
 
 use crate::{
@@ -284,6 +284,15 @@ pub async fn trade(
                 let thread_id = ui::get_market_thread_id(&market.row)?;
                 thread_id
                     .send_message(&ctx.http, CreateMessage::new().content(thread_msg))
+                    .await?;
+
+                let user_id = user.discord_id.parse::<u64>()?;
+                // Add the user to the thread on trade.
+                ctx.http
+                    .add_thread_channel_member(
+                        ThreadId::from(thread_id.get()),
+                        UserId::new(user_id),
+                    )
                     .await?;
             }
         }
