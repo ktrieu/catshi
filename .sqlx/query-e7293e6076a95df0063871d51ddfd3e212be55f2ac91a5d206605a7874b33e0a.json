@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            id,\n            quantity,\n            cost_basis,\n            instrument_id,\n            owner_id\n        FROM positions\n        WHERE\n            instrument_id = $1 AND owner_id = $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "quantity",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "cost_basis",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "instrument_id",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "owner_id",
+        "ordinal": 4,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e7293e6076a95df0063871d51ddfd3e212be55f2ac91a5d206605a7874b33e0a"
+}

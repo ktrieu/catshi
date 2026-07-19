@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT\n            id,\n            name,\n            discord_id,\n            cash_balance as \"cash_balance: Currency\"\n        FROM users \n        WHERE \n            id = $1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "discord_id",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "cash_balance: Currency",
+        "ordinal": 3,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b5105dc72fa172b9b4cb2580c534ac6f2d2c7b7a634b83038660c2d1e3b90c5c"
+}

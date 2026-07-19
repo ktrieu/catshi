@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE blackjacks SET\n            dealer = $1,\n            player = $2,\n            staked = $3,\n            state = $4\n        WHERE\n            id = $5\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "81171f265318c8acb238d92700d3c7c5b733ee9edf251e4e8f20c91dff44627f"
+}

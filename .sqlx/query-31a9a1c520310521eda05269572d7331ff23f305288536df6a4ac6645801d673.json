@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT INTO transfers (\n            amount,\n            sender,\n            receiver,\n            memo,\n            source\n        ) VALUES ($1, $2, $3, $4, $5)\n        RETURNING\n            id,\n            amount as \"amount: Currency\",\n            sender,\n            receiver,\n            memo,\n            created_at,\n            source as \"source: TransferSource\"\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "amount: Currency",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "sender",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "receiver",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "memo",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "source: TransferSource",
+        "ordinal": 6,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "31a9a1c520310521eda05269572d7331ff23f305288536df6a4ac6645801d673"
+}

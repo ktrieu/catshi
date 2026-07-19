@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE\n            markets\n        SET\n            state = $1\n        WHERE\n            id = $2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "93350b6a372055824b87762f3ad21117ea4413e067ab299fb4124c2da11a565c"
+}

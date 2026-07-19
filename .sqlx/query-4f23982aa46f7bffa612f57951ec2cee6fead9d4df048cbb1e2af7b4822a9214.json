@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT INTO positions (quantity, cost_basis, instrument_id, owner_id)\n        VALUES ($1, $2, $3, $4)\n        ON CONFLICT DO UPDATE \n        SET quantity = excluded.quantity, cost_basis = excluded.cost_basis\n        RETURNING *\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "quantity",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "cost_basis",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "instrument_id",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "owner_id",
+        "ordinal": 4,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4f23982aa46f7bffa612f57951ec2cee6fead9d4df048cbb1e2af7b4822a9214"
+}

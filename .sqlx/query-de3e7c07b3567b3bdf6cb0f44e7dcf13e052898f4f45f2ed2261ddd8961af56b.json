@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO orders (\n                direction,\n                quantity,\n                shares_price,\n                fees,\n                cost_basis,\n                instrument_id,\n                owner_id\n            ) VALUES ($1, $2, $3, $4, $5, $6, $7)\n            RETURNING\n                id,\n                direction as \"direction: OrderDirection\",\n                quantity,\n                shares_price as \"shares_price: Currency\",\n                fees as \"fees: Currency\",\n                cost_basis as \"cost_basis: Currency\",\n                instrument_id,\n                owner_id,\n                created_at\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "direction: OrderDirection",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "quantity",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "shares_price: Currency",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "fees: Currency",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "cost_basis: Currency",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "instrument_id",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "owner_id",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 8,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "de3e7c07b3567b3bdf6cb0f44e7dcf13e052898f4f45f2ed2261ddd8961af56b"
+}

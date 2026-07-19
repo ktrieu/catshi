@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT INTO blackjacks (\n            dealer,\n            player,\n            state,\n            owner_id,\n            staked,\n            channel_id,\n            message_id\n        ) VALUES ($1, $2, $3, $4, $5, $6, $7)\n        RETURNING\n            id,\n            dealer,\n            player,\n            state as \"state: BlackjackState\",\n            channel_id,\n            message_id,\n            owner_id,\n            staked as \"staked: Currency\" \n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "dealer",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "player",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "state: BlackjackState",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "channel_id",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "message_id",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "owner_id",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "staked: Currency",
+        "ordinal": 7,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c2bef02bc93c379456eb43f749057b22115f917220abcafcc930d975b1822d92"
+}

@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            positions.id,\n            positions.quantity,\n            positions.cost_basis,\n            positions.instrument_id,\n            positions.owner_id,\n            instruments.market_id as market_id\n        FROM positions\n        JOIN\n            instruments ON instruments.id = instrument_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "quantity",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "cost_basis",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "instrument_id",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "owner_id",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "market_id",
+        "ordinal": 5,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fc97fef2612d8f7e13d64ee18f1926c661b1e6bf78ad16598c0bd48c65e6adde"
+}

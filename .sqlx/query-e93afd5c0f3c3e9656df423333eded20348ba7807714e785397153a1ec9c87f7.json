@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    id,\n                    names,\n                    categories\n                FROM\n                    cf_articles\n                WHERE\n                    game_id = $1\n                ORDER BY article_order DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "names",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "categories",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e93afd5c0f3c3e9656df423333eded20348ba7807714e785397153a1ec9c87f7"
+}

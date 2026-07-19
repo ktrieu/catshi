@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE\n            instruments\n        SET \n            state = $1\n        WHERE\n            id = $2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a6674057f6797800ef16631957619cb7f1bc7b0409ca06ef03b53715029fabb6"
+}

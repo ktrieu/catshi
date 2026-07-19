@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                UPDATE\n                    cf_games\n                SET published = $1\n                WHERE id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "faf0b8a3d8d39e86e2b17f0014a6d4a4e19725993aa8c8fe405d3683d80fd0c4"
+}

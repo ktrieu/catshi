@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    id,\n                    published\n                FROM\n                    cf_games\n                WHERE\n                    id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "published",
+        "ordinal": 1,
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "f8f96ea5fb342a932583b4c130557ffce73e8abd9b8a62c54da11bd97ebb4480"
+}

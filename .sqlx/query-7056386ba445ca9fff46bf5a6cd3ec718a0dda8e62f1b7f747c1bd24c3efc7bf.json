@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT INTO tips (\n            amount,\n            transfer_id,\n            channel_id,\n            message_id,\n            user_id\n        ) VALUES ($1, $2, $3, $4, $5)\n        RETURNING\n            id,\n            created_at,\n            channel_id,\n            message_id,\n            amount as \"amount: Currency\",\n            transfer_id,\n            user_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "channel_id",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "message_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "amount: Currency",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "transfer_id",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "user_id",
+        "ordinal": 6,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "7056386ba445ca9fff46bf5a6cd3ec718a0dda8e62f1b7f747c1bd24c3efc7bf"
+}

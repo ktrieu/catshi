@@ -1,0 +1,54 @@
+services:
+  # Bind-mounting ./catshi.sqlite directly into api/bot requires the file to
+  # already exist on the host - otherwise Docker creates a directory there
+  # instead of a file. This ensures it exists first (touch is a no-op on an
+  # existing file, so it never truncates real data).
+  db-init:
+    image: busybox
+    volumes:
+      - .:/repo
+    command: ["touch", "/repo/catshi.sqlite"]
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    init: true
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    ports:
+      - "${API_PORT}:${API_PORT}"
+    volumes:
+      # Bind-mounted straight from the repo root so both containers (and any
+      # host-side tooling like backup.sh) share the same sqlite file at the
+      # relative path from DATABASE_URL (sqlite:catshi.sqlite).
+      - ./catshi.sqlite:/app/catshi.sqlite
+      # Bind-mounted (not baked into the image) so secrets never end up in a
+      # layer. dotenvy::dotenv() requires an actual file on disk, so this
+      # can't be replaced by an `environment:` block alone.
+      - ./.env:/app/.env:ro
+
+  bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    init: true
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./catshi.sqlite:/app/catshi.sqlite
+      - ./.env:/app/.env:ro
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    environment:
+      - FRONTEND_PORT=${FRONTEND_PORT}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules

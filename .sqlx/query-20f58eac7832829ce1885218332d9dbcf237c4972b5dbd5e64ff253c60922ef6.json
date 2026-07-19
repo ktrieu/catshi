@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    cf_articles.id,\n                    names,\n                    categories,\n                    game_id\n                FROM\n                    cf_articles\n                JOIN\n                    cf_games ON cf_games.id = cf_articles.game_id\n                WHERE\n                    cf_games.published = true OR $1\n                ORDER BY game_id, article_order DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "names",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "categories",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "game_id",
+        "ordinal": 3,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "20f58eac7832829ce1885218332d9dbcf237c4972b5dbd5e64ff253c60922ef6"
+}

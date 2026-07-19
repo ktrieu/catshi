@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            id,\n            created_at,\n            channel_id,\n            message_id,\n            amount as \"amount: Currency\",\n            user_id,\n            transfer_id\n        FROM\n            tips\n        WHERE\n            channel_id = $1 AND message_id = $2 AND user_id = $3\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "channel_id",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "message_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "amount: Currency",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "user_id",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "transfer_id",
+        "ordinal": 6,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e617d3f9fbd286b38755f6c82f0862df88eb063c41fd874468158f6461b28ee0"
+}

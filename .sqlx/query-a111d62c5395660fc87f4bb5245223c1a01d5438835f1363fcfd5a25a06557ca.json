@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                id,\n                name,\n                state as \"state: InstrumentState\",\n                market_id\n            FROM \n                instruments \n            WHERE id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "state: InstrumentState",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "market_id",
+        "ordinal": 3,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a111d62c5395660fc87f4bb5245223c1a01d5438835f1363fcfd5a25a06557ca"
+}

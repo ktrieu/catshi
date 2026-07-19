@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE markets SET message_id = $1, channel_id = $2, thread_id = $3, details_msg_id = $4 WHERE id = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "0107a41c0572396803c1b55f46299dd8e503dc6b3c8219c0be3a18c95fc64ffc"
+}

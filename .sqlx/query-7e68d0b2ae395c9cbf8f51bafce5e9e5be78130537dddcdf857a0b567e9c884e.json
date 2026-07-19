@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                instruments.id,\n                instruments.name,\n                instruments.state as \"state: InstrumentState\",\n                instruments.market_id,\n                COALESCE(SUM(quantity), 0) as shares\n            FROM\n                instruments\n            LEFT JOIN\n                positions ON instruments.id = positions.instrument_id\n            WHERE\n                instruments.market_id = $1\n            GROUP BY instruments.id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "state: InstrumentState",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "market_id",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "shares",
+        "ordinal": 4,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "7e68d0b2ae395c9cbf8f51bafce5e9e5be78130537dddcdf857a0b567e9c884e"
+}

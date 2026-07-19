@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            markets.id, \n            markets.description, \n            markets.state as \"state: MarketState\", \n            markets.owner_id, \n            markets.message_id,\n            markets.channel_id,\n            markets.thread_id,\n            markets.details_msg_id\n        FROM\n            markets\n        WHERE\n            state = $1\n        ORDER BY id ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "description",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "state: MarketState",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "owner_id",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "message_id",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "channel_id",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "thread_id",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "details_msg_id",
+        "ordinal": 7,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "e99569c8d9c549538e3148543b9d9b47975fa52f7670d0224760ed4d1ad56387"
+}

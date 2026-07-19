@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM positions WHERE instrument_id = $1 AND owner_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "4c1b49102f790ebd8e194164e84f2fdb9bd0464062b0db5c4653e5e9226256a4"
+}
