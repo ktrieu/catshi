@@ -1,0 +1,10 @@
+services:
+  api:
+    build:
+      target: prod
+    restart: unless-stopped
+
+  bot:
+    build:
+      target: prod
+    restart: unless-stopped
