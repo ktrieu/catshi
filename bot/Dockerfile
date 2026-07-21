@@ -3,8 +3,10 @@
 # Build context is the repo root (this is a Cargo workspace: api/bot/common
 # share one Cargo.lock, so the workspace manifest needs all three members).
 # WORKDIR is /app throughout so it matches where docker-compose mounts the
-# source (dev) or the sqlite/.env files (prod), and where dotenvy and the
-# relative sqlite:catshi.sqlite DATABASE_URL both resolve at runtime.
+# source (dev) or the sqlite file (prod), and where the relative
+# sqlite:catshi.sqlite DATABASE_URL resolves at runtime. Env vars (including
+# DATABASE_URL) come from docker-compose's `environment:` block rather than
+# a mounted .env file - dotenvy::dotenv() is a no-op when none is found.
 FROM rust:1-bookworm AS base
 WORKDIR /app
 
