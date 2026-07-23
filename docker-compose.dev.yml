@@ -13,6 +13,7 @@ services:
       - ./common:/app/common
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
+      - ./catshi.sqlite:/app/catshi.sqlite
 
   bot:
     build:
@@ -24,6 +25,7 @@ services:
       - ./common:/app/common
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
+      - ./catshi.sqlite:/app/catshi.sqlite
 
   frontend:
     build:

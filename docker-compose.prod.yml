@@ -3,8 +3,12 @@ services:
     build:
       target: prod
     restart: unless-stopped
+    volumes:
+      - ~/catshi/catshi.sqlite:/app/catshi.sqlite
 
   bot:
     build:
       target: prod
     restart: unless-stopped
+    volumes:
+      - ~/catshi/catshi.sqlite:/app/catshi.sqlite
