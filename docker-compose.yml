@@ -5,9 +5,6 @@ services:
       context: .
       dockerfile: api/Dockerfile
     init: true
-    depends_on:
-      db-init:
-        condition: service_completed_successfully
     ports:
       - "${API_PORT}:${API_PORT}"
     environment:
@@ -20,9 +17,6 @@ services:
       context: .
       dockerfile: bot/Dockerfile
     init: true
-    depends_on:
-      db-init:
-        condition: service_completed_successfully
     environment:
       - DATABASE_URL=sqlite:/app/db/catshi.sqlite?mode=rwc
       - GUILD_ID=${GUILD_ID}
