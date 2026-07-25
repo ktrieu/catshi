@@ -1,0 +1,40 @@
+services:
+  # Bind-mount the workspace's source dirs and manifests directly (not the
+  # whole repo root) so the container's own target/ dir - built inside the
+  # container by cargo-watch - is never shadowed by whatever's in the
+  # host's target/ (which may hold incompatible Windows build artifacts).
+  api:
+    build:
+      target: dev
+    tty: true
+    volumes:
+      - ./api:/app/api
+      - ./bot:/app/bot
+      - ./common:/app/common
+      - ./Cargo.toml:/app/Cargo.toml
+      - ./Cargo.lock:/app/Cargo.lock
+      - ./catshi.sqlite:/app/catshi.sqlite
+
+  bot:
+    build:
+      target: dev
+    tty: true
+    volumes:
+      - ./api:/app/api
+      - ./bot:/app/bot
+      - ./common:/app/common
+      - ./Cargo.toml:/app/Cargo.toml
+      - ./Cargo.lock:/app/Cargo.lock
+      - ./catshi.sqlite:/app/catshi.sqlite
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    environment:
+      - FRONTEND_PORT=${FRONTEND_PORT}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules

@@ -286,7 +286,9 @@ async fn main() {
     )
     .expect("logger initialization should succeed");
 
-    dotenvy::dotenv().expect(".env loading should succeed");
+    // Optional: absent when env vars are supplied another way (e.g. docker
+    // compose's `environment:` block instead of a mounted .env file).
+    dotenvy::dotenv().ok();
 
     let url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
     let pool = init_db(&url)

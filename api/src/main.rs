@@ -19,7 +19,9 @@ async fn init_db(url: &str) -> anyhow::Result<SqlitePool> {
 
 #[tokio::main]
 async fn main() {
-    dotenvy::dotenv().expect(".env loading should succeed");
+    // Optional: absent when env vars are supplied another way (e.g. docker
+    // compose's `environment:` block instead of a mounted .env file).
+    dotenvy::dotenv().ok();
 
     let api_port = env::var("API_PORT").expect("API_PORT should be set");
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");

@@ -19,15 +19,9 @@ services:
         condition: service_completed_successfully
     ports:
       - "${API_PORT}:${API_PORT}"
-    volumes:
-      # Bind-mounted straight from the repo root so both containers (and any
-      # host-side tooling like backup.sh) share the same sqlite file at the
-      # relative path from DATABASE_URL (sqlite:catshi.sqlite).
-      - ./catshi.sqlite:/app/catshi.sqlite
-      # Bind-mounted (not baked into the image) so secrets never end up in a
-      # layer. dotenvy::dotenv() requires an actual file on disk, so this
-      # can't be replaced by an `environment:` block alone.
-      - ./.env:/app/.env:ro
+    environment:
+      - API_PORT=${API_PORT}
+      - DATABASE_URL=${DATABASE_URL}
 
   bot:
     build:
@@ -37,18 +31,7 @@ services:
     depends_on:
       db-init:
         condition: service_completed_successfully
-    volumes:
-      - ./catshi.sqlite:/app/catshi.sqlite
-      - ./.env:/app/.env:ro
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
     environment:
-      - FRONTEND_PORT=${FRONTEND_PORT}
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - DATABASE_URL=${DATABASE_URL}
+      - GUILD_ID=${GUILD_ID}
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
