@@ -32,6 +32,6 @@ services:
       db-init:
         condition: service_completed_successfully
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=sqlite:/app/db/catshi.sqlite?mode=rwc
       - GUILD_ID=${GUILD_ID}
       - DISCORD_TOKEN=${DISCORD_TOKEN}

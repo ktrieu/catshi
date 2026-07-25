@@ -4,11 +4,11 @@ services:
       target: prod
     restart: unless-stopped
     volumes:
-      - ${PROD_SQLITE_PATH}:/app/catshi.sqlite
+      - ${PROD_SQLITE_DIR}:/app/db
 
   bot:
     build:
       target: prod
     restart: unless-stopped
     volumes:
-      - ${PROD_SQLITE_PATH}:/app/catshi.sqlite
+      - ${PROD_SQLITE_DIR}:/app/db
