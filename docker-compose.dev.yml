@@ -7,6 +7,10 @@ services:
     build:
       target: dev
     tty: true
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_URL=postgres://catshi:catshi@postgres:5432/catshi
     volumes:
       - ./api:/app/api
       - ./bot:/app/bot
@@ -19,6 +23,10 @@ services:
     build:
       target: dev
     tty: true
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_URL=postgres://catshi:catshi@postgres:5432/catshi
     volumes:
       - ./api:/app/api
       - ./bot:/app/bot
@@ -26,6 +34,18 @@ services:
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
       - ./db:/app/db/
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: "catshi-postgres"
+    environment:
+      - POSTGRES_USER=catshi
+      - POSTGRES_PASSWORD=catshi
+      - POSTGRES_DB=catshi
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
 
   frontend:
     build:
@@ -38,3 +58,6 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+
+volumes:
+  postgres-data:
