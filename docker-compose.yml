@@ -1,5 +1,6 @@
 services:
-  api:
+  catshi-api:
+    container_name: "catshi-api"
     build:
       context: .
       dockerfile: api/Dockerfile
@@ -13,7 +14,8 @@ services:
       - API_PORT=${API_PORT}
       - DATABASE_URL=sqlite:/app/db/catshi.sqlite?mode=rwc
 
-  bot:
+  catshi-bot:
+    container_name: "catshi-bot"
     build:
       context: .
       dockerfile: bot/Dockerfile
