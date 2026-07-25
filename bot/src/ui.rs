@@ -168,7 +168,7 @@ pub async fn create_market_thread(
     message_id: MessageId,
     ctx: &Context,
 ) -> anyhow::Result<GuildThread> {
-    let create_thread = CreateThread::new(format!("Market {}", format_market_id(market.id)));
+    let create_thread = CreateThread::new(format!("盘口-market {}", format_market_id(market.id)));
     let thread = ctx
         .http
         .create_thread_from_message(channel_id, message_id, &create_thread, None)
