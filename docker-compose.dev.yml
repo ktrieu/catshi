@@ -8,7 +8,8 @@ services:
       target: dev
     tty: true
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       - POSTGRES_URL=postgres://catshi:catshi@postgres:5432/catshi
     volumes:
@@ -24,7 +25,8 @@ services:
       target: dev
     tty: true
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       - POSTGRES_URL=postgres://catshi:catshi@postgres:5432/catshi
     volumes:
@@ -34,6 +36,13 @@ services:
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
       - ./db:/app/db/
+
+  migrate:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://catshi:catshi@postgres:5432/catshi
 
   postgres:
     image: postgres:16-alpine
@@ -46,6 +55,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catshi -d catshi"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
 
   frontend:
     build:

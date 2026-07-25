@@ -1,0 +1,18 @@
+# syntax=docker/dockerfile:1
+
+# Standalone sqlx-cli image used to run common/migrations against Postgres.
+# Migrations are copied in at build time (not bind-mounted), so this image
+# is self-contained for both dev and prod - just rebuild it when a new
+# migration file is added.
+FROM rust:1-bookworm AS builder
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
+    cargo install sqlx-cli --no-default-features --features rustls,postgres
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/sqlx
+COPY common/migrations /migrations
+ENTRYPOINT ["sqlx"]
+CMD ["migrate", "run", "--source", "/migrations"]
