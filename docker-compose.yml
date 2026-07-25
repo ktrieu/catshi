@@ -1,14 +1,4 @@
 services:
-  # Bind-mounting ./catshi.sqlite directly into api/bot requires the file to
-  # already exist on the host - otherwise Docker creates a directory there
-  # instead of a file. This ensures it exists first (touch is a no-op on an
-  # existing file, so it never truncates real data).
-  db-init:
-    image: busybox
-    volumes:
-      - .:/repo
-    command: ["touch", "/repo/catshi.sqlite"]
-
   api:
     build:
       context: .
@@ -21,7 +11,7 @@ services:
       - "${API_PORT}:${API_PORT}"
     environment:
       - API_PORT=${API_PORT}
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=sqlite:/app/db/catshi.sqlite?mode=rwc
 
   bot:
     build:
