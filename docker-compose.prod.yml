@@ -1,12 +1,12 @@
 services:
-  api:
+  catshi-api:
     build:
       target: prod
     restart: unless-stopped
     volumes:
       - ${PROD_SQLITE_DIR}:/app/db
 
-  bot:
+  catshi-bot:
     build:
       target: prod
     restart: unless-stopped

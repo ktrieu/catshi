@@ -3,7 +3,7 @@ services:
   # whole repo root) so the container's own target/ dir - built inside the
   # container by cargo-watch - is never shadowed by whatever's in the
   # host's target/ (which may hold incompatible Windows build artifacts).
-  api:
+  catshi-api:
     build:
       target: dev
     tty: true
@@ -15,7 +15,7 @@ services:
       - ./Cargo.lock:/app/Cargo.lock
       - ./db:/app/db/
 
-  bot:
+  catshi-bot:
     build:
       target: dev
     tty: true
