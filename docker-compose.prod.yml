@@ -13,6 +13,6 @@ services:
     volumes:
       - ${PROD_SQLITE_DIR}:/app/db
 
-  migrate:
+  catshi-migrate:
     # No PSQL in prod yet - just turn off this service.
     entrypoint: ["true"]

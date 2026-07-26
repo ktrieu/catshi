@@ -37,7 +37,7 @@ services:
       - ./Cargo.lock:/app/Cargo.lock
       - ./db:/app/db/
 
-  migrate:
+  catshi-migrate:
     depends_on:
       postgres:
         condition: service_healthy

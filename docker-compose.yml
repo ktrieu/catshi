@@ -6,7 +6,7 @@ services:
       dockerfile: api/Dockerfile
     init: true
     depends_on:
-      migrate:
+      catshi-migrate:
         condition: service_completed_successfully
     ports:
       - "${API_PORT}:${API_PORT}"
@@ -21,14 +21,14 @@ services:
       dockerfile: bot/Dockerfile
     init: true
     depends_on:
-      migrate:
+      catshi-migrate:
         condition: service_completed_successfully
     environment:
       - DATABASE_URL=sqlite:/app/db/catshi.sqlite?mode=rwc
       - GUILD_ID=${GUILD_ID}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
 
-  migrate:
+  catshi-migrate:
     container_name: "catshi-migrate"
     build:
       context: .
