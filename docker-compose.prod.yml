@@ -18,7 +18,5 @@ services:
       - POSTGRES_URL=${POSTGRES_URL}
 
   catshi-migrate:
-    # No PSQL in prod yet - just turn off this service.
-    entrypoint: ["true"]
     environment:
       - DATABASE_URL=${POSTGRES_URL}
