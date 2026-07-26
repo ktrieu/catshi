@@ -12,3 +12,8 @@ services:
     restart: unless-stopped
     volumes:
       - ${PROD_SQLITE_DIR}:/app/db
+
+  migrate:
+    # No PSQL in prod yet - just turn off this service.
+    deploy:
+      replicas: 0
