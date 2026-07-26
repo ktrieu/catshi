@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     volumes:
       - ${PROD_SQLITE_DIR}:/app/db
+    environment:
+      - POSTGRES_URL=${POSTGRES_URL}
 
   catshi-bot:
     build:
@@ -12,7 +14,11 @@ services:
     restart: unless-stopped
     volumes:
       - ${PROD_SQLITE_DIR}:/app/db
+    environment:
+      - POSTGRES_URL=${POSTGRES_URL}
 
   catshi-migrate:
     # No PSQL in prod yet - just turn off this service.
     entrypoint: ["true"]
+    environment:
+      - DATABASE_URL=${POSTGRES_URL}
