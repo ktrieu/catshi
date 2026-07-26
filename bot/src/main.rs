@@ -19,9 +19,9 @@ use crate::{
         trade_flow::parse_trade_modal_id,
     },
 };
-use common::currency::Currency;
 use common::store;
 use common::store::{transfer::TransferSource, user::DbUser};
+use common::{currency::Currency, store::CatshiDb};
 
 mod blackjack;
 mod command;
@@ -29,16 +29,6 @@ mod portfolio;
 mod trade;
 mod ui;
 mod utils;
-
-pub async fn init_db(url: &str) -> anyhow::Result<SqlitePool> {
-    let pool = SqlitePool::connect(url).await?;
-    info!("Connected to database {url}");
-
-    store::run_migrations(&pool).await?;
-    info!("Migrations run");
-
-    Ok(pool)
-}
 
 struct Handler {
     pub guild_id: GuildId,
@@ -290,10 +280,12 @@ async fn main() {
     // compose's `environment:` block instead of a mounted .env file).
     dotenvy::dotenv().ok();
 
-    let url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
-    let pool = init_db(&url)
+    let sqlite_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
+    let pg_url = env::var("POSTGRES_URL").expect("POSTGRES_URL should be set");
+
+    let db = CatshiDb::new(&sqlite_url, &pg_url)
         .await
-        .expect("db initialization should succeed");
+        .expect("DB initialization should succeed");
 
     let guild_id = env::var("GUILD_ID")
         .expect("GUILD_ID should be set")
@@ -301,7 +293,10 @@ async fn main() {
         .expect("GUILD_ID should be a valid u64");
     let guild_id = GuildId::new(guild_id);
 
-    let handler = Arc::new(Handler { guild_id, pool });
+    let handler = Arc::new(Handler {
+        guild_id,
+        pool: db.sqlite_pool,
+    });
 
     let discord_token =
         Token::from_env("DISCORD_TOKEN").expect("DISCORD_TOKEN should be present in env.");

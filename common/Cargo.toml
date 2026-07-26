@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-sqlx = { version = "0.8", features = [ "runtime-tokio", "sqlite" ] }
+sqlx = { version = "0.8", features = [ "runtime-tokio", "sqlite", "postgres" ] }
 tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
 # Unstable new version of Serenity, because we need Components v2 support for that good UI.
 serenity = { git = "https://github.com/serenity-rs/serenity", rev = "71843741a5db01de63a051af93726e444eeb08ef"}
