@@ -15,5 +15,4 @@ services:
 
   migrate:
     # No PSQL in prod yet - just turn off this service.
-    deploy:
-      replicas: 0
+    entrypoint: ["true"]
