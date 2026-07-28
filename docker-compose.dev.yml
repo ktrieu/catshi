@@ -12,6 +12,7 @@ services:
         condition: service_healthy
     environment:
       - POSTGRES_URL=postgres://catshi:catshi@postgres:5432/catshi
+      - SQLX_OFFLINE=true
     volumes:
       - ./api:/app/api
       - ./bot:/app/bot
@@ -19,6 +20,10 @@ services:
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
       - ./db:/app/db/
+      # Cache Cargo build directories in a volume so the build doesn't take forever.
+      - cargo-registry-api:/usr/local/cargo/registry
+      - cargo-git-api:/usr/local/cargo/git
+      - target-api:/app/target
 
   catshi-bot:
     build:
@@ -29,6 +34,7 @@ services:
         condition: service_healthy
     environment:
       - POSTGRES_URL=postgres://catshi:catshi@postgres:5432/catshi
+      - SQLX_OFFLINE=true
     volumes:
       - ./api:/app/api
       - ./bot:/app/bot
@@ -36,6 +42,9 @@ services:
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
       - ./db:/app/db/
+      - cargo-registry-bot:/usr/local/cargo/registry
+      - cargo-git-bot:/usr/local/cargo/git
+      - target-bot:/app/target
 
   catshi-migrate:
     depends_on:
@@ -75,3 +84,9 @@ services:
 
 volumes:
   postgres-data:
+  cargo-registry-api:
+  cargo-git-api:
+  target-api:
+  cargo-registry-bot:
+  cargo-git-bot:
+  target-bot:
