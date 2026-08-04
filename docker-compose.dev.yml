@@ -16,6 +16,7 @@ services:
     volumes:
       - ./api:/app/api
       - ./bot:/app/bot
+      - ./.sqlx:/app/.sqlx
       - ./common:/app/common
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
@@ -38,6 +39,7 @@ services:
     volumes:
       - ./api:/app/api
       - ./bot:/app/bot
+      - ./.sqlx:/app/.sqlx
       - ./common:/app/common
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
