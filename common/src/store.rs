@@ -1,3 +1,6 @@
+use std::fmt::Debug;
+
+use log::warn;
 use sqlx::{
     PgConnection, PgPool, Postgres, Sqlite, SqliteConnection, SqlitePool, Transaction,
     pool::PoolConnection,
@@ -19,7 +22,7 @@ pub async fn run_migrations(pool: &SqlitePool) -> anyhow::Result<()> {
     Ok(())
 }
 
-trait DbExecutor {
+pub trait DbExecutor: Send {
     fn sqlite(&mut self) -> &mut SqliteConnection;
     fn psql(&mut self) -> &mut PgConnection;
 }
@@ -85,5 +88,26 @@ impl CatshiDb {
             sqlite_tx: self.sqlite_pool.begin().await?,
             pg_tx: self.pg_pool.begin().await?,
         })
+    }
+}
+
+pub fn log_pg_write_err<T>(result: sqlx::Result<T>, fn_name: &'static str) {
+    if let Err(e) = result {
+        warn!("{fn_name}: Postgres write failed: {e}")
+    }
+}
+
+pub fn log_pg_compare_result<T: Eq + Debug>(
+    result: sqlx::Result<T>,
+    sqlite_result: &T,
+    fn_name: &'static str,
+) {
+    match result {
+        Ok(pg_result) => {
+            if pg_result != *sqlite_result {
+                warn!("{fn_name}: Postgres read mismatch\n{pg_result:?}\n{sqlite_result:?}")
+            }
+        }
+        Err(e) => warn!("{fn_name}: Postgres read failed: {e}"),
     }
 }
