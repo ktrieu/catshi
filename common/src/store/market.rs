@@ -3,8 +3,9 @@ use serenity::all::{GenericChannelId, MessageId, ThreadId};
 use sqlx::{Executor, Sqlite, SqliteConnection, query, query_as};
 
 use crate::store::{
+    DbExecutor,
     instrument::{self, InstrumentWithShares},
-    user::{self, DbUser},
+    user::{DbUser, UserStore},
 };
 
 #[derive(Debug, sqlx::Type, Clone, Copy, PartialEq, Eq)]
@@ -210,15 +211,17 @@ pub struct FullMarket {
 
 impl FullMarket {
     pub async fn new_from_instrument_id(
-        conn: &mut SqliteConnection,
+        exec: &mut impl DbExecutor,
+        user_store: &impl UserStore,
         id: i64,
     ) -> anyhow::Result<Self> {
-        let row = get_market_by_instrument_id(&mut *conn, id).await?;
+        let row = get_market_by_instrument_id(&mut *exec.sqlite(), id).await?;
 
         let instruments =
-            instrument::get_instruments_with_share_counts_for_market(&mut *conn, row.id).await?;
+            instrument::get_instruments_with_share_counts_for_market(&mut *exec.sqlite(), row.id)
+                .await?;
 
-        let owner = user::get_user_by_id(&mut *conn, row.owner_id).await?;
+        let owner = user_store.get_by_id(exec, row.owner_id).await?;
 
         Ok(Self {
             row,

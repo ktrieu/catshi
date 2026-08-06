@@ -120,8 +120,12 @@ pub async fn resolve(
 
     let mut tx = handler.db.begin().await?;
 
-    let market =
-        store::market::FullMarket::new_from_instrument_id(tx.sqlite_tx(), instrument_id).await?;
+    let market = store::market::FullMarket::new_from_instrument_id(
+        &mut tx,
+        &handler.user_store,
+        instrument_id,
+    )
+    .await?;
 
     // This shouldn't happen and should be caught by the modal initiation logic. Double-check here
     // but just raise a raw error.
@@ -216,10 +220,14 @@ pub async fn resolve(
         modal.defer(&ctx.http).await?;
     }
 
-    let mut conn = handler.pool.acquire().await?;
+    let mut conn = handler.db.conn().await?;
     // Refetch and re-render market message.
-    let market =
-        store::market::FullMarket::new_from_instrument_id(&mut conn, instrument_id).await?;
+    let market = store::market::FullMarket::new_from_instrument_id(
+        &mut conn,
+        &handler.user_store,
+        instrument_id,
+    )
+    .await?;
     let new_market_message =
         render_market_message(&market.row, &market.owner, market.instruments.iter());
 

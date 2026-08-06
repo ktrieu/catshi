@@ -207,7 +207,8 @@ pub async fn trade(
 
     let mut tx = handler.db.begin().await?;
 
-    let market = FullMarket::new_from_instrument_id(tx.sqlite_tx(), instrument_id).await?;
+    let market =
+        FullMarket::new_from_instrument_id(&mut tx, &handler.user_store, instrument_id).await?;
     let traded_instrument = &market.get_instrument(instrument_id)?.0;
     let position =
         store::position::get_user_position(&mut **tx.sqlite_tx(), traded_instrument, user).await?;

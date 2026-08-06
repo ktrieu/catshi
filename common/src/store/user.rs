@@ -70,28 +70,6 @@ pub async fn get_user_by_discord_id(
     Ok(user)
 }
 
-pub async fn get_user_by_id(
-    exec: impl Executor<'_, Database = Sqlite>,
-    id: i64,
-) -> anyhow::Result<DbUser> {
-    let user = query_as!(
-        DbUser,
-        r#"SELECT
-            id,
-            name,
-            discord_id,
-            cash_balance as "cash_balance: Currency"
-        FROM users 
-        WHERE 
-            id = $1"#,
-        id,
-    )
-    .fetch_one(exec)
-    .await?;
-
-    Ok(user)
-}
-
 pub async fn increment_balance_by_user_id(
     conn: &mut SqliteConnection,
     id: i64,
