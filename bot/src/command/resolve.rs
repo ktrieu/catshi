@@ -12,7 +12,7 @@ use common::store::{
     self,
     instrument::InstrumentState,
     market::{Market, MarketState},
-    user::DbUser,
+    user::{DbUser, UserStore},
 };
 
 use crate::{
@@ -118,9 +118,10 @@ pub async fn resolve(
         .ok_or(anyhow!("market resolve instrument field not present"))?
         .parse::<i64>()?;
 
-    let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let mut tx = handler.db.begin().await?;
 
-    let market = store::market::FullMarket::new_from_instrument_id(&mut *tx, instrument_id).await?;
+    let market =
+        store::market::FullMarket::new_from_instrument_id(tx.sqlite_tx(), instrument_id).await?;
 
     // This shouldn't happen and should be caught by the modal initiation logic. Double-check here
     // but just raise a raw error.
@@ -133,20 +134,21 @@ pub async fn resolve(
     }
 
     let winner = &market.get_instrument(instrument_id)?.0;
-    let positions = store::position::get_all_market_positions(&mut *tx, market.row.id).await?;
-    let system_user = store::user::get_system_user(&handler.pool).await?;
+    let positions =
+        store::position::get_all_market_positions(&mut **tx.sqlite_tx(), market.row.id).await?;
+    let system_user = handler.user_store.get_system_user(&mut tx).await?;
 
     let results = trade::resolve(&market, &winner, &positions, &system_user)?;
 
     for r in &results {
-        store::order::create_order(&mut *tx, &r.order).await?;
+        store::order::create_order(tx.sqlite_tx(), &r.order).await?;
 
         for t in &r.transfers {
-            store::transfer::persist_transfer(&mut tx, &t).await?;
+            store::transfer::persist_transfer(tx.sqlite_tx(), &t).await?;
         }
         if r.position.quantity == 0 {
             store::position::delete_position(
-                &mut *tx,
+                tx.sqlite_tx(),
                 r.position.instrument_id,
                 r.position.owner_id,
             )
@@ -156,12 +158,13 @@ pub async fn resolve(
                 "non-zero position quantity when resolving! {} {}",
                 r.position.instrument_id, r.position.owner_id
             );
-            store::position::upsert_position(&mut *tx, &r.position).await?;
+            store::position::upsert_position(tx.sqlite_tx(), &r.position).await?;
         }
     }
 
     // Set the market/instrument states.
-    store::market::set_market_state(&mut *tx, &market.row, MarketState::Closed).await?;
+    store::market::set_market_state(&mut **tx.sqlite_tx(), &market.row, MarketState::Closed)
+        .await?;
     for (i, _) in &market.instruments {
         let state = if i.id == instrument_id {
             InstrumentState::Winner
@@ -169,7 +172,7 @@ pub async fn resolve(
             InstrumentState::Loser
         };
 
-        store::instrument::set_instrument_state(&mut *tx, &i, state).await?;
+        store::instrument::set_instrument_state(&mut **tx.sqlite_tx(), &i, state).await?;
     }
 
     tx.commit().await?;

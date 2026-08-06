@@ -9,7 +9,7 @@ use common::currency::Currency;
 use common::store::{
     self,
     transfer::{CreateTransfer, TransferSource},
-    user::DbUser,
+    user::{DbUser, UserStore},
 };
 
 use crate::{
@@ -70,7 +70,7 @@ pub async fn run(
         return Ok(());
     }
 
-    let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let mut tx = handler.db.begin().await?;
 
     let (game, payout) = Blackjack::new(bet, RngDeck::new());
 
@@ -89,7 +89,7 @@ pub async fn run(
 
     let response = command.get_response(&ctx.http).await?;
 
-    let system_user = store::user::get_system_user(&mut *tx).await?;
+    let system_user = handler.user_store.get_system_user(&mut tx).await?;
 
     // Transfer the initial bet now. Otherwise if a game wasn't going well you could just never complete the game.
     let initial_bet = CreateTransfer {
@@ -99,7 +99,7 @@ pub async fn run(
         memo: "Blackjack: initial bet".to_string(),
         source: TransferSource::Gambling,
     };
-    store::transfer::persist_transfer(&mut tx, &initial_bet).await?;
+    store::transfer::persist_transfer(tx.sqlite_tx(), &initial_bet).await?;
 
     // If you won on a natural, transfer that as well.
     if let Some(payout) = payout {
@@ -111,11 +111,11 @@ pub async fn run(
             source: TransferSource::Gambling,
         };
 
-        store::transfer::persist_transfer(&mut tx, &natural_payout).await?;
+        store::transfer::persist_transfer(tx.sqlite_tx(), &natural_payout).await?;
     }
 
     let create = game.to_db_create(&user, response.channel_id.expect_channel(), response.id);
-    store::blackjack::create_blackjack(&mut *tx, &create).await?;
+    store::blackjack::create_blackjack(tx.sqlite_tx(), &create).await?;
 
     tx.commit().await?;
 
@@ -132,12 +132,12 @@ pub async fn interact(
     let channel_id = component.channel_id;
     let message_id = component.message.id;
 
-    let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let mut tx = handler.db.begin().await?;
 
-    let system_user = store::user::get_system_user(&mut *tx).await?;
+    let system_user = handler.user_store.get_system_user(&mut tx).await?;
 
     let db_blackjack = store::blackjack::get_blackjack_from_message(
-        &mut *tx,
+        tx.sqlite_tx(),
         channel_id.expect_channel(),
         message_id,
     )
@@ -180,12 +180,12 @@ pub async fn interact(
 
     for t in result.transfers(&system_user, &user) {
         if let Some(t) = t {
-            store::transfer::persist_transfer(&mut tx, &t).await?;
+            store::transfer::persist_transfer(tx.sqlite_tx(), &t).await?;
         }
     }
 
     let update = game.to_db_update();
-    store::blackjack::update_blackjack(&mut *tx, db_blackjack.id, &update).await?;
+    store::blackjack::update_blackjack(tx.sqlite_tx(), db_blackjack.id, &update).await?;
 
     let new_msg_content = ui::blackjack::render_blackjack_message(&game, &user);
 

@@ -16,7 +16,12 @@ use crate::{
     utils,
 };
 use common::currency::Currency;
-use common::store::{self, instrument::Instrument, market::FullMarket, user::DbUser};
+use common::store::{
+    self,
+    instrument::Instrument,
+    market::FullMarket,
+    user::{DbUser, UserStore},
+};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TradeAction {
@@ -200,13 +205,14 @@ pub async fn trade(
         }
     };
 
-    let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let mut tx = handler.db.begin().await?;
 
-    let market = FullMarket::new_from_instrument_id(&mut *tx, instrument_id).await?;
+    let market = FullMarket::new_from_instrument_id(tx.sqlite_tx(), instrument_id).await?;
     let traded_instrument = &market.get_instrument(instrument_id)?.0;
-    let position = store::position::get_user_position(&mut *tx, traded_instrument, user).await?;
+    let position =
+        store::position::get_user_position(&mut **tx.sqlite_tx(), traded_instrument, user).await?;
 
-    let system_user = store::user::get_system_user(&handler.pool).await?;
+    let system_user = handler.user_store.get_system_user(&mut tx).await?;
 
     let result = match action {
         TradeAction::Buy => trade::buy(
@@ -231,19 +237,19 @@ pub async fn trade(
 
     match result {
         Ok(result) => {
-            store::order::create_order(&mut *tx, &result.order).await?;
+            store::order::create_order(tx.sqlite_tx(), &result.order).await?;
             if result.position.quantity == 0 {
                 store::position::delete_position(
-                    &mut *tx,
+                    tx.sqlite_tx(),
                     result.position.instrument_id,
                     result.position.owner_id,
                 )
                 .await?;
             } else {
-                store::position::upsert_position(&mut *tx, &result.position).await?;
+                store::position::upsert_position(tx.sqlite_tx(), &result.position).await?;
             }
             for t in &result.transfers {
-                store::transfer::persist_transfer(&mut tx, t).await?;
+                store::transfer::persist_transfer(tx.sqlite_tx(), t).await?;
             }
 
             let verb = match action {
@@ -328,6 +334,7 @@ pub async fn trade(
         market.row.id,
     )
     .await?;
+
     let all_positions =
         store::position::get_all_market_positions(&handler.pool, market.row.id).await?;
 

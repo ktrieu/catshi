@@ -45,6 +45,7 @@ pub async fn modal_submit(
     let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
 
     let new_market = store::market::create_new_market(&mut *tx, values.description, user).await?;
+    dbg!(&values.options);
     let instruments =
         store::instrument::insert_market_instruments(&mut *tx, &new_market, &values.options)
             .await?;
