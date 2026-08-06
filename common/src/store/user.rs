@@ -17,35 +17,6 @@ pub struct DbUser {
     pub cash_balance: Currency,
 }
 
-pub async fn insert_user_if_not_exists(
-    exec: impl Executor<'_, Database = Sqlite>,
-    discord_id: &str,
-    name: &str,
-    initial_balance: Currency,
-) -> anyhow::Result<DbUser> {
-    let user = query_as!(
-        DbUser,
-        r#"INSERT INTO users(
-            discord_id,
-            name,
-            cash_balance
-        ) VALUES ($1, $2, $3) ON CONFLICT (discord_id) DO NOTHING 
-        RETURNING
-            id,
-            discord_id,
-            name,
-            cash_balance as "cash_balance: Currency"
-        "#,
-        discord_id,
-        name,
-        initial_balance,
-    )
-    .fetch_one(exec)
-    .await?;
-
-    Ok(user)
-}
-
 pub async fn get_user_by_discord_id(
     exec: impl Executor<'_, Database = Sqlite>,
     discord_id: &UserId,
