@@ -92,13 +92,6 @@ pub async fn get_user_by_id(
     Ok(user)
 }
 
-pub async fn get_system_user(exec: impl Executor<'_, Database = Sqlite>) -> anyhow::Result<DbUser> {
-    // By convention the system user has a discord ID of 0, see the migrations.
-    get_user_by_discord_id(exec, &UserId::new(0))
-        .await?
-        .ok_or(anyhow!("system user not found"))
-}
-
 pub async fn increment_balance_by_user_id(
     conn: &mut SqliteConnection,
     id: i64,
