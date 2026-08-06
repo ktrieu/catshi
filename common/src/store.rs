@@ -99,7 +99,7 @@ impl CatshiDb {
 
     pub async fn begin(&self) -> anyhow::Result<CatshiTx> {
         Ok(CatshiTx {
-            sqlite_tx: self.sqlite_pool.begin().await?,
+            sqlite_tx: self.sqlite_pool.begin_with("BEGIN IMMEDIATE").await?,
             pg_tx: self.pg_pool.begin().await?,
         })
     }
