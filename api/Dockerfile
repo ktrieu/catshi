@@ -20,7 +20,9 @@ WORKDIR /app
 FROM base AS dev
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     cargo install cargo-watch
-CMD ["cargo", "watch", "--poll", "-x", "run -p api"]
+CMD ["cargo", "watch", "--poll", \
+     "-w", "api", "-w", "bot", "-w", "common", "-w", "Cargo.toml", "-w", "Cargo.lock", "-w", ".sqlx", \
+     "-x", "run -p api"]
 
 FROM base AS builder
 COPY . .
