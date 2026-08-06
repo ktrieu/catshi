@@ -19,9 +19,12 @@ use crate::{
         trade_flow::parse_trade_modal_id,
     },
 };
-use common::currency::Currency;
-use common::store;
+use common::store::{
+    self,
+    user::{CreateDbUser, DbUserStore, UserStore},
+};
 use common::store::{transfer::TransferSource, user::DbUser};
+use common::{currency::Currency, store::CatshiDb};
 
 mod blackjack;
 mod command;
@@ -30,19 +33,11 @@ mod trade;
 mod ui;
 mod utils;
 
-pub async fn init_db(url: &str) -> anyhow::Result<SqlitePool> {
-    let pool = SqlitePool::connect(url).await?;
-    info!("Connected to database {url}");
-
-    store::run_migrations(&pool).await?;
-    info!("Migrations run");
-
-    Ok(pool)
-}
-
 struct Handler {
     pub guild_id: GuildId,
     pub pool: SqlitePool,
+    pub db: CatshiDb,
+    pub user_store: DbUserStore,
 }
 
 // Everyone starts with 20 YP.
@@ -50,13 +45,16 @@ const INITIAL_BALANCE: Currency = Currency::new_yp(20);
 
 impl Handler {
     async fn authenticate(&self, ctx: &Context, discord_user: &User) -> anyhow::Result<DbUser> {
-        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let mut tx = self.db.begin().await?;
 
-        let user = store::user::get_user_by_discord_id(&self.pool, &discord_user.id).await?;
+        let user = self
+            .user_store
+            .get_by_discord_id(&mut tx, &discord_user.id)
+            .await?;
         let user = match user {
             Some(user) => anyhow::Ok(user),
             None => {
-                let system_user = store::user::get_system_user(&mut *tx).await?;
+                let system_user = self.user_store.get_system_user(&mut tx).await?;
                 // Automatically register if we haven't seen them before.
                 let server_nickname = discord_user.nick_in(ctx, self.guild_id).await;
 
@@ -65,13 +63,17 @@ impl Handler {
                     .unwrap_or(discord_user.name.as_str());
                 let user_id = &discord_user.id.to_string();
 
-                let user = store::user::insert_user_if_not_exists(
-                    &mut *tx,
-                    &user_id,
-                    &name,
-                    Currency::from(0),
-                )
-                .await?;
+                let user = self
+                    .user_store
+                    .create_if_not_exists(
+                        &mut tx,
+                        CreateDbUser {
+                            name: name.to_string(),
+                            discord_id: user_id.to_string(),
+                            initial_balance: Currency::from(0),
+                        },
+                    )
+                    .await?;
 
                 // Credit the user their initial balance.
                 let transfer = trade::create_system_credit(
@@ -82,9 +84,9 @@ impl Handler {
                     TransferSource::Deposit,
                 );
 
-                store::transfer::persist_transfer(&mut tx, &transfer).await?;
+                store::transfer::persist_transfer(tx.sqlite_tx(), &transfer).await?;
 
-                let user = store::user::get_user_by_id(&mut *tx, user.id).await?;
+                let user = self.user_store.get_by_id(&mut tx, user.id).await?;
 
                 // We're only in this branch if user query above didn't return a user.
                 Ok(user)
@@ -290,10 +292,12 @@ async fn main() {
     // compose's `environment:` block instead of a mounted .env file).
     dotenvy::dotenv().ok();
 
-    let url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
-    let pool = init_db(&url)
+    let sqlite_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
+    let pg_url = env::var("POSTGRES_URL").expect("POSTGRES_URL should be set");
+
+    let db = CatshiDb::new(&sqlite_url, &pg_url)
         .await
-        .expect("db initialization should succeed");
+        .expect("DB initialization should succeed");
 
     let guild_id = env::var("GUILD_ID")
         .expect("GUILD_ID should be set")
@@ -301,7 +305,12 @@ async fn main() {
         .expect("GUILD_ID should be a valid u64");
     let guild_id = GuildId::new(guild_id);
 
-    let handler = Arc::new(Handler { guild_id, pool });
+    let handler = Arc::new(Handler {
+        guild_id,
+        pool: db.sqlite_pool.clone(),
+        db,
+        user_store: DbUserStore {},
+    });
 
     let discord_token =
         Token::from_env("DISCORD_TOKEN").expect("DISCORD_TOKEN should be present in env.");

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "INSERT INTO users(discord_id, name, cash_balance) VALUES ($1, $2, $3) ON CONFLICT (discord_id) DO NOTHING RETURNING *",
+  "query": "\n            SELECT\n                id,\n                name,\n                discord_id,\n                cash_balance as \"cash_balance: Currency\"\n            FROM users \n            WHERE \n                id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -19,13 +19,13 @@
         "type_info": "Text"
       },
       {
-        "name": "cash_balance",
+        "name": "cash_balance: Currency",
         "ordinal": 3,
         "type_info": "Integer"
       }
     ],
     "parameters": {
-      "Right": 3
+      "Right": 1
     },
     "nullable": [
       false,
@@ -34,5 +34,5 @@
       false
     ]
   },
-  "hash": "04e3eac4f2f2163c89f5fbc57fe67153296f2c2203e2cb84b80807c77c883b79"
+  "hash": "4769a65f3affd96f1ce97c30da93accacb197621911f7222b29f2313ea06b28f"
 }
