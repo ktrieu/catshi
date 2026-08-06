@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use common::store::user::UserStore;
 use serenity::all::{
     CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
 };
@@ -72,9 +73,12 @@ pub async fn run(
     let memo_value =
         ui::get_command_option_str(command, OPTION_MEMO).unwrap_or("User initiated transfer");
 
-    let mut tx = handler.pool.begin().await?;
+    let mut tx = handler.db.begin().await?;
 
-    let recipient = store::user::get_user_by_discord_id(&mut *tx, &recipient_value).await?;
+    let recipient = handler
+        .user_store
+        .get_by_discord_id(&mut tx, &recipient_value)
+        .await?;
     let recipient = match recipient {
         Some(recipient) => recipient,
         None => {
@@ -111,7 +115,7 @@ pub async fn run(
         source: TransferSource::UserInitiated,
     };
 
-    store::transfer::persist_transfer(&mut tx, &create).await?;
+    store::transfer::persist_transfer(&mut tx.sqlite_tx(), &create).await?;
 
     tx.commit().await?;
 

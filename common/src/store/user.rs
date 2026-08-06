@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail};
 use serenity::all::UserId;
-use sqlx::{Executor, Sqlite, SqliteConnection, query, query_as};
+use sqlx::{SqliteConnection, query, query_as};
 use trait_variant::make;
 
 use crate::{
@@ -15,30 +15,6 @@ pub struct DbUser {
     pub discord_id: String,
     pub name: String,
     pub cash_balance: Currency,
-}
-
-pub async fn get_user_by_discord_id(
-    exec: impl Executor<'_, Database = Sqlite>,
-    discord_id: &UserId,
-) -> anyhow::Result<Option<DbUser>> {
-    let discord_id = discord_id.to_string();
-
-    let user = query_as!(
-        DbUser,
-        r#"SELECT
-            id,
-            name,
-            discord_id,
-            cash_balance as "cash_balance: Currency"
-        FROM users 
-        WHERE 
-            discord_id = $1"#,
-        discord_id,
-    )
-    .fetch_optional(exec)
-    .await?;
-
-    Ok(user)
 }
 
 pub async fn increment_balance_by_user_id(
