@@ -23,7 +23,10 @@ use common::store::{
     self,
     user::{CreateDbUser, DbUserStore, UserStore},
 };
-use common::store::{transfer::TransferSource, user::DbUser};
+use common::store::{
+    transfer::{DbTransferStore, TransferSource, TransferStore},
+    user::DbUser,
+};
 use common::{currency::Currency, store::CatshiDb};
 
 mod blackjack;
@@ -38,6 +41,7 @@ struct Handler {
     pub pool: SqlitePool,
     pub db: CatshiDb,
     pub user_store: DbUserStore,
+    pub transfer_store: DbTransferStore,
 }
 
 // Everyone starts with 20 YP.
@@ -84,7 +88,9 @@ impl Handler {
                     TransferSource::Deposit,
                 );
 
-                store::transfer::persist_transfer(tx.sqlite_tx(), &transfer).await?;
+                self.transfer_store
+                    .persist(&mut tx, &self.user_store, &transfer)
+                    .await?;
 
                 let user = self.user_store.get_by_id(&mut tx, user.id).await?;
 
@@ -310,6 +316,7 @@ async fn main() {
         pool: db.sqlite_pool.clone(),
         db,
         user_store: DbUserStore {},
+        transfer_store: DbTransferStore {},
     });
 
     let discord_token =

@@ -12,6 +12,7 @@ use common::store::{
     self,
     instrument::InstrumentState,
     market::{Market, MarketState},
+    transfer::TransferStore,
     user::{DbUser, UserStore},
 };
 
@@ -148,7 +149,10 @@ pub async fn resolve(
         store::order::create_order(tx.sqlite_tx(), &r.order).await?;
 
         for t in &r.transfers {
-            store::transfer::persist_transfer(tx.sqlite_tx(), &t).await?;
+            handler
+                .transfer_store
+                .persist(&mut tx, &handler.user_store, t)
+                .await?;
         }
         if r.position.quantity == 0 {
             store::position::delete_position(

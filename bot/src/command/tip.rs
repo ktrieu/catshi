@@ -3,8 +3,8 @@ use serenity::all::{Context, Message};
 
 use common::currency::Currency;
 use common::store::{
-    self,
-    transfer::{CreateTransfer, TransferSource},
+    self, DbExecutor,
+    transfer::{CreateTransfer, TransferSource, TransferStore},
     user::DbUser,
 };
 
@@ -41,7 +41,7 @@ pub async fn on_tip(
         return Ok(());
     }
 
-    let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let mut tx = handler.db.begin().await?;
 
     let create_transfer = CreateTransfer {
         amount,
@@ -51,9 +51,12 @@ pub async fn on_tip(
         source: TransferSource::MessageTip,
     };
 
-    let transfer = store::transfer::persist_transfer(&mut tx, &create_transfer).await?;
+    let transfer = handler
+        .transfer_store
+        .persist(&mut tx, &handler.user_store, &create_transfer)
+        .await?;
     store::tip::create_tip(
-        &mut *tx,
+        tx.sqlite(),
         amount,
         &transfer,
         &user,

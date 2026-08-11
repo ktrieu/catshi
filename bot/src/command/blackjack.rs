@@ -8,7 +8,7 @@ use serenity::all::{
 use common::currency::Currency;
 use common::store::{
     self,
-    transfer::{CreateTransfer, TransferSource},
+    transfer::{CreateTransfer, TransferSource, TransferStore},
     user::{DbUser, UserStore},
 };
 
@@ -99,7 +99,10 @@ pub async fn run(
         memo: "Blackjack: initial bet".to_string(),
         source: TransferSource::Gambling,
     };
-    store::transfer::persist_transfer(tx.sqlite_tx(), &initial_bet).await?;
+    handler
+        .transfer_store
+        .persist(&mut tx, &handler.user_store, &initial_bet)
+        .await?;
 
     // If you won on a natural, transfer that as well.
     if let Some(payout) = payout {
@@ -111,7 +114,10 @@ pub async fn run(
             source: TransferSource::Gambling,
         };
 
-        store::transfer::persist_transfer(tx.sqlite_tx(), &natural_payout).await?;
+        handler
+            .transfer_store
+            .persist(&mut tx, &handler.user_store, &natural_payout)
+            .await?;
     }
 
     let create = game.to_db_create(&user, response.channel_id.expect_channel(), response.id);
@@ -180,7 +186,10 @@ pub async fn interact(
 
     for t in result.transfers(&system_user, &user) {
         if let Some(t) = t {
-            store::transfer::persist_transfer(tx.sqlite_tx(), &t).await?;
+            handler
+                .transfer_store
+                .persist(&mut tx, &handler.user_store, &t)
+                .await?;
         }
     }
 

@@ -20,6 +20,7 @@ use common::store::{
     self,
     instrument::Instrument,
     market::FullMarket,
+    transfer::TransferStore,
     user::{DbUser, UserStore},
 };
 
@@ -250,7 +251,10 @@ pub async fn trade(
                 store::position::upsert_position(tx.sqlite_tx(), &result.position).await?;
             }
             for t in &result.transfers {
-                store::transfer::persist_transfer(tx.sqlite_tx(), t).await?;
+                handler
+                    .transfer_store
+                    .persist(&mut tx, &handler.user_store, t)
+                    .await?;
             }
 
             let verb = match action {

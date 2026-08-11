@@ -7,8 +7,7 @@ use serenity::all::{
 use crate::{Handler, ui, utils};
 use common::currency::Currency;
 use common::store::{
-    self,
-    transfer::{CreateTransfer, TransferSource},
+    transfer::{CreateTransfer, TransferSource, TransferStore},
     user::DbUser,
 };
 
@@ -115,7 +114,10 @@ pub async fn run(
         source: TransferSource::UserInitiated,
     };
 
-    store::transfer::persist_transfer(&mut tx.sqlite_tx(), &create).await?;
+    handler
+        .transfer_store
+        .persist(&mut tx, &handler.user_store, &create)
+        .await?;
 
     tx.commit().await?;
 
