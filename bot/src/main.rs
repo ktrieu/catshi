@@ -1,15 +1,31 @@
 use std::env;
 
+use clap::{Parser, Subcommand};
 use common::store;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
+
+use crate::Commands::ExportUsers;
 
 mod blackjack;
 mod bot;
 mod command;
 mod portfolio;
+mod scripts;
 mod trade;
 mod ui;
 mod utils;
+
+#[derive(Subcommand)]
+enum Commands {
+    #[command(name = "export_users")]
+    ExportUsers,
+}
+
+#[derive(Parser)]
+struct Args {
+    #[command(subcommand)]
+    commands: Option<Commands>,
+}
 
 #[tokio::main]
 async fn main() {
@@ -25,9 +41,10 @@ async fn main() {
     // compose's `environment:` block instead of a mounted .env file).
     dotenvy::dotenv().ok();
 
-    // No subcommand runs the bot; future subcommands can dispatch to other scripts here.
-    match env::args().nth(1).as_deref() {
+    let args = Args::parse();
+
+    match &args.commands {
+        Some(ExportUsers) => scripts::export_users::run(),
         None => bot::run().await,
-        Some(other) => panic!("Unrecognized command: {other}"),
     }
 }
