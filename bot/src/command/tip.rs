@@ -8,7 +8,7 @@ use common::store::{
     user::DbUser,
 };
 
-use crate::Handler;
+use crate::bot::Handler;
 
 // Tip amount is 1 yp = 1000 bips.
 const TIP_AMOUNT: i64 = 1000;

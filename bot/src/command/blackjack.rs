@@ -13,7 +13,7 @@ use common::store::{
 };
 
 use crate::{
-    Handler,
+    bot::Handler,
     blackjack::{Blackjack, BlackjackAction, RngDeck},
     ui, utils,
 };

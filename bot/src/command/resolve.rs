@@ -17,7 +17,7 @@ use common::store::{
 };
 
 use crate::{
-    Handler,
+    bot::Handler,
     trade::{self},
     ui::{
         self, code_block, extract_modal_values, format_market_id,

@@ -4,7 +4,7 @@ use serenity::all::{
 };
 
 use crate::{
-    Handler,
+    bot::Handler,
     store::{self, instrument::InstrumentWithShares, user::DbUser},
     ui::{
         create_market_thread, market_create_modal,

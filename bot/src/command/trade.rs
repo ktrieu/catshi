@@ -6,7 +6,7 @@ use serenity::all::{
 };
 
 use crate::{
-    Handler,
+    bot::Handler,
     trade::{self, MARKET_B, TradeError, TradeResult, calc_buy_prices, calc_sell_prices},
     ui::{
         self, create_market_thread, instrument_display_text,

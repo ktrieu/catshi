@@ -1,7 +1,7 @@
 use serenity::all::{CommandInteraction, Context, CreateCommand};
 
 use crate::{
-    Handler,
+    bot::Handler,
     store::{self, market::MarketState},
     ui, utils,
 };

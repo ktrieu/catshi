@@ -4,7 +4,7 @@ use serenity::all::{
     CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
 };
 
-use crate::{Handler, ui, utils};
+use crate::{bot::Handler, ui, utils};
 use common::currency::Currency;
 use common::store::{
     transfer::{CreateTransfer, TransferSource, TransferStore},

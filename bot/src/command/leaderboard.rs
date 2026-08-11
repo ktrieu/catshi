@@ -9,7 +9,7 @@ use common::store::{
 };
 
 use crate::{
-    Handler,
+    bot::Handler,
     portfolio::PortfolioValue,
     ui::{code_block, tabulate},
     utils,
