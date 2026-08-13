@@ -27,6 +27,14 @@ struct Args {
     commands: Option<Commands>,
 }
 
+async fn run_script(f: impl AsyncFnOnce() -> anyhow::Result<()>) {
+    let result = f().await;
+
+    if let Err(e) = result {
+        println!("script execution failed: {e}");
+    }
+}
+
 #[tokio::main]
 async fn main() {
     TermLogger::init(
@@ -44,7 +52,7 @@ async fn main() {
     let args = Args::parse();
 
     match &args.commands {
-        Some(ExportUsers) => scripts::export_users::run(),
+        Some(ExportUsers) => run_script(scripts::export_users::run).await,
         None => bot::run().await,
     }
 }
