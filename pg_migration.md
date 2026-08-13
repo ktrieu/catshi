@@ -42,8 +42,8 @@ always-compiling commits at each step.
 
 **5. Un-migrated helpers stay on raw sqlite, and call sites reach in
 explicitly.**
-Functions like `transfer::persist_transfer`, `blackjack::*`, `position::*`
-haven't been ported yet, so they still take a plain sqlite executor.
+Functions like `position::*`, `order::*`, `instrument::*` haven't been
+ported yet, so they still take a plain sqlite executor.
 Callers that already hold a `CatshiTx` pass `tx.sqlite_tx()` down into them
 (`bot/src/command/resolve.rs`, `trade.rs`). This makes the migration
 boundary visible in the diff instead of forcing a big-bang rewrite of every
