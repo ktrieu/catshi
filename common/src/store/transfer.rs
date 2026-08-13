@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, sqlx::Type)]
-#[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
+#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
 pub enum TransferSource {
     Unknown,
     Deposit,
@@ -228,10 +228,10 @@ impl TransferStore for DbTransferStore {
             OVERRIDING SYSTEM VALUE
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING
-                id,
-                amount,
-                sender,
-                receiver,
+                CAST(id AS BIGINT) as id,
+                CAST(amount AS BIGINT) as amount,
+                CAST(sender AS BIGINT) as sender,
+                CAST(receiver AS BIGINT) as receiver,
                 memo,
                 EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at,
                 source
