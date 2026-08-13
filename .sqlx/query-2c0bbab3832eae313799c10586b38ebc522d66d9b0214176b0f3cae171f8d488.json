@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT\n            id,\n            created_at,\n            channel_id,\n            message_id,\n            amount as \"amount: Currency\",\n            user_id,\n            transfer_id\n        FROM\n            tips\n        WHERE\n            channel_id = $1 AND message_id = $2 AND user_id = $3\n        ",
+  "query": "\n            INSERT INTO tips (\n                amount,\n                transfer_id,\n                channel_id,\n                message_id,\n                user_id\n            ) VALUES ($1, $2, $3, $4, $5)\n            RETURNING\n                id,\n                created_at,\n                channel_id,\n                message_id,\n                amount as \"amount: Currency\",\n                transfer_id,\n                user_id\n            ",
   "describe": {
     "columns": [
       {
@@ -29,18 +29,18 @@
         "type_info": "Integer"
       },
       {
-        "name": "user_id",
+        "name": "transfer_id",
         "ordinal": 5,
         "type_info": "Integer"
       },
       {
-        "name": "transfer_id",
+        "name": "user_id",
         "ordinal": 6,
         "type_info": "Integer"
       }
     ],
     "parameters": {
-      "Right": 3
+      "Right": 5
     },
     "nullable": [
       false,
@@ -52,5 +52,5 @@
       false
     ]
   },
-  "hash": "e617d3f9fbd286b38755f6c82f0862df88eb063c41fd874468158f6461b28ee0"
+  "hash": "2c0bbab3832eae313799c10586b38ebc522d66d9b0214176b0f3cae171f8d488"
 }
