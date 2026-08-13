@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        INSERT INTO blackjacks (\n            dealer,\n            player,\n            state,\n            owner_id,\n            staked,\n            channel_id,\n            message_id\n        ) VALUES ($1, $2, $3, $4, $5, $6, $7)\n        RETURNING\n            id,\n            dealer,\n            player,\n            state as \"state: BlackjackState\",\n            channel_id,\n            message_id,\n            owner_id,\n            staked as \"staked: Currency\" \n        ",
+  "query": "\n            SELECT\n                id,\n                dealer,\n                player,\n                state as \"state: BlackjackState\",\n                channel_id,\n                message_id,\n                owner_id,\n                staked as \"staked: Currency\"\n            FROM\n                blackjacks\n            WHERE\n                channel_id = $1 AND message_id = $2",
   "describe": {
     "columns": [
       {
@@ -45,7 +45,7 @@
       }
     ],
     "parameters": {
-      "Right": 7
+      "Right": 2
     },
     "nullable": [
       false,
@@ -58,5 +58,5 @@
       false
     ]
   },
-  "hash": "c2bef02bc93c379456eb43f749057b22115f917220abcafcc930d975b1822d92"
+  "hash": "e16b084487efad125565bb4c3978f10032cfe93e7f9c2bba4344e7c1feed2ba4"
 }

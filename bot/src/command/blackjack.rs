@@ -7,7 +7,7 @@ use serenity::all::{
 
 use common::currency::Currency;
 use common::store::{
-    self,
+    blackjack::BlackjackStore,
     transfer::{CreateTransfer, TransferSource, TransferStore},
     user::{DbUser, UserStore},
 };
@@ -121,7 +121,7 @@ pub async fn run(
     }
 
     let create = game.to_db_create(&user, response.channel_id.expect_channel(), response.id);
-    store::blackjack::create_blackjack(tx.sqlite_tx(), &create).await?;
+    handler.blackjack_store.create(&mut tx, &create).await?;
 
     tx.commit().await?;
 
@@ -142,12 +142,10 @@ pub async fn interact(
 
     let system_user = handler.user_store.get_system_user(&mut tx).await?;
 
-    let db_blackjack = store::blackjack::get_blackjack_from_message(
-        tx.sqlite_tx(),
-        channel_id.expect_channel(),
-        message_id,
-    )
-    .await?;
+    let db_blackjack = handler
+        .blackjack_store
+        .get_from_message(&mut tx, channel_id.expect_channel(), message_id)
+        .await?;
 
     if db_blackjack.owner_id != user.id {
         component
@@ -194,7 +192,10 @@ pub async fn interact(
     }
 
     let update = game.to_db_update();
-    store::blackjack::update_blackjack(tx.sqlite_tx(), db_blackjack.id, &update).await?;
+    handler
+        .blackjack_store
+        .update(&mut tx, db_blackjack.id, &update)
+        .await?;
 
     let new_msg_content = ui::blackjack::render_blackjack_message(&game, &user);
 
