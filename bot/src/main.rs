@@ -1,5 +1,3 @@
-use std::env;
-
 use clap::{Parser, Subcommand};
 use common::store;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
