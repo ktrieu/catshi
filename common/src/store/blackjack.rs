@@ -111,8 +111,8 @@ impl BlackjackStore for DbBlackjackStore {
                 state,
                 channel_id,
                 message_id,
-                owner_id,
-                staked
+                CAST(owner_id AS BIGINT) as owner_id,
+                CAST(staked AS BIGINT) as staked
             FROM
                 blackjacks
             WHERE
@@ -232,14 +232,14 @@ impl BlackjackStore for DbBlackjackStore {
             OVERRIDING SYSTEM VALUE
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING
-                id,
+                CAST(id AS BIGINT) as id,
                 dealer,
                 player,
                 state,
                 channel_id,
                 message_id,
-                owner_id,
-                staked
+                CAST(owner_id AS BIGINT) as owner_id,
+                CAST(staked AS BIGINT) as staked
             "#,
         )
         .bind(created.id)
