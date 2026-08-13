@@ -56,6 +56,27 @@ constructed once in `main()` and threaded through everywhere
 rather than importing a module function directly — that's what makes step
 4's swap mechanical.
 
+**7. Cast narrow postgres integer/timestamp columns before decoding into
+`i64` fields.**
+Postgres `id` columns (and other integer columns like `sender`/`receiver`/
+`user_id`) are declared `INT GENERATED ALWAYS AS IDENTITY` or plain
+`INTEGER` — 4 bytes — while sqlite's `INTEGER` is always 8 bytes and every
+store struct field is typed `i64`. sqlx's postgres decoder does not
+implicitly widen `INT4` into `i64`, so any hand-written `query_as(...)` /
+`query_as::<_, T>(...)` against postgres (the sqlite-side `query_as!` macro
+is compile-time checked against the sqlite schema, so it isn't affected)
+that reads one of these columns straight into an `i64` field fails to
+decode with a type mismatch. Cast explicitly wherever this happens —
+`CAST(id AS BIGINT) as id`, `CAST(users.id AS BIGINT) as id` in joins,
+etc. — as done throughout `user.rs`, `transfer.rs`, and `blackjack.rs`.
+`TIMESTAMPTZ` columns read into `i64` need the same treatment:
+`EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at`.
+
+Because these postgres reads/writes only run in shadow mode (principle 3)
+a missing cast won't fail the build or crash the bot — it just logs a
+decode-mismatch/failure warning on every call. Check the logs after
+porting a new store's postgres queries to catch these.
+
 The throughline: keep sqlite authoritative and never let the new path break
 behavior, migrate surface area in the smallest possible increments, and let
 the trait boundary double as both the pg-shadow seam and a future
