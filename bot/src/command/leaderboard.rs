@@ -5,7 +5,8 @@ use serenity::all::{CommandInteraction, Context, CreateCommand};
 use common::currency::Currency;
 use common::store::{
     self, instrument::InstrumentWithShares, position::PositionWithMarketId,
-    transfer::TransferSource, user::DbUser,
+    transfer::{TransferSource, TransferStore},
+    user::DbUser,
 };
 
 use crate::{
@@ -26,9 +27,12 @@ pub async fn run(
     handler: &Handler,
     command: &CommandInteraction,
 ) -> anyhow::Result<()> {
-    let mut tx = handler.pool.begin().await?;
+    let mut tx = handler.db.begin().await?;
 
-    let transfers = store::transfer::get_net_user_transfers_by_source(&mut *tx).await?;
+    let transfers = handler
+        .transfer_store
+        .get_net_user_transfers_by_source(&mut tx)
+        .await?;
 
     // Get our list of users by going through all unique users from the transfers.
     let mut users: HashMap<i64, DbUser> = HashMap::new();
@@ -42,7 +46,8 @@ pub async fn run(
         .map(|t| ((t.user.id, t.source), t.net))
         .collect();
 
-    let positions = store::position::get_all_positions_with_market_id(&mut *tx).await?;
+    let positions =
+        store::position::get_all_positions_with_market_id(&mut **tx.sqlite_tx()).await?;
     let mut positions_by_user: HashMap<i64, Vec<PositionWithMarketId>> = HashMap::new();
     // Process positions into a HashMap of lists per user.
     for p in positions {
@@ -56,7 +61,8 @@ pub async fn run(
     }
 
     let instruments =
-        store::instrument::get_all_open_instruments_with_share_counts(&mut *tx).await?;
+        store::instrument::get_all_open_instruments_with_share_counts(&mut **tx.sqlite_tx())
+            .await?;
     let mut instruments_by_market: HashMap<i64, Vec<InstrumentWithShares>> = HashMap::new();
     for i in instruments {
         instruments_by_market
