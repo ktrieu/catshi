@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT\n            positions.id,\n            positions.quantity,\n            positions.cost_basis,\n            positions.instrument_id,\n            positions.owner_id,\n            users.id as users_id,\n            users.name as users_name,\n            users.discord_id as users_discord_id,\n            users.cash_balance as users_cash_balance\n        FROM positions\n        JOIN\n            instruments ON instruments.id = instrument_id\n        JOIN\n            users on users.id = owner_id\n        WHERE\n            instruments.market_id = $1\n        ",
+  "query": "\n            SELECT\n                positions.id,\n                positions.quantity,\n                positions.cost_basis,\n                positions.instrument_id,\n                positions.owner_id,\n                users.id as users_id,\n                users.name as users_name,\n                users.discord_id as users_discord_id,\n                users.cash_balance as users_cash_balance\n            FROM positions\n            JOIN\n                instruments ON instruments.id = instrument_id\n            JOIN\n                users on users.id = owner_id\n            WHERE\n                instruments.market_id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -64,5 +64,5 @@
       false
     ]
   },
-  "hash": "7e4b01f765fd040c1fe1e19ca2363b3cae5d3d18728f4f56457a8104eb90eeb6"
+  "hash": "736b05d0676e60b64e6ca69992532f5644909d8e5501c9b117c2df0699113d15"
 }

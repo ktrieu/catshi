@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        INSERT INTO positions (quantity, cost_basis, instrument_id, owner_id)\n        VALUES ($1, $2, $3, $4)\n        ON CONFLICT DO UPDATE \n        SET quantity = excluded.quantity, cost_basis = excluded.cost_basis\n        RETURNING *\n        ",
+  "query": "\n            SELECT\n                id,\n                quantity,\n                cost_basis,\n                instrument_id,\n                owner_id\n            FROM positions\n            WHERE\n                instrument_id = $1 AND owner_id = $2\n            ",
   "describe": {
     "columns": [
       {
@@ -30,7 +30,7 @@
       }
     ],
     "parameters": {
-      "Right": 4
+      "Right": 2
     },
     "nullable": [
       false,
@@ -40,5 +40,5 @@
       false
     ]
   },
-  "hash": "4f23982aa46f7bffa612f57951ec2cee6fead9d4df048cbb1e2af7b4822a9214"
+  "hash": "1acd15046226e048b0984e4766fa3297495aca0bacdfe06cee5dc67c7363654e"
 }

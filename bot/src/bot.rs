@@ -9,7 +9,6 @@ use serenity::{
     },
     async_trait,
 };
-use sqlx::SqlitePool;
 
 use crate::{
     command::{self, resolve::parse_market_resolve_modal_id, trade::parse_trade_button_id},
@@ -24,6 +23,7 @@ use common::store::{
     blackjack::DbBlackjackStore,
     instrument::DbInstrumentStore,
     market::DbMarketStore,
+    position::DbPositionStore,
     tip::DbTipStore,
     transfer::{DbTransferStore, TransferSource, TransferStore},
     user::{CreateDbUser, DbUser, DbUserStore, UserStore},
@@ -32,7 +32,6 @@ use common::{currency::Currency, store::CatshiDb};
 
 pub struct Handler {
     pub guild_id: GuildId,
-    pub pool: SqlitePool,
     pub db: CatshiDb,
     pub user_store: DbUserStore,
     pub transfer_store: DbTransferStore,
@@ -40,6 +39,7 @@ pub struct Handler {
     pub tip_store: DbTipStore,
     pub market_store: DbMarketStore,
     pub instrument_store: DbInstrumentStore,
+    pub position_store: DbPositionStore,
 }
 
 // Everyone starts with 20 YP.
@@ -299,7 +299,6 @@ pub async fn run() {
 
     let handler = Arc::new(Handler {
         guild_id,
-        pool: db.sqlite_pool.clone(),
         db,
         user_store: DbUserStore {},
         transfer_store: DbTransferStore {},
@@ -307,6 +306,7 @@ pub async fn run() {
         tip_store: DbTipStore {},
         market_store: DbMarketStore {},
         instrument_store: DbInstrumentStore {},
+        position_store: DbPositionStore {},
     });
 
     let discord_token =

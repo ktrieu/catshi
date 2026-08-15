@@ -20,6 +20,7 @@ use common::store::{
     self,
     instrument::{Instrument, InstrumentStore},
     market::{FullMarket, MarketStore},
+    position::PositionStore,
     transfer::TransferStore,
     user::{DbUser, UserStore},
 };
@@ -100,7 +101,11 @@ async fn calc_max_sell_shares(
     instrument: &Instrument,
     user: &DbUser,
 ) -> anyhow::Result<i64> {
-    let position = store::position::get_user_position(&handler.pool, instrument, user).await?;
+    let mut conn = handler.db.conn().await?;
+    let position = handler
+        .position_store
+        .get_user_position(&mut conn, instrument, user)
+        .await?;
 
     match position {
         Some(position) => Ok(position.quantity),
@@ -227,8 +232,10 @@ pub async fn trade(
     )
     .await?;
     let traded_instrument = &market.get_instrument(instrument_id)?.0;
-    let position =
-        store::position::get_user_position(&mut **tx.sqlite_tx(), traded_instrument, user).await?;
+    let position = handler
+        .position_store
+        .get_user_position(&mut tx, traded_instrument, user)
+        .await?;
 
     let system_user = handler.user_store.get_system_user(&mut tx).await?;
 
@@ -257,14 +264,19 @@ pub async fn trade(
         Ok(result) => {
             store::order::create_order(tx.sqlite_tx(), &result.order).await?;
             if result.position.quantity == 0 {
-                store::position::delete_position(
-                    tx.sqlite_tx(),
-                    result.position.instrument_id,
-                    result.position.owner_id,
-                )
-                .await?;
+                handler
+                    .position_store
+                    .delete_position(
+                        &mut tx,
+                        result.position.instrument_id,
+                        result.position.owner_id,
+                    )
+                    .await?;
             } else {
-                store::position::upsert_position(tx.sqlite_tx(), &result.position).await?;
+                handler
+                    .position_store
+                    .upsert_position(&mut tx, &result.position)
+                    .await?;
             }
             for t in &result.transfers {
                 handler
@@ -357,8 +369,10 @@ pub async fn trade(
         .get_instruments_with_share_counts_for_market(&mut conn, market.row.id)
         .await?;
 
-    let all_positions =
-        store::position::get_all_market_positions(&handler.pool, market.row.id).await?;
+    let all_positions = handler
+        .position_store
+        .get_all_market_positions(&mut conn, market.row.id)
+        .await?;
 
     let new_market_message = render_market_message(&market.row, &market.owner, instruments.iter());
     let mut market_message = ui::get_market_message(&market.row, ctx).await?;

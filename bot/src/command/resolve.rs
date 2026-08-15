@@ -12,6 +12,7 @@ use common::store::{
     self,
     instrument::{InstrumentState, InstrumentStore},
     market::{Market, MarketState, MarketStore},
+    position::PositionStore,
     transfer::TransferStore,
     user::{DbUser, UserStore},
 };
@@ -146,8 +147,10 @@ pub async fn resolve(
     }
 
     let winner = &market.get_instrument(instrument_id)?.0;
-    let positions =
-        store::position::get_all_market_positions(&mut **tx.sqlite_tx(), market.row.id).await?;
+    let positions = handler
+        .position_store
+        .get_all_market_positions(&mut tx, market.row.id)
+        .await?;
     let system_user = handler.user_store.get_system_user(&mut tx).await?;
 
     let results = trade::resolve(&market, &winner, &positions, &system_user)?;
@@ -162,18 +165,19 @@ pub async fn resolve(
                 .await?;
         }
         if r.position.quantity == 0 {
-            store::position::delete_position(
-                tx.sqlite_tx(),
-                r.position.instrument_id,
-                r.position.owner_id,
-            )
-            .await?;
+            handler
+                .position_store
+                .delete_position(&mut tx, r.position.instrument_id, r.position.owner_id)
+                .await?;
         } else {
             warn!(
                 "non-zero position quantity when resolving! {} {}",
                 r.position.instrument_id, r.position.owner_id
             );
-            store::position::upsert_position(tx.sqlite_tx(), &r.position).await?;
+            handler
+                .position_store
+                .upsert_position(&mut tx, &r.position)
+                .await?;
         }
     }
 

@@ -4,9 +4,8 @@ use serenity::all::{CommandInteraction, Context, CreateCommand};
 
 use common::currency::Currency;
 use common::store::{
-    self,
     instrument::{InstrumentStore, InstrumentWithShares},
-    position::PositionWithMarketId,
+    position::{PositionStore, PositionWithMarketId},
     transfer::{TransferSource, TransferStore},
     user::DbUser,
 };
@@ -48,8 +47,10 @@ pub async fn run(
         .map(|t| ((t.user.id, t.source), t.net))
         .collect();
 
-    let positions =
-        store::position::get_all_positions_with_market_id(&mut **tx.sqlite_tx()).await?;
+    let positions = handler
+        .position_store
+        .get_all_positions_with_market_id(&mut tx)
+        .await?;
     let mut positions_by_user: HashMap<i64, Vec<PositionWithMarketId>> = HashMap::new();
     // Process positions into a HashMap of lists per user.
     for p in positions {
