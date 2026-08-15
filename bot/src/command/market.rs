@@ -5,7 +5,11 @@ use serenity::all::{
 
 use crate::{
     bot::Handler,
-    store::{self, instrument::InstrumentWithShares, market::MarketStore, user::DbUser},
+    store::{
+        instrument::{InstrumentStore, InstrumentWithShares},
+        market::MarketStore,
+        user::DbUser,
+    },
     ui::{
         create_market_thread, market_create_modal,
         market_message::{self, render_details_message},
@@ -49,12 +53,10 @@ pub async fn modal_submit(
         .create_new_market(&mut tx, values.description, user)
         .await?;
     dbg!(&values.options);
-    let instruments = store::instrument::insert_market_instruments(
-        &mut **tx.sqlite_tx(),
-        &new_market,
-        &values.options,
-    )
-    .await?;
+    let instruments = handler
+        .instrument_store
+        .insert_market_instruments(&mut tx, &new_market, &values.options)
+        .await?;
 
     // We just created this market! Each instrument has 0 shares.
     let instruments_with_shares: Vec<InstrumentWithShares> =

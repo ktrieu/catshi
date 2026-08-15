@@ -18,7 +18,7 @@ use crate::{
 use common::currency::Currency;
 use common::store::{
     self,
-    instrument::Instrument,
+    instrument::{Instrument, InstrumentStore},
     market::{FullMarket, MarketStore},
     transfer::TransferStore,
     user::{DbUser, UserStore},
@@ -78,9 +78,11 @@ async fn calc_max_buy_shares(
     market_id: i64,
     instrument_id: i64,
 ) -> anyhow::Result<i64> {
-    let shares =
-        store::instrument::get_instruments_with_share_counts_for_market(&handler.pool, market_id)
-            .await?;
+    let mut conn = handler.db.conn().await?;
+    let shares = handler
+        .instrument_store
+        .get_instruments_with_share_counts_for_market(&mut conn, market_id)
+        .await?;
 
     let (mut max_shares, prices) =
         trade::get_max_buy_shares(balance, instrument_id, shares.iter(), trade::MARKET_B);
@@ -141,11 +143,15 @@ pub async fn initiate_trade(
         .market_store
         .get_market_by_instrument_id(&mut conn, instrument_id)
         .await?;
-    let instruments =
-        store::instrument::get_instruments_with_share_counts_for_market(&handler.pool, market.id)
-            .await?;
+    let instruments = handler
+        .instrument_store
+        .get_instruments_with_share_counts_for_market(&mut conn, market.id)
+        .await?;
 
-    let instrument = store::instrument::get_instrument_by_id(&handler.pool, instrument_id).await?;
+    let instrument = handler
+        .instrument_store
+        .get_instrument_by_id(&mut conn, instrument_id)
+        .await?;
 
     let max_shares = match action {
         TradeAction::Buy => {
@@ -215,6 +221,7 @@ pub async fn trade(
     let market = FullMarket::new_from_instrument_id(
         &mut tx,
         &handler.market_store,
+        &handler.instrument_store,
         &handler.user_store,
         instrument_id,
     )
@@ -342,12 +349,13 @@ pub async fn trade(
 
     tx.commit().await?;
 
+    let mut conn = handler.db.conn().await?;
+
     // Refetch the instruments and positions after the trade is complete to update the market.
-    let instruments = store::instrument::get_instruments_with_share_counts_for_market(
-        &handler.pool,
-        market.row.id,
-    )
-    .await?;
+    let instruments = handler
+        .instrument_store
+        .get_instruments_with_share_counts_for_market(&mut conn, market.row.id)
+        .await?;
 
     let all_positions =
         store::position::get_all_market_positions(&handler.pool, market.row.id).await?;
@@ -374,7 +382,6 @@ pub async fn trade(
             .send_message(&ctx.http, CreateMessage::new().content(new_details_message))
             .await?;
 
-        let mut conn = handler.db.conn().await?;
         handler
             .market_store
             .set_market_message_id(

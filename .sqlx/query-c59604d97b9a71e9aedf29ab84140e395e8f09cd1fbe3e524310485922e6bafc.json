@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                instruments.id,\n                instruments.name,\n                instruments.state as \"state: InstrumentState\",\n                instruments.market_id,\n                COALESCE(SUM(quantity), 0) as shares\n            FROM\n                instruments\n            LEFT JOIN\n                positions ON instruments.id = positions.instrument_id\n            WHERE\n                instruments.market_id = $1\n            GROUP BY instruments.id\n        ",
+  "query": "\n                SELECT\n                    instruments.id,\n                    instruments.name,\n                    instruments.state as \"state: InstrumentState\",\n                    instruments.market_id,\n                    COALESCE(SUM(quantity), 0) as shares\n                FROM\n                    instruments\n                    LEFT JOIN\n                    positions ON instruments.id = positions.instrument_id\n                WHERE instruments.state = $1\n                GROUP BY instruments.id\n            ",
   "describe": {
     "columns": [
       {
@@ -40,5 +40,5 @@
       false
     ]
   },
-  "hash": "7e68d0b2ae395c9cbf8f51bafce5e9e5be78130537dddcdf857a0b567e9c884e"
+  "hash": "c59604d97b9a71e9aedf29ab84140e395e8f09cd1fbe3e524310485922e6bafc"
 }

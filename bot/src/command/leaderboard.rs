@@ -4,7 +4,9 @@ use serenity::all::{CommandInteraction, Context, CreateCommand};
 
 use common::currency::Currency;
 use common::store::{
-    self, instrument::InstrumentWithShares, position::PositionWithMarketId,
+    self,
+    instrument::{InstrumentStore, InstrumentWithShares},
+    position::PositionWithMarketId,
     transfer::{TransferSource, TransferStore},
     user::DbUser,
 };
@@ -60,9 +62,10 @@ pub async fn run(
         }
     }
 
-    let instruments =
-        store::instrument::get_all_open_instruments_with_share_counts(&mut **tx.sqlite_tx())
-            .await?;
+    let instruments = handler
+        .instrument_store
+        .get_all_open_instruments_with_share_counts(&mut tx)
+        .await?;
     let mut instruments_by_market: HashMap<i64, Vec<InstrumentWithShares>> = HashMap::new();
     for i in instruments {
         instruments_by_market

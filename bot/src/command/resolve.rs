@@ -9,8 +9,8 @@ use serenity::all::{
 
 use common::currency::Currency;
 use common::store::{
-    self, DbExecutor,
-    instrument::InstrumentState,
+    self,
+    instrument::{InstrumentState, InstrumentStore},
     market::{Market, MarketState, MarketStore},
     transfer::TransferStore,
     user::{DbUser, UserStore},
@@ -69,9 +69,10 @@ pub async fn initiate_resolve(
             .await?;
     }
 
-    let instruments =
-        store::instrument::get_instruments_with_share_counts_for_market(conn.sqlite(), market_id)
-            .await?;
+    let instruments = handler
+        .instrument_store
+        .get_instruments_with_share_counts_for_market(&mut conn, market_id)
+        .await?;
 
     let question = CreateTextDisplay::new(&market.description);
 
@@ -128,6 +129,7 @@ pub async fn resolve(
     let market = store::market::FullMarket::new_from_instrument_id(
         &mut tx,
         &handler.market_store,
+        &handler.instrument_store,
         &handler.user_store,
         instrument_id,
     )
@@ -187,7 +189,10 @@ pub async fn resolve(
             InstrumentState::Loser
         };
 
-        store::instrument::set_instrument_state(&mut **tx.sqlite_tx(), &i, state).await?;
+        handler
+            .instrument_store
+            .set_instrument_state(&mut tx, &i, state)
+            .await?;
     }
 
     tx.commit().await?;
@@ -236,6 +241,7 @@ pub async fn resolve(
     let market = store::market::FullMarket::new_from_instrument_id(
         &mut conn,
         &handler.market_store,
+        &handler.instrument_store,
         &handler.user_store,
         instrument_id,
     )

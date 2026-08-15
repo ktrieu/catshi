@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                id,\n                name,\n                state as \"state: InstrumentState\",\n                market_id\n            FROM \n                instruments \n            WHERE id = $1\n        ",
+  "query": "\n                SELECT\n                    id,\n                    name,\n                    state as \"state: InstrumentState\",\n                    market_id\n                FROM\n                    instruments\n                WHERE id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -34,5 +34,5 @@
       false
     ]
   },
-  "hash": "a111d62c5395660fc87f4bb5245223c1a01d5438835f1363fcfd5a25a06557ca"
+  "hash": "5e76a16fd71034edcbdc0ffbc428a5578518c6ecd8b798bc06c91e617fe0f8c7"
 }

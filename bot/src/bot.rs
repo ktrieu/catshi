@@ -22,6 +22,7 @@ use crate::{
 };
 use common::store::{
     blackjack::DbBlackjackStore,
+    instrument::DbInstrumentStore,
     market::DbMarketStore,
     tip::DbTipStore,
     transfer::{DbTransferStore, TransferSource, TransferStore},
@@ -38,6 +39,7 @@ pub struct Handler {
     pub blackjack_store: DbBlackjackStore,
     pub tip_store: DbTipStore,
     pub market_store: DbMarketStore,
+    pub instrument_store: DbInstrumentStore,
 }
 
 // Everyone starts with 20 YP.
@@ -304,6 +306,7 @@ pub async fn run() {
         blackjack_store: DbBlackjackStore {},
         tip_store: DbTipStore {},
         market_store: DbMarketStore {},
+        instrument_store: DbInstrumentStore {},
     });
 
     let discord_token =

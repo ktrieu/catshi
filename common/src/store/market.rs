@@ -5,7 +5,7 @@ use trait_variant::make;
 
 use crate::store::{
     DbExecutor,
-    instrument::{self, InstrumentWithShares},
+    instrument::{InstrumentStore, InstrumentWithShares},
     log_pg_compare_result, log_pg_write_err,
     user::{DbUser, UserStore},
 };
@@ -396,14 +396,15 @@ impl FullMarket {
     pub async fn new_from_instrument_id(
         exec: &mut impl DbExecutor,
         market_store: &impl MarketStore,
+        instrument_store: &impl InstrumentStore,
         user_store: &impl UserStore,
         id: i64,
     ) -> anyhow::Result<Self> {
         let row = market_store.get_market_by_instrument_id(exec, id).await?;
 
-        let instruments =
-            instrument::get_instruments_with_share_counts_for_market(&mut *exec.sqlite(), row.id)
-                .await?;
+        let instruments = instrument_store
+            .get_instruments_with_share_counts_for_market(exec, row.id)
+            .await?;
 
         let owner = user_store.get_by_id(exec, row.owner_id).await?;
 
