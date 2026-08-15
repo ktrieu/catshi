@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT\n            markets.id, \n            markets.description, \n            markets.state as \"state: MarketState\", \n            markets.owner_id, \n            markets.message_id,\n            markets.channel_id,\n            markets.thread_id,\n            markets.details_msg_id\n        FROM\n            markets\n        WHERE\n            state = $1\n        ORDER BY id ASC\n        ",
+  "query": "\n            SELECT\n                id,\n                description,\n                state as \"state: MarketState\",\n                owner_id,\n                message_id,\n                channel_id,\n                markets.thread_id,\n                markets.details_msg_id\n            FROM\n                markets\n            WHERE\n                id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -58,5 +58,5 @@
       true
     ]
   },
-  "hash": "e99569c8d9c549538e3148543b9d9b47975fa52f7670d0224760ed4d1ad56387"
+  "hash": "09f674f422667bf5496784c624320ce74dedba47095b8fa8d13413e440862b7a"
 }

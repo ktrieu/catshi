@@ -19,7 +19,7 @@ use common::currency::Currency;
 use common::store::{
     self,
     instrument::Instrument,
-    market::FullMarket,
+    market::{FullMarket, MarketStore},
     transfer::TransferStore,
     user::{DbUser, UserStore},
 };
@@ -136,7 +136,11 @@ pub async fn initiate_trade(
     action: TradeAction,
     instrument_id: i64,
 ) -> anyhow::Result<()> {
-    let market = store::market::get_market_by_instrument_id(&handler.pool, instrument_id).await?;
+    let mut conn = handler.db.conn().await?;
+    let market = handler
+        .market_store
+        .get_market_by_instrument_id(&mut conn, instrument_id)
+        .await?;
     let instruments =
         store::instrument::get_instruments_with_share_counts_for_market(&handler.pool, market.id)
             .await?;
@@ -208,8 +212,13 @@ pub async fn trade(
 
     let mut tx = handler.db.begin().await?;
 
-    let market =
-        FullMarket::new_from_instrument_id(&mut tx, &handler.user_store, instrument_id).await?;
+    let market = FullMarket::new_from_instrument_id(
+        &mut tx,
+        &handler.market_store,
+        &handler.user_store,
+        instrument_id,
+    )
+    .await?;
     let traded_instrument = &market.get_instrument(instrument_id)?.0;
     let position =
         store::position::get_user_position(&mut **tx.sqlite_tx(), traded_instrument, user).await?;
@@ -365,15 +374,18 @@ pub async fn trade(
             .send_message(&ctx.http, CreateMessage::new().content(new_details_message))
             .await?;
 
-        store::market::set_market_message_id(
-            &handler.pool,
-            market.row.id,
-            market_message.id,
-            market_message.channel_id,
-            thread.id,
-            details_msg.id,
-        )
-        .await?;
+        let mut conn = handler.db.conn().await?;
+        handler
+            .market_store
+            .set_market_message_id(
+                &mut conn,
+                market.row.id,
+                market_message.id,
+                market_message.channel_id,
+                thread.id,
+                details_msg.id,
+            )
+            .await?;
     } else {
         let mut details_message = ui::get_details_msg(&market.row, ctx).await?;
 

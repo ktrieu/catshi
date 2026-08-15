@@ -2,7 +2,7 @@ use serenity::all::{CommandInteraction, Context, CreateCommand};
 
 use crate::{
     bot::Handler,
-    store::{self, market::MarketState},
+    store::market::{MarketState, MarketStore},
     ui, utils,
 };
 
@@ -17,9 +17,11 @@ pub async fn run(
     handler: &Handler,
     command: &CommandInteraction,
 ) -> anyhow::Result<()> {
-    let markets =
-        store::market::get_markets_by_state(&mut *handler.pool.acquire().await?, MarketState::Open)
-            .await?;
+    let mut conn = handler.db.conn().await?;
+    let markets = handler
+        .market_store
+        .get_markets_by_state(&mut conn, MarketState::Open)
+        .await?;
 
     let mut lines: Vec<String> = vec![format!("## OPEN MARKETS ({})", markets.len())];
 

@@ -9,9 +9,9 @@ use serenity::all::{
 
 use common::currency::Currency;
 use common::store::{
-    self,
+    self, DbExecutor,
     instrument::InstrumentState,
-    market::{Market, MarketState},
+    market::{Market, MarketState, MarketStore},
     transfer::TransferStore,
     user::{DbUser, UserStore},
 };
@@ -54,7 +54,11 @@ pub async fn initiate_resolve(
     component: &ComponentInteraction,
     user: &DbUser,
 ) -> anyhow::Result<()> {
-    let market = store::market::get_market_by_id(&handler.pool, market_id).await?;
+    let mut conn = handler.db.conn().await?;
+    let market = handler
+        .market_store
+        .get_market_by_id(&mut conn, market_id)
+        .await?;
 
     if market.owner_id != user.id {
         component
@@ -66,7 +70,7 @@ pub async fn initiate_resolve(
     }
 
     let instruments =
-        store::instrument::get_instruments_with_share_counts_for_market(&handler.pool, market_id)
+        store::instrument::get_instruments_with_share_counts_for_market(conn.sqlite(), market_id)
             .await?;
 
     let question = CreateTextDisplay::new(&market.description);
@@ -123,6 +127,7 @@ pub async fn resolve(
 
     let market = store::market::FullMarket::new_from_instrument_id(
         &mut tx,
+        &handler.market_store,
         &handler.user_store,
         instrument_id,
     )
@@ -171,7 +176,9 @@ pub async fn resolve(
     }
 
     // Set the market/instrument states.
-    store::market::set_market_state(&mut **tx.sqlite_tx(), &market.row, MarketState::Closed)
+    handler
+        .market_store
+        .set_market_state(&mut tx, &market.row, MarketState::Closed)
         .await?;
     for (i, _) in &market.instruments {
         let state = if i.id == instrument_id {
@@ -228,6 +235,7 @@ pub async fn resolve(
     // Refetch and re-render market message.
     let market = store::market::FullMarket::new_from_instrument_id(
         &mut conn,
+        &handler.market_store,
         &handler.user_store,
         instrument_id,
     )

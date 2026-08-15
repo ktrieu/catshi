@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            INSERT INTO markets(\n                description,\n                state,\n                owner_id\n            ) \n            VALUES ($1, $2, $3) \n            RETURNING \n                id, \n                description, \n                state as \"state: MarketState\", \n                owner_id, \n                message_id,\n                channel_id,\n                markets.thread_id,\n                markets.details_msg_id\n        ",
+  "query": "\n            SELECT\n                markets.id,\n                markets.description,\n                markets.state as \"state: MarketState\",\n                markets.owner_id,\n                markets.message_id,\n                markets.channel_id,\n                markets.thread_id,\n                markets.details_msg_id\n            FROM\n                markets\n            JOIN\n                instruments ON instruments.market_id = markets.id\n            WHERE\n                instruments.id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -45,7 +45,7 @@
       }
     ],
     "parameters": {
-      "Right": 3
+      "Right": 1
     },
     "nullable": [
       false,
@@ -58,5 +58,5 @@
       true
     ]
   },
-  "hash": "e4a818c3036410e39c1e687578e0248ab3ea789c39220c87119b0a353a6d1c64"
+  "hash": "82055d4ee44c9195b17a3c9ffb4cd75f6ba34a0673da261c953ebaef2e4e7895"
 }

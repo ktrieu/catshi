@@ -5,7 +5,7 @@ use serenity::all::{
 
 use crate::{
     bot::Handler,
-    store::{self, instrument::InstrumentWithShares, user::DbUser},
+    store::{self, instrument::InstrumentWithShares, market::MarketStore, user::DbUser},
     ui::{
         create_market_thread, market_create_modal,
         market_message::{self, render_details_message},
@@ -42,13 +42,19 @@ pub async fn modal_submit(
         .inspect_err(|e| println!("{}", e))
         .map_err(|_| anyhow::anyhow!("failed to parse modal response"))?;
 
-    let mut tx = handler.pool.begin_with("BEGIN IMMEDIATE").await?;
+    let mut tx = handler.db.begin().await?;
 
-    let new_market = store::market::create_new_market(&mut *tx, values.description, user).await?;
+    let new_market = handler
+        .market_store
+        .create_new_market(&mut tx, values.description, user)
+        .await?;
     dbg!(&values.options);
-    let instruments =
-        store::instrument::insert_market_instruments(&mut *tx, &new_market, &values.options)
-            .await?;
+    let instruments = store::instrument::insert_market_instruments(
+        &mut **tx.sqlite_tx(),
+        &new_market,
+        &values.options,
+    )
+    .await?;
 
     // We just created this market! Each instrument has 0 shares.
     let instruments_with_shares: Vec<InstrumentWithShares> =
@@ -80,15 +86,17 @@ pub async fn modal_submit(
         )
         .await?;
 
-    store::market::set_market_message_id(
-        &mut *tx,
-        new_market.id,
-        message.id,
-        resp_channel,
-        thread.id,
-        details_message.id,
-    )
-    .await?;
+    handler
+        .market_store
+        .set_market_message_id(
+            &mut tx,
+            new_market.id,
+            message.id,
+            resp_channel,
+            thread.id,
+            details_message.id,
+        )
+        .await?;
 
     tx.commit().await?;
 
