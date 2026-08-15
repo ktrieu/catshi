@@ -17,9 +17,9 @@ use crate::{
 };
 use common::currency::Currency;
 use common::store::{
-    self,
     instrument::{Instrument, InstrumentStore},
     market::{FullMarket, MarketStore},
+    order::OrderStore,
     position::PositionStore,
     transfer::TransferStore,
     user::{DbUser, UserStore},
@@ -262,7 +262,10 @@ pub async fn trade(
 
     match result {
         Ok(result) => {
-            store::order::create_order(tx.sqlite_tx(), &result.order).await?;
+            handler
+                .order_store
+                .create_order(&mut tx, &result.order)
+                .await?;
             if result.position.quantity == 0 {
                 handler
                     .position_store

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            INSERT INTO orders (\n                direction,\n                quantity,\n                shares_price,\n                fees,\n                cost_basis,\n                instrument_id,\n                owner_id\n            ) VALUES ($1, $2, $3, $4, $5, $6, $7)\n            RETURNING\n                id,\n                direction as \"direction: OrderDirection\",\n                quantity,\n                shares_price as \"shares_price: Currency\",\n                fees as \"fees: Currency\",\n                cost_basis as \"cost_basis: Currency\",\n                instrument_id,\n                owner_id,\n                created_at\n        ",
+  "query": "\n                INSERT INTO orders (\n                    direction,\n                    quantity,\n                    shares_price,\n                    fees,\n                    cost_basis,\n                    instrument_id,\n                    owner_id\n                ) VALUES ($1, $2, $3, $4, $5, $6, $7)\n                RETURNING\n                    id,\n                    direction as \"direction: OrderDirection\",\n                    quantity,\n                    shares_price as \"shares_price: Currency\",\n                    fees as \"fees: Currency\",\n                    cost_basis as \"cost_basis: Currency\",\n                    instrument_id,\n                    owner_id,\n                    created_at\n            ",
   "describe": {
     "columns": [
       {
@@ -64,5 +64,5 @@
       false
     ]
   },
-  "hash": "de3e7c07b3567b3bdf6cb0f44e7dcf13e052898f4f45f2ed2261ddd8961af56b"
+  "hash": "913de8e19439e4bbc7d2ec1f07d7e859b0344e7a2bd955b461e753df7e1bb421"
 }

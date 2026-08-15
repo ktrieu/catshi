@@ -12,6 +12,7 @@ use common::store::{
     self,
     instrument::{InstrumentState, InstrumentStore},
     market::{Market, MarketState, MarketStore},
+    order::OrderStore,
     position::PositionStore,
     transfer::TransferStore,
     user::{DbUser, UserStore},
@@ -156,7 +157,7 @@ pub async fn resolve(
     let results = trade::resolve(&market, &winner, &positions, &system_user)?;
 
     for r in &results {
-        store::order::create_order(tx.sqlite_tx(), &r.order).await?;
+        handler.order_store.create_order(&mut tx, &r.order).await?;
 
         for t in &r.transfers {
             handler

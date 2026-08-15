@@ -23,6 +23,7 @@ use common::store::{
     blackjack::DbBlackjackStore,
     instrument::DbInstrumentStore,
     market::DbMarketStore,
+    order::DbOrderStore,
     position::DbPositionStore,
     tip::DbTipStore,
     transfer::{DbTransferStore, TransferSource, TransferStore},
@@ -40,6 +41,7 @@ pub struct Handler {
     pub market_store: DbMarketStore,
     pub instrument_store: DbInstrumentStore,
     pub position_store: DbPositionStore,
+    pub order_store: DbOrderStore,
 }
 
 // Everyone starts with 20 YP.
@@ -307,6 +309,7 @@ pub async fn run() {
         market_store: DbMarketStore {},
         instrument_store: DbInstrumentStore {},
         position_store: DbPositionStore {},
+        order_store: DbOrderStore {},
     });
 
     let discord_token =
