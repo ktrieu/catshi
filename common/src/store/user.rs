@@ -104,10 +104,10 @@ impl UserStore for DbUserStore {
             OVERRIDING SYSTEM VALUE
             VALUES ($1, $2, $3, $4) ON CONFLICT (discord_id) DO NOTHING 
             RETURNING
-                id,
+                CAST(id AS BIGINT) as id,
                 discord_id,
                 name,
-                cash_balance as "cash_balance: Currency"
+                cash_balance
             "#,
         )
         .bind(user.id)
