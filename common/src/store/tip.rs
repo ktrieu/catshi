@@ -4,7 +4,7 @@ use trait_variant::make;
 
 use crate::{
     currency::Currency,
-    store::{DbExecutor, log_pg_compare_result, transfer::Transfer, user::DbUser},
+    store::{DbExecutor, transfer::Transfer, user::DbUser},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
@@ -53,30 +53,7 @@ impl TipStore for DbTipStore {
         let channel_id = channel_id.to_string();
         let message_id = message_id.to_string();
 
-        let tip = query_as!(
-            Tip,
-            r#"
-            SELECT
-                id,
-                created_at,
-                channel_id,
-                message_id,
-                amount as "amount: Currency",
-                user_id,
-                transfer_id
-            FROM
-                tips
-            WHERE
-                channel_id = $1 AND message_id = $2 AND user_id = $3
-            "#,
-            channel_id,
-            message_id,
-            user.id
-        )
-        .fetch_optional(db.sqlite())
-        .await?;
-
-        let pg_tip: sqlx::Result<Option<Tip>> = query_as(
+        let tip = query_as(
             r#"
             SELECT
                 CAST(id AS BIGINT) as id,
@@ -96,9 +73,7 @@ impl TipStore for DbTipStore {
         .bind(&message_id)
         .bind(user.id)
         .fetch_optional(db.psql())
-        .await;
-
-        log_pg_compare_result(pg_tip, &tip, "tip get_by_message_and_user");
+        .await?;
 
         Ok(tip)
     }
@@ -115,40 +90,9 @@ impl TipStore for DbTipStore {
         let channel_id = channel_id.to_string();
         let message_id = message_id.to_string();
 
-        let tip = query_as!(
-            Tip,
+        let tip = query_as(
             r#"
             INSERT INTO tips (
-                amount,
-                transfer_id,
-                channel_id,
-                message_id,
-                user_id
-            ) VALUES ($1, $2, $3, $4, $5)
-            RETURNING
-                id,
-                created_at,
-                channel_id,
-                message_id,
-                amount as "amount: Currency",
-                transfer_id,
-                user_id
-            "#,
-            amount,
-            transfer.id,
-            channel_id,
-            message_id,
-            user.id,
-        )
-        .fetch_one(db.sqlite())
-        .await?;
-
-        // Mirror the insert to postgres, forcing `id` to match the sqlite row in case a
-        // future table ends up referencing `tips(id)` by foreign key.
-        let pg_result: sqlx::Result<Tip> = query_as(
-            r#"
-            INSERT INTO tips (
-                id,
                 amount,
                 transfer_id,
                 channel_id,
@@ -156,7 +100,7 @@ impl TipStore for DbTipStore {
                 user_id
             )
             OVERRIDING SYSTEM VALUE
-            VALUES ($1, $2, $3, $4, $5, $6)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING
                 CAST(id AS BIGINT) as id,
                 EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at,
@@ -167,16 +111,13 @@ impl TipStore for DbTipStore {
                 CAST(user_id AS BIGINT) as user_id
             "#,
         )
-        .bind(tip.id)
         .bind(amount)
         .bind(transfer.id)
         .bind(&channel_id)
         .bind(&message_id)
         .bind(user.id)
         .fetch_one(db.psql())
-        .await;
-
-        log_pg_compare_result(pg_result, &tip, "tip create");
+        .await?;
 
         Ok(tip)
     }
