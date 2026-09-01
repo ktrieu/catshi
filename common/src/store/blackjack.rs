@@ -2,10 +2,7 @@ use serenity::all::{ChannelId, MessageId};
 use sqlx::{query, query_as};
 use trait_variant::make;
 
-use crate::{
-    currency::Currency,
-    store::{DbExecutor, log_pg_compare_result, log_pg_write_err},
-};
+use crate::{currency::Currency, store::DbExecutor};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
@@ -80,29 +77,7 @@ impl BlackjackStore for DbBlackjackStore {
         let channel_id = channel_id.to_string();
         let message_id = message_id.to_string();
 
-        let blackjack = query_as!(
-            DbBlackjack,
-            r#"
-            SELECT
-                id,
-                dealer,
-                player,
-                state as "state: BlackjackState",
-                channel_id,
-                message_id,
-                owner_id,
-                staked as "staked: Currency"
-            FROM
-                blackjacks
-            WHERE
-                channel_id = $1 AND message_id = $2"#,
-            channel_id,
-            message_id,
-        )
-        .fetch_one(db.sqlite())
-        .await?;
-
-        let pg_blackjack: sqlx::Result<DbBlackjack> = query_as(
+        let blackjack = query_as(
             r#"
             SELECT
                 CAST(id AS BIGINT) as id,
@@ -121,9 +96,7 @@ impl BlackjackStore for DbBlackjackStore {
         .bind(&channel_id)
         .bind(&message_id)
         .fetch_one(db.psql())
-        .await;
-
-        log_pg_compare_result(pg_blackjack, &blackjack, "blackjack get_from_message");
+        .await?;
 
         Ok(blackjack)
     }
@@ -134,26 +107,7 @@ impl BlackjackStore for DbBlackjackStore {
         id: i64,
         u: &UpdateBlackjack,
     ) -> anyhow::Result<()> {
-        query!(
-            r#"
-            UPDATE blackjacks SET
-                dealer = $1,
-                player = $2,
-                staked = $3,
-                state = $4
-            WHERE
-                id = $5
-            "#,
-            u.dealer,
-            u.player,
-            u.staked,
-            u.state,
-            id
-        )
-        .execute(db.sqlite())
-        .await?;
-
-        let pg_result = query(
+        query(
             r#"
             UPDATE blackjacks SET
                 dealer = $1,
@@ -170,9 +124,7 @@ impl BlackjackStore for DbBlackjackStore {
         .bind(u.state)
         .bind(id)
         .execute(db.psql())
-        .await;
-
-        log_pg_write_err(pg_result, "blackjack update");
+        .await?;
 
         Ok(())
     }
@@ -182,45 +134,9 @@ impl BlackjackStore for DbBlackjackStore {
         db: &mut impl DbExecutor,
         c: &CreateBlackjack,
     ) -> anyhow::Result<DbBlackjack> {
-        let created = query_as!(
-            DbBlackjack,
+        let created = query_as(
             r#"
             INSERT INTO blackjacks (
-                dealer,
-                player,
-                state,
-                owner_id,
-                staked,
-                channel_id,
-                message_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING
-                id,
-                dealer,
-                player,
-                state as "state: BlackjackState",
-                channel_id,
-                message_id,
-                owner_id,
-                staked as "staked: Currency"
-            "#,
-            c.dealer,
-            c.player,
-            c.state,
-            c.owner_id,
-            c.staked,
-            c.channel_id,
-            c.message_id
-        )
-        .fetch_one(db.sqlite())
-        .await?;
-
-        // Mirror the insert to postgres, forcing `id` to match the sqlite row in case a
-        // future table ends up referencing `blackjacks(id)` by foreign key.
-        let pg_result: sqlx::Result<DbBlackjack> = query_as(
-            r#"
-            INSERT INTO blackjacks (
-                id,
                 dealer,
                 player,
                 state,
@@ -230,7 +146,7 @@ impl BlackjackStore for DbBlackjackStore {
                 message_id
             )
             OVERRIDING SYSTEM VALUE
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING
                 CAST(id AS BIGINT) as id,
                 dealer,
@@ -242,7 +158,6 @@ impl BlackjackStore for DbBlackjackStore {
                 CAST(staked AS BIGINT) as staked
             "#,
         )
-        .bind(created.id)
         .bind(&c.dealer)
         .bind(&c.player)
         .bind(c.state)
@@ -251,9 +166,7 @@ impl BlackjackStore for DbBlackjackStore {
         .bind(&c.channel_id)
         .bind(&c.message_id)
         .fetch_one(db.psql())
-        .await;
-
-        log_pg_compare_result(pg_result, &created, "blackjack create");
+        .await?;
 
         Ok(created)
     }
