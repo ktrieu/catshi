@@ -145,7 +145,6 @@ impl BlackjackStore for DbBlackjackStore {
                 channel_id,
                 message_id
             )
-            OVERRIDING SYSTEM VALUE
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING
                 CAST(id AS BIGINT) as id,

@@ -99,7 +99,6 @@ impl TipStore for DbTipStore {
                 message_id,
                 user_id
             )
-            OVERRIDING SYSTEM VALUE
             VALUES ($1, $2, $3, $4, $5)
             RETURNING
                 CAST(id AS BIGINT) as id,
