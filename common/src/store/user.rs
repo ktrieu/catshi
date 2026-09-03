@@ -1,12 +1,9 @@
 use anyhow::{anyhow, bail};
 use serenity::all::UserId;
-use sqlx::{SqliteConnection, query, query_as};
+use sqlx::{query, query_as};
 use trait_variant::make;
 
-use crate::{
-    currency::Currency,
-    store::{DbExecutor, log_pg_compare_result, log_pg_write_err},
-};
+use crate::{currency::Currency, store::DbExecutor};
 
 #[derive(Debug, sqlx::FromRow, Clone, PartialEq, Eq)]
 #[allow(dead_code)]
@@ -15,26 +12,6 @@ pub struct DbUser {
     pub discord_id: String,
     pub name: String,
     pub cash_balance: Currency,
-}
-
-pub async fn increment_balance_by_user_id(
-    conn: &mut SqliteConnection,
-    id: i64,
-    amount: Currency,
-) -> anyhow::Result<()> {
-    let result = query!(
-        r#"UPDATE users SET cash_balance = cash_balance + $1 WHERE id = $2"#,
-        amount,
-        id,
-    )
-    .execute(conn)
-    .await?;
-
-    if result.rows_affected() != 1 {
-        bail!("no rows written for increment_balance_by_user_id")
-    }
-
-    Ok(())
 }
 
 pub struct CreateDbUser {
@@ -73,36 +50,14 @@ impl UserStore for DbUserStore {
         db: &mut impl DbExecutor,
         c: CreateDbUser,
     ) -> anyhow::Result<DbUser> {
-        let user = query_as!(
-            DbUser,
-            r#"INSERT INTO users(
-            discord_id,
-            name,
-            cash_balance
-        ) VALUES ($1, $2, $3) ON CONFLICT (discord_id) DO NOTHING 
-        RETURNING
-            id,
-            discord_id,
-            name,
-            cash_balance as "cash_balance: Currency"
-        "#,
-            c.discord_id,
-            c.name,
-            c.initial_balance,
-        )
-        .fetch_one(db.sqlite())
-        .await?;
-
-        let pg_result: sqlx::Result<DbUser> = query_as(
+        let user = query_as(
             r#"
             INSERT INTO users (
-                id,
                 discord_id,
                 name,
                 cash_balance
-            ) 
-            OVERRIDING SYSTEM VALUE
-            VALUES ($1, $2, $3, $4) ON CONFLICT (discord_id) DO NOTHING 
+            )
+            VALUES ($1, $2, $3) ON CONFLICT (discord_id) DO NOTHING
             RETURNING
                 CAST(id AS BIGINT) as id,
                 discord_id,
@@ -110,14 +65,11 @@ impl UserStore for DbUserStore {
                 cash_balance
             "#,
         )
-        .bind(user.id)
         .bind(c.discord_id)
         .bind(c.name)
         .bind(c.initial_balance)
         .fetch_one(db.psql())
-        .await;
-
-        log_pg_write_err(pg_result, "user create_if_not_exists");
+        .await?;
 
         Ok(user)
     }
@@ -129,24 +81,7 @@ impl UserStore for DbUserStore {
     ) -> anyhow::Result<Option<DbUser>> {
         let discord_id = discord_id.to_string();
 
-        let sqlite_user = query_as!(
-            DbUser,
-            r#"
-            SELECT
-                id,
-                name,
-                discord_id,
-                cash_balance as "cash_balance: Currency"
-            FROM users 
-            WHERE 
-                discord_id = $1
-            "#,
-            discord_id,
-        )
-        .fetch_optional(db.sqlite())
-        .await?;
-
-        let pg_user: sqlx::Result<Option<DbUser>> = query_as(
+        let user = query_as(
             r#"
             SELECT
                 CAST(id AS BIGINT) as id,
@@ -160,35 +95,16 @@ impl UserStore for DbUserStore {
         )
         .bind(discord_id)
         .fetch_optional(db.psql())
-        .await;
+        .await?;
 
-        log_pg_compare_result(pg_user, &sqlite_user, "get_by_discord_id");
-
-        Ok(sqlite_user)
+        Ok(user)
     }
 
     async fn get_by_id(&self, db: &mut impl DbExecutor, id: i64) -> anyhow::Result<DbUser> {
-        let sqlite_user = query_as!(
-            DbUser,
+        let user = query_as(
             r#"
             SELECT
-                id,
-                name,
-                discord_id,
-                cash_balance as "cash_balance: Currency"
-            FROM users 
-            WHERE 
-                id = $1
-            "#,
-            id,
-        )
-        .fetch_one(db.sqlite())
-        .await?;
-
-        let pg_user = query_as(
-            r#"
-            SELECT
-                CAST(id as BIGINT) as id,
+                CAST(id AS BIGINT) as id,
                 name,
                 discord_id,
                 cash_balance
@@ -199,11 +115,9 @@ impl UserStore for DbUserStore {
         )
         .bind(id)
         .fetch_one(db.psql())
-        .await;
+        .await?;
 
-        log_pg_compare_result(pg_user, &sqlite_user, "get_by_id");
-
-        Ok(sqlite_user)
+        Ok(user)
     }
 
     async fn get_system_user(&self, db: &mut impl DbExecutor) -> anyhow::Result<DbUser> {
@@ -218,25 +132,15 @@ impl UserStore for DbUserStore {
         id: i64,
         amount: Currency,
     ) -> anyhow::Result<()> {
-        let result = query!(
-            r#"UPDATE users SET cash_balance = cash_balance + $1 WHERE id = $2"#,
-            amount,
-            id,
-        )
-        .execute(db.sqlite())
-        .await?;
-
-        if result.rows_affected() != 1 {
-            bail!("no rows written for increment_balance_by_user_id")
-        }
-
-        let pg_result = query(r#"UPDATE users SET cash_balance = cash_balance + $1 WHERE id = $2"#)
+        let result = query(r#"UPDATE users SET cash_balance = cash_balance + $1 WHERE id = $2"#)
             .bind(amount)
             .bind(id)
             .execute(db.psql())
-            .await;
+            .await?;
 
-        log_pg_write_err(pg_result, "increment_balance_by_id");
+        if result.rows_affected() != 1 {
+            bail!("no rows written for increment_balance_by_id")
+        }
 
         Ok(())
     }
