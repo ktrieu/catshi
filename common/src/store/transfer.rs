@@ -1,10 +1,10 @@
-use sqlx::{query, query_as};
+use sqlx::query_as;
 use trait_variant::make;
 
 use crate::{
     currency::Currency,
     store::{
-        CatshiTx, DbExecutor, log_pg_compare_result,
+        CatshiTx, DbExecutor,
         user::{DbUser, UserStore},
     },
 };
@@ -75,8 +75,10 @@ impl TransferStore for DbTransferStore {
         user_store: &(impl UserStore + Sync),
         create: &CreateTransfer,
     ) -> anyhow::Result<Transfer> {
-        let transfer = query_as!(
-            Transfer,
+        // `created_at` is read back as a unix-epoch bigint (postgres stores it as
+        // TIMESTAMPTZ, defaulted by `CURRENT_TIMESTAMP`) so it decodes into the
+        // `Transfer` shape.
+        let transfer: Transfer = query_as(
             r#"
             INSERT INTO transfers (
                 amount,
@@ -84,23 +86,24 @@ impl TransferStore for DbTransferStore {
                 receiver,
                 memo,
                 source
-            ) VALUES ($1, $2, $3, $4, $5)
+            )
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING
-                id,
-                amount as "amount: Currency",
-                sender,
-                receiver,
+                CAST(id AS BIGINT) as id,
+                CAST(amount AS BIGINT) as amount,
+                CAST(sender AS BIGINT) as sender,
+                CAST(receiver AS BIGINT) as receiver,
                 memo,
-                created_at,
-                source as "source: TransferSource"
+                EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at,
+                source
             "#,
-            create.amount,
-            create.sender,
-            create.receiver,
-            create.memo,
-            create.source,
         )
-        .fetch_one(tx.sqlite())
+        .bind(create.amount)
+        .bind(create.sender)
+        .bind(create.receiver)
+        .bind(&create.memo)
+        .bind(create.source)
+        .fetch_one(tx.psql())
         .await?;
 
         // Credit the receiving account.
@@ -113,46 +116,6 @@ impl TransferStore for DbTransferStore {
             .increment_balance_by_id(tx, create.sender, -create.amount)
             .await?;
 
-        // Mirror the insert to postgres. `id` is forced to match the sqlite row since
-        // `tips` references `transfers(id)` by foreign key. `created_at` is cast back
-        // to a unix-epoch bigint (postgres stores it as TIMESTAMPTZ, defaulted
-        // independently by `CURRENT_TIMESTAMP` rather than passed in) so it decodes
-        // into the same `Transfer` shape as the sqlite row for comparison; the two
-        // timestamps can occasionally differ by a second since they're set by separate
-        // statements, not copied from one write to the other.
-        let pg_result: sqlx::Result<Transfer> = query_as(
-            r#"
-            INSERT INTO transfers (
-                id,
-                amount,
-                sender,
-                receiver,
-                memo,
-                source
-            )
-            OVERRIDING SYSTEM VALUE
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING
-                CAST(id AS BIGINT) as id,
-                CAST(amount AS BIGINT) as amount,
-                CAST(sender AS BIGINT) as sender,
-                CAST(receiver AS BIGINT) as receiver,
-                memo,
-                EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at,
-                source
-            "#,
-        )
-        .bind(transfer.id)
-        .bind(create.amount)
-        .bind(create.sender)
-        .bind(create.receiver)
-        .bind(&create.memo)
-        .bind(create.source)
-        .fetch_one(tx.psql())
-        .await;
-
-        log_pg_compare_result(pg_result, &transfer, "transfer persist");
-
         Ok(transfer)
     }
 
@@ -160,15 +123,15 @@ impl TransferStore for DbTransferStore {
         &self,
         db: &mut impl DbExecutor,
     ) -> anyhow::Result<Vec<UserTransfersBySource>> {
-        let rows = query!(
+        let rows = query_as::<_, PgUserTransfersBySourceRow>(
             r#"
             SELECT
-                users.id,
+                CAST(users.id AS BIGINT) as id,
                 users.name,
                 users.discord_id,
-                users.cash_balance as "cash_balance: Currency",
-                source as "source: TransferSource",
-                SUM(net_amount) AS "net: Currency"
+                users.cash_balance,
+                source,
+                SUM(net_amount) AS net
             FROM (
                 SELECT
                     receiver AS user_id,
@@ -182,12 +145,12 @@ impl TransferStore for DbTransferStore {
                     -amount AS net_amount
                 FROM transfers
             ) t
-            JOIN users ON users.id = user_id
-            GROUP BY user_id, source
-            ORDER BY user_id, source
+            JOIN users ON users.id = t.user_id
+            GROUP BY users.id, source
+            ORDER BY users.id, source
             "#,
         )
-        .fetch_all(db.sqlite())
+        .fetch_all(db.psql())
         .await?;
 
         let sums: Vec<UserTransfersBySource> = rows
@@ -203,53 +166,6 @@ impl TransferStore for DbTransferStore {
                 net: r.net,
             })
             .collect();
-
-        let pg_result: sqlx::Result<Vec<UserTransfersBySource>> =
-            query_as::<_, PgUserTransfersBySourceRow>(
-                r#"
-                SELECT
-                    CAST(users.id AS BIGINT) as id,
-                    users.name,
-                    users.discord_id,
-                    users.cash_balance,
-                    source,
-                    SUM(net_amount) AS net
-                FROM (
-                    SELECT
-                        receiver AS user_id,
-                        source,
-                        amount AS net_amount
-                    FROM transfers
-                    UNION ALL
-                    SELECT
-                        sender AS user_id,
-                        source,
-                        -amount AS net_amount
-                    FROM transfers
-                ) t
-                JOIN users ON users.id = t.user_id
-                GROUP BY users.id, source
-                ORDER BY users.id, source
-                "#,
-            )
-            .fetch_all(db.psql())
-            .await
-            .map(|rows| {
-                rows.into_iter()
-                    .map(|r| UserTransfersBySource {
-                        user: DbUser {
-                            id: r.id,
-                            discord_id: r.discord_id,
-                            name: r.name,
-                            cash_balance: r.cash_balance,
-                        },
-                        source: r.source,
-                        net: r.net,
-                    })
-                    .collect()
-            });
-
-        log_pg_compare_result(pg_result, &sums, "get_net_user_transfers_by_source");
 
         Ok(sums)
     }
