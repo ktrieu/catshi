@@ -6,7 +6,6 @@ use trait_variant::make;
 use crate::store::{
     DbExecutor,
     instrument::{InstrumentStore, InstrumentWithShares},
-    log_pg_compare_result, log_pg_write_err,
     user::{DbUser, UserStore},
 };
 
@@ -80,44 +79,14 @@ impl MarketStore for DbMarketStore {
         description: &str,
         owner: &DbUser,
     ) -> anyhow::Result<Market> {
-        let market = query_as!(
-            Market,
-            r#"
-                INSERT INTO markets(
-                    description,
-                    state,
-                    owner_id
-                )
-                VALUES ($1, $2, $3)
-                RETURNING
-                    id,
-                    description,
-                    state as "state: MarketState",
-                    owner_id,
-                    message_id,
-                    channel_id,
-                    markets.thread_id,
-                    markets.details_msg_id
-            "#,
-            description,
-            MarketState::Open,
-            owner.id
-        )
-        .fetch_one(db.sqlite())
-        .await?;
-
-        // Mirror the insert to postgres, forcing `id` to match the sqlite row since
-        // `instruments` references `markets(id)` by foreign key.
-        let pg_result: sqlx::Result<Market> = query_as(
+        let market = query_as(
             r#"
             INSERT INTO markets (
-                id,
                 description,
                 state,
                 owner_id
             )
-            OVERRIDING SYSTEM VALUE
-            VALUES ($1, $2, $3, $4)
+            VALUES ($1, $2, $3)
             RETURNING
                 CAST(id AS BIGINT) as id,
                 description,
@@ -129,14 +98,11 @@ impl MarketStore for DbMarketStore {
                 details_msg_id
             "#,
         )
-        .bind(market.id)
         .bind(description)
         .bind(MarketState::Open)
         .bind(owner.id)
         .fetch_one(db.psql())
-        .await;
-
-        log_pg_compare_result(pg_result, &market, "market create_new_market");
+        .await?;
 
         Ok(market)
     }
@@ -155,18 +121,7 @@ impl MarketStore for DbMarketStore {
         let thread_id = thread_id.to_string();
         let details_msg_id = details_msg_id.to_string();
 
-        query!(
-            "UPDATE markets SET message_id = $1, channel_id = $2, thread_id = $3, details_msg_id = $4 WHERE id = $5",
-            message_id,
-            channel_id,
-            thread_id,
-            details_msg_id,
-            market_id,
-        )
-        .execute(db.sqlite())
-        .await?;
-
-        let pg_result = query(
+        query(
             "UPDATE markets SET message_id = $1, channel_id = $2, thread_id = $3, details_msg_id = $4 WHERE id = $5",
         )
         .bind(&message_id)
@@ -175,37 +130,13 @@ impl MarketStore for DbMarketStore {
         .bind(&details_msg_id)
         .bind(market_id)
         .execute(db.psql())
-        .await;
-
-        log_pg_write_err(pg_result, "market set_market_message_id");
+        .await?;
 
         Ok(())
     }
 
     async fn get_market_by_id(&self, db: &mut impl DbExecutor, id: i64) -> anyhow::Result<Market> {
-        let market = query_as!(
-            Market,
-            r#"
-            SELECT
-                id,
-                description,
-                state as "state: MarketState",
-                owner_id,
-                message_id,
-                channel_id,
-                markets.thread_id,
-                markets.details_msg_id
-            FROM
-                markets
-            WHERE
-                id = $1
-            "#,
-            id
-        )
-        .fetch_one(db.sqlite())
-        .await?;
-
-        let pg_market = query_as(
+        let market = query_as(
             r#"
             SELECT
                 CAST(id AS BIGINT) as id,
@@ -224,9 +155,7 @@ impl MarketStore for DbMarketStore {
         )
         .bind(id)
         .fetch_one(db.psql())
-        .await;
-
-        log_pg_compare_result(pg_market, &market, "market get_market_by_id");
+        .await?;
 
         Ok(market)
     }
@@ -236,31 +165,7 @@ impl MarketStore for DbMarketStore {
         db: &mut impl DbExecutor,
         instrument_id: i64,
     ) -> anyhow::Result<Market> {
-        let market = query_as!(
-            Market,
-            r#"
-            SELECT
-                markets.id,
-                markets.description,
-                markets.state as "state: MarketState",
-                markets.owner_id,
-                markets.message_id,
-                markets.channel_id,
-                markets.thread_id,
-                markets.details_msg_id
-            FROM
-                markets
-            JOIN
-                instruments ON instruments.market_id = markets.id
-            WHERE
-                instruments.id = $1
-            "#,
-            instrument_id
-        )
-        .fetch_one(db.sqlite())
-        .await?;
-
-        let pg_market = query_as(
+        let market = query_as(
             r#"
             SELECT
                 CAST(markets.id AS BIGINT) as id,
@@ -281,9 +186,7 @@ impl MarketStore for DbMarketStore {
         )
         .bind(instrument_id)
         .fetch_one(db.psql())
-        .await;
-
-        log_pg_compare_result(pg_market, &market, "market get_market_by_instrument_id");
+        .await?;
 
         Ok(market)
     }
@@ -293,30 +196,7 @@ impl MarketStore for DbMarketStore {
         db: &mut impl DbExecutor,
         state: MarketState,
     ) -> anyhow::Result<Vec<Market>> {
-        let markets = query_as!(
-            Market,
-            r#"
-            SELECT
-                markets.id,
-                markets.description,
-                markets.state as "state: MarketState",
-                markets.owner_id,
-                markets.message_id,
-                markets.channel_id,
-                markets.thread_id,
-                markets.details_msg_id
-            FROM
-                markets
-            WHERE
-                state = $1
-            ORDER BY id ASC
-            "#,
-            state
-        )
-        .fetch_all(db.sqlite())
-        .await?;
-
-        let pg_markets: sqlx::Result<Vec<Market>> = query_as(
+        let markets = query_as(
             r#"
             SELECT
                 CAST(id AS BIGINT) as id,
@@ -336,9 +216,7 @@ impl MarketStore for DbMarketStore {
         )
         .bind(state)
         .fetch_all(db.psql())
-        .await;
-
-        log_pg_compare_result(pg_markets, &markets, "market get_markets_by_state");
+        .await?;
 
         Ok(markets)
     }
@@ -349,22 +227,7 @@ impl MarketStore for DbMarketStore {
         market: &Market,
         state: MarketState,
     ) -> anyhow::Result<()> {
-        query!(
-            r#"
-            UPDATE
-                markets
-            SET
-                state = $1
-            WHERE
-                id = $2
-            "#,
-            state,
-            market.id,
-        )
-        .execute(db.sqlite())
-        .await?;
-
-        let pg_result = query(
+        query(
             r#"
             UPDATE
                 markets
@@ -377,9 +240,7 @@ impl MarketStore for DbMarketStore {
         .bind(state)
         .bind(market.id)
         .execute(db.psql())
-        .await;
-
-        log_pg_write_err(pg_result, "market set_market_state");
+        .await?;
 
         Ok(())
     }
