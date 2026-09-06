@@ -37,7 +37,7 @@ impl From<CatfishingGame> for ListCatfishingGame {
 pub async fn list_games(
     State(state): State<AppState>,
 ) -> HandlerResult<Json<Vec<ListCatfishingGame>>> {
-    let mut conn = state.pool.acquire().await?;
+    let mut conn = state.db.conn().await?;
 
     let games = state.cf_store.list_games(&mut conn, false).await?;
     let games = games.into_iter().map(Into::into).collect();

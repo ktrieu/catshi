@@ -112,7 +112,6 @@ dependencies = [
  "common",
  "dotenvy",
  "serde",
- "sqlx",
  "tokio",
 ]
 

@@ -1,18 +1,18 @@
-use sqlx::SqlitePool;
+use std::sync::Arc;
 
-use common::store::catfishing::SqliteCatfishingStore;
+use common::store::{CatshiDb, catfishing::DbCatfishingStore};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AppState {
-    pub pool: SqlitePool,
-    pub cf_store: SqliteCatfishingStore,
+    pub db: Arc<CatshiDb>,
+    pub cf_store: DbCatfishingStore,
 }
 
 impl AppState {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(db: Arc<CatshiDb>) -> Self {
         Self {
-            pool,
-            cf_store: SqliteCatfishingStore {},
+            db,
+            cf_store: DbCatfishingStore {},
         }
     }
 }

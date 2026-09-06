@@ -1,221 +1,223 @@
-use std::{collections::HashMap, future::Future};
+use std::collections::HashMap;
 
-use sqlx::{QueryBuilder, Sqlite, SqliteConnection, Transaction};
+use sqlx::{Postgres, QueryBuilder, query, query_as};
+use trait_variant::make;
 
+use crate::store::{CatshiTx, DbExecutor};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatfishingArticle {
     pub id: i64,
     pub names: Vec<String>,
     pub categories: Vec<String>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatfishingGame {
     pub id: i64,
     pub published: bool,
     pub articles: Vec<CatfishingArticle>,
 }
 
-fn split_list(s: &str) -> Vec<String> {
-    s.split('|').map(String::from).collect()
-}
-
-fn join_list(s: &Vec<String>) -> String {
-    s.join("|")
-}
-
+#[make(Send)]
 pub trait CatfishingStore {
-    fn get_game_by_id(
+    async fn get_game_by_id(
         &self,
-        conn: &mut SqliteConnection,
+        db: &mut impl DbExecutor,
         id: i64,
-    ) -> impl Future<Output = anyhow::Result<CatfishingGame>> + Send;
-    fn list_games(
+    ) -> anyhow::Result<CatfishingGame>;
+
+    async fn list_games(
         &self,
-        conn: &mut SqliteConnection,
+        db: &mut impl DbExecutor,
         include_unpublished: bool,
-    ) -> impl Future<Output = anyhow::Result<Vec<CatfishingGame>>> + Send;
-    // This takes a transaction since we issue a DELETE and then a bulk insert.
-    fn update_game_articles<'t>(
+    ) -> anyhow::Result<Vec<CatfishingGame>>;
+
+    // Issues a DELETE followed by a bulk insert, so it takes a transaction to
+    // keep the game's article list consistent.
+    async fn update_game_articles(
         &self,
-        tx: &mut Transaction<'t, Sqlite>,
+        tx: &mut CatshiTx,
         id: i64,
         articles: &[CatfishingArticle],
-    ) -> impl Future<Output = anyhow::Result<()>> + Send;
-    fn publish_game(
+    ) -> anyhow::Result<()>;
+
+    async fn publish_game(
         &self,
-        conn: &mut SqliteConnection,
+        db: &mut impl DbExecutor,
         id: i64,
         published: bool,
-    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+    ) -> anyhow::Result<()>;
 }
 
 #[derive(Debug, Clone)]
-pub struct SqliteCatfishingStore {}
+pub struct DbCatfishingStore {}
 
-impl SqliteCatfishingStore {
-    pub fn new() -> Self {
-        Self {}
+#[derive(sqlx::FromRow)]
+struct GameRow {
+    id: i64,
+    published: bool,
+}
+
+#[derive(sqlx::FromRow)]
+struct ArticleRow {
+    id: i64,
+    names: Vec<String>,
+    categories: Vec<String>,
+    game_id: i64,
+}
+
+impl From<ArticleRow> for CatfishingArticle {
+    fn from(row: ArticleRow) -> Self {
+        Self {
+            id: row.id,
+            names: row.names,
+            categories: row.categories,
+        }
     }
 }
 
-impl CatfishingStore for SqliteCatfishingStore {
+impl CatfishingStore for DbCatfishingStore {
     async fn get_game_by_id(
         &self,
-        conn: &mut SqliteConnection,
+        db: &mut impl DbExecutor,
         id: i64,
     ) -> anyhow::Result<CatfishingGame> {
-        // We store the lists of categories/names as flat text fields since SQLite doesn't support arrays.
-        // Manually split them out here.
-        let articles = sqlx::query!(
+        let articles: Vec<ArticleRow> = query_as(
             r#"
-                SELECT
-                    id,
-                    names,
-                    categories
-                FROM
-                    cf_articles
-                WHERE
-                    game_id = $1
-                ORDER BY article_order DESC
+            SELECT
+                CAST(id AS BIGINT) as id,
+                names,
+                categories,
+                CAST(game_id AS BIGINT) as game_id
+            FROM cf_articles
+            WHERE game_id = $1
+            ORDER BY article_order DESC
             "#,
-            id
         )
-        .map(|row| CatfishingArticle {
-            id: row.id,
-            names: split_list(&row.names),
-            categories: split_list(&row.categories),
-        })
-        .fetch_all(&mut *conn)
+        .bind(id)
+        .fetch_all(db.psql())
         .await?;
 
-        let row = sqlx::query!(
+        let game: GameRow = query_as(
             r#"
-                SELECT
-                    id,
-                    published
-                FROM
-                    cf_games
-                WHERE
-                    id = $1
+            SELECT
+                CAST(id AS BIGINT) as id,
+                published
+            FROM cf_games
+            WHERE id = $1
             "#,
-            id
         )
-        .fetch_one(&mut *conn)
+        .bind(id)
+        .fetch_one(db.psql())
         .await?;
 
         Ok(CatfishingGame {
-            id: row.id,
-            published: row.published,
-            articles,
+            id: game.id,
+            published: game.published,
+            articles: articles.into_iter().map(Into::into).collect(),
         })
     }
 
     async fn list_games(
         &self,
-        conn: &mut SqliteConnection,
+        db: &mut impl DbExecutor,
         include_unpublished: bool,
     ) -> anyhow::Result<Vec<CatfishingGame>> {
-        let game_rows = sqlx::query!(
+        let game_rows: Vec<GameRow> = query_as(
             r#"
-                SELECT
-                    id,
-                    published
-                FROM
-                    cf_games
-                WHERE
-                    published = true OR $1
-                "#,
-            include_unpublished
+            SELECT
+                CAST(id AS BIGINT) as id,
+                published
+            FROM cf_games
+            WHERE published = true OR $1
+            "#,
         )
-        .fetch_all(&mut *conn)
+        .bind(include_unpublished)
+        .fetch_all(db.psql())
         .await?;
 
-        let articles = sqlx::query!(
+        let article_rows: Vec<ArticleRow> = query_as(
             r#"
-                SELECT
-                    cf_articles.id,
-                    names,
-                    categories,
-                    game_id
-                FROM
-                    cf_articles
-                JOIN
-                    cf_games ON cf_games.id = cf_articles.game_id
-                WHERE
-                    cf_games.published = true OR $1
-                ORDER BY game_id, article_order DESC
+            SELECT
+                CAST(cf_articles.id AS BIGINT) as id,
+                names,
+                categories,
+                CAST(game_id AS BIGINT) as game_id
+            FROM cf_articles
+            JOIN cf_games ON cf_games.id = cf_articles.game_id
+            WHERE cf_games.published = true OR $1
+            ORDER BY game_id, article_order DESC
             "#,
-            include_unpublished
         )
-        .map(|row| CatfishingArticle {
-            id: row.id,
-            names: split_list(&row.names),
-            categories: split_list(&row.categories),
-        })
-        .fetch_all(&mut *conn)
+        .bind(include_unpublished)
+        .fetch_all(db.psql())
         .await?;
 
         let mut articles_by_game: HashMap<i64, Vec<CatfishingArticle>> = HashMap::new();
-
-        for a in articles {
-            articles_by_game.entry(a.id).or_default().push(a);
+        for row in article_rows {
+            articles_by_game
+                .entry(row.game_id)
+                .or_default()
+                .push(row.into());
         }
 
         let games = game_rows
-            .iter()
+            .into_iter()
             .map(|row| CatfishingGame {
                 id: row.id,
                 published: row.published,
-                articles: articles_by_game.remove(&row.id).unwrap_or(Vec::new()),
+                articles: articles_by_game.remove(&row.id).unwrap_or_default(),
             })
             .collect();
 
         Ok(games)
     }
 
-    async fn update_game_articles<'t>(
+    async fn update_game_articles(
         &self,
-        tx: &mut Transaction<'t, Sqlite>,
+        tx: &mut CatshiTx,
         id: i64,
         articles: &[CatfishingArticle],
     ) -> anyhow::Result<()> {
-        // We could do clever things to reorder/rearrange the list, or we could just wipe all the rows and reinsert them fresh.
-        sqlx::query!(r#"DELETE FROM cf_articles WHERE game_id = $1"#, id)
-            .execute(&mut **tx)
+        // We could do clever things to reorder/rearrange the list, or we could
+        // just wipe all the rows and reinsert them fresh.
+        query(r#"DELETE FROM cf_articles WHERE game_id = $1"#)
+            .bind(id)
+            .execute(tx.psql())
             .await?;
 
-        // bulk insert...
-        let mut query_builder: QueryBuilder<'_, Sqlite> =
-            QueryBuilder::new("INSERT INTO cf_articles(names, categories, order, game_id) ");
+        if articles.is_empty() {
+            return Ok(());
+        }
 
-        query_builder.push_values(articles.iter().enumerate(), |mut b, (idx, a)| {
-            b.push_bind(join_list(&a.names));
-            b.push_bind(join_list(&a.categories));
-            b.push_bind(idx as i64);
-            b.push_bind(id);
+        let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(
+            "INSERT INTO cf_articles (names, categories, article_order, game_id) ",
+        );
+
+        builder.push_values(articles.iter().enumerate(), |mut b, (idx, a)| {
+            b.push_bind(&a.names)
+                .push_bind(&a.categories)
+                .push_bind(idx as i64)
+                .push_bind(id);
         });
 
-        query_builder.build().execute(&mut **tx).await?;
+        builder.build().execute(tx.psql()).await?;
 
         Ok(())
     }
 
     async fn publish_game(
         &self,
-        conn: &mut SqliteConnection,
+        db: &mut impl DbExecutor,
         id: i64,
         published: bool,
     ) -> anyhow::Result<()> {
-        sqlx::query!(
-            r#"
-                UPDATE
-                    cf_games
-                SET published = $1
-                WHERE id = $2
-            "#,
-            published,
-            id
-        )
-        .execute(conn)
-        .await?;
+        query(r#"UPDATE cf_games SET published = $1 WHERE id = $2"#)
+            .bind(published)
+            .bind(id)
+            .execute(db.psql())
+            .await?;
 
         Ok(())
     }

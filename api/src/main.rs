@@ -1,21 +1,13 @@
-use std::env;
+use std::{env, sync::Arc};
 
 use axum::{Router, routing::get};
-use common::store;
-use sqlx::SqlitePool;
+use common::store::CatshiDb;
 
 use crate::state::AppState;
 
 mod catfishing;
 mod error;
 mod state;
-
-async fn init_db(url: &str) -> anyhow::Result<SqlitePool> {
-    let pool = SqlitePool::connect(url).await?;
-    store::run_migrations(&pool).await?;
-
-    Ok(pool)
-}
 
 #[tokio::main]
 async fn main() {
@@ -24,9 +16,10 @@ async fn main() {
     dotenvy::dotenv().ok();
 
     let api_port = env::var("API_PORT").expect("API_PORT should be set");
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
+    let sqlite_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
+    let pg_url = env::var("POSTGRES_URL").expect("POSTGRES_URL should be set");
 
-    let pool = init_db(&database_url)
+    let db = CatshiDb::new(&sqlite_url, &pg_url)
         .await
         .expect("database initialization should succeed");
 
@@ -37,7 +30,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{api_port}"))
         .await
         .unwrap();
-    axum::serve(listener, app.with_state(AppState::new(pool)))
+    axum::serve(listener, app.with_state(AppState::new(Arc::new(db))))
         .await
         .unwrap();
 }
