@@ -49,6 +49,21 @@ pub struct UserTransfersBySource {
     pub net: Currency,
 }
 
+#[derive(sqlx::Type, Debug, PartialEq, Eq, Hash)]
+#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+pub enum TransferDirection {
+    Debit,
+    Credit,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct UserTransfersBySourceAndDirection {
+    pub user: DbUser,
+    pub source: TransferSource,
+    pub direction: TransferDirection,
+    pub amount: Currency,
+}
+
 #[make(Send)]
 pub trait TransferStore {
     // Because it makes three queries that must occur together it takes a transaction
@@ -64,6 +79,11 @@ pub trait TransferStore {
         &self,
         db: &mut impl DbExecutor,
     ) -> anyhow::Result<Vec<UserTransfersBySource>>;
+
+    async fn get_user_transfer_by_source_and_direction(
+        &self,
+        db: &mut impl DbExecutor,
+    ) -> anyhow::Result<Vec<UserTransfersBySourceAndDirection>>;
 }
 
 pub struct DbTransferStore {}
@@ -169,6 +189,62 @@ impl TransferStore for DbTransferStore {
 
         Ok(sums)
     }
+
+    async fn get_user_transfer_by_source_and_direction(
+        &self,
+        db: &mut impl DbExecutor,
+    ) -> anyhow::Result<Vec<UserTransfersBySourceAndDirection>> {
+        let rows = query_as!(
+            PgUserTransfersBySourceDirectionRow,
+            r#"
+            SELECT
+                CAST(users.id AS BIGINT) as "id!",
+                users.name,
+                users.discord_id,
+                users.cash_balance,
+                source as "source!: TransferSource",
+                direction as "direction!: TransferDirection",
+                SUM(amount) as "amount!"
+            FROM (
+                SELECT
+                    receiver AS user_id,
+                    source,
+                    amount,
+                    'credit' as direction
+                FROM transfers
+                UNION ALL
+                SELECT
+                    sender AS user_id,
+                    source,
+                    -amount as amount,
+                    'debit' as direction
+                FROM transfers
+            ) t
+            JOIN users ON users.id = t.user_id
+            GROUP BY users.id, source, direction
+            ORDER BY users.id, source, direction
+            "#,
+        )
+        .fetch_all(db.psql())
+        .await?;
+
+        let results = rows
+            .into_iter()
+            .map(|r| UserTransfersBySourceAndDirection {
+                user: DbUser {
+                    id: r.id,
+                    discord_id: r.discord_id,
+                    name: r.name,
+                    cash_balance: r.cash_balance,
+                },
+                direction: r.direction,
+                source: r.source,
+                amount: r.amount,
+            })
+            .collect();
+
+        Ok(results)
+    }
 }
 
 #[derive(sqlx::FromRow)]
@@ -179,4 +255,15 @@ struct PgUserTransfersBySourceRow {
     cash_balance: Currency,
     source: TransferSource,
     net: Currency,
+}
+
+#[derive(sqlx::FromRow)]
+struct PgUserTransfersBySourceDirectionRow {
+    id: i64,
+    name: String,
+    discord_id: String,
+    cash_balance: Currency,
+    source: TransferSource,
+    direction: TransferDirection,
+    amount: Currency,
 }

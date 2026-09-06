@@ -1,5 +1,6 @@
 use std::{cmp::Reverse, collections::HashMap};
 
+use common::store::transfer::TransferDirection;
 use serenity::all::{CommandInteraction, Context, CreateCommand};
 
 use common::currency::Currency;
@@ -32,7 +33,7 @@ pub async fn run(
 
     let transfers = handler
         .transfer_store
-        .get_net_user_transfers_by_source(&mut tx)
+        .get_user_transfer_by_source_and_direction(&mut tx)
         .await?;
 
     // Get our list of users by going through all unique users from the transfers.
@@ -42,9 +43,9 @@ pub async fn run(
     }
 
     // Process transfers into a HashMap by user and transaction type
-    let transfers: HashMap<(i64, TransferSource), Currency> = transfers
+    let transfers: HashMap<(i64, TransferSource, TransferDirection), Currency> = transfers
         .into_iter()
-        .map(|t| ((t.user.id, t.source), t.net))
+        .map(|t| ((t.user.id, t.source, t.direction), t.amount))
         .collect();
 
     let positions = handler

@@ -7,7 +7,9 @@ use crate::{
 use anyhow::anyhow;
 use common::currency::Currency;
 use common::store::{
-    instrument::InstrumentWithShares, position::PositionWithMarketId, transfer::TransferSource,
+    instrument::InstrumentWithShares,
+    position::PositionWithMarketId,
+    transfer::{TransferDirection, TransferSource},
     user::DbUser,
 };
 
@@ -22,36 +24,37 @@ pub struct PortfolioValue {
     pub positions_value: Currency,
 }
 
+type TransferValueMap = HashMap<(i64, TransferSource, TransferDirection), Currency>;
+
+fn get_net_value(
+    net_transfers: &TransferValueMap,
+    source: TransferSource,
+    user: &DbUser,
+) -> Currency {
+    let credit = *net_transfers
+        .get(&(user.id, source, TransferDirection::Credit))
+        .unwrap_or(&Currency::from(0));
+
+    let debit = *net_transfers
+        .get(&(user.id, source, TransferDirection::Debit))
+        .unwrap_or(&Currency::from(0));
+
+    credit + debit
+}
+
 impl PortfolioValue {
     pub fn new(
         user: DbUser,
-        net_transfers: &HashMap<(i64, TransferSource), Currency>,
+        net_transfers: &TransferValueMap,
         positions: &Vec<PositionWithMarketId>,
         market_shares: &HashMap<i64, Vec<InstrumentWithShares>>,
     ) -> anyhow::Result<Self> {
-        let net_deposits = *net_transfers
-            .get(&(user.id, TransferSource::Deposit))
-            .unwrap_or(&Currency::from(0));
-
-        let trades_profit = *net_transfers
-            .get(&(user.id, TransferSource::Order))
-            .unwrap_or(&Currency::from(0));
-
-        let fees_profit = *net_transfers
-            .get(&(user.id, TransferSource::TradeFee))
-            .unwrap_or(&Currency::from(0));
-
-        let net_user_transfers = *net_transfers
-            .get(&(user.id, TransferSource::UserInitiated))
-            .unwrap_or(&Currency::from(0));
-
-        let gambling_winnings = *net_transfers
-            .get(&(user.id, TransferSource::Gambling))
-            .unwrap_or(&Currency::from(0));
-
-        let tips = *net_transfers
-            .get(&(user.id, TransferSource::MessageTip))
-            .unwrap_or(&Currency::from(0));
+        let net_deposits = get_net_value(net_transfers, TransferSource::Deposit, &user);
+        let trades_profit = get_net_value(net_transfers, TransferSource::Order, &user);
+        let fees_profit = get_net_value(net_transfers, TransferSource::TradeFee, &user);
+        let net_user_transfers = get_net_value(net_transfers, TransferSource::UserInitiated, &user);
+        let gambling_winnings = get_net_value(net_transfers, TransferSource::Gambling, &user);
+        let tips = get_net_value(net_transfers, TransferSource::MessageTip, &user);
 
         let net_position_value: anyhow::Result<Currency> = positions
             .iter()
