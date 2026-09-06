@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{
-    trade::{self, calc_sell_prices},
-    ui,
-};
+use crate::trade::{self, calc_sell_prices};
 use anyhow::anyhow;
 use common::currency::Currency;
 use common::store::{
@@ -101,30 +98,14 @@ impl PortfolioValue {
     }
 
     pub fn deposits(&self) -> Currency {
-        self.net_deposits + self.transfers_sent + self.transfers_received
+        self.net_deposits + self.transfers_sent - self.transfers_received
     }
 
-    pub fn table_header() -> [String; 7] {
-        [
-            "User".to_string(),
-            "Balance".to_string(),
-            "Positions".to_string(),
-            "Deposits".to_string(),
-            "Gambling".to_string(),
-            "Profit".to_string(),
-            "Tips".to_string(),
-        ]
-    }
-
-    pub fn to_table_row(&self) -> [String; 7] {
-        [
-            ui::user_shortname(&self.user.name),
-            self.user.cash_balance.to_string(),
-            self.positions_value.to_string(),
-            self.deposits().to_string(),
-            self.gambling_winnings.to_string(),
-            self.net_profit().to_string(),
-            (self.tips_sent + self.tips_received).to_string(),
-        ]
+    pub fn net_worth(&self) -> Currency {
+        self.user.cash_balance
+            + self.deposits()
+            + self.net_profit()
+            + self.gambling_winnings
+            + (self.tips_received - self.tips_sent)
     }
 }
