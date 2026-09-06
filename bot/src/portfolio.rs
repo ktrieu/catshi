@@ -19,18 +19,20 @@ pub struct PortfolioValue {
     pub trades_profit: Currency,
     pub fees_profit: Currency,
     pub gambling_winnings: Currency,
-    pub net_user_transfers: Currency,
-    pub tips: Currency,
+    pub tips_received: Currency,
+    pub tips_sent: Currency,
+    pub transfers_received: Currency,
+    pub transfers_sent: Currency,
     pub positions_value: Currency,
 }
 
 type TransferValueMap = HashMap<(i64, TransferSource, TransferDirection), Currency>;
 
-fn get_net_value(
+fn get_transfer_value(
     net_transfers: &TransferValueMap,
     source: TransferSource,
     user: &DbUser,
-) -> Currency {
+) -> (Currency, Currency, Currency) {
     let credit = *net_transfers
         .get(&(user.id, source, TransferDirection::Credit))
         .unwrap_or(&Currency::from(0));
@@ -39,7 +41,7 @@ fn get_net_value(
         .get(&(user.id, source, TransferDirection::Debit))
         .unwrap_or(&Currency::from(0));
 
-    credit + debit
+    (debit, credit, credit + debit)
 }
 
 impl PortfolioValue {
@@ -49,12 +51,17 @@ impl PortfolioValue {
         positions: &Vec<PositionWithMarketId>,
         market_shares: &HashMap<i64, Vec<InstrumentWithShares>>,
     ) -> anyhow::Result<Self> {
-        let net_deposits = get_net_value(net_transfers, TransferSource::Deposit, &user);
-        let trades_profit = get_net_value(net_transfers, TransferSource::Order, &user);
-        let fees_profit = get_net_value(net_transfers, TransferSource::TradeFee, &user);
-        let net_user_transfers = get_net_value(net_transfers, TransferSource::UserInitiated, &user);
-        let gambling_winnings = get_net_value(net_transfers, TransferSource::Gambling, &user);
-        let tips = get_net_value(net_transfers, TransferSource::MessageTip, &user);
+        let (_, __, net_deposits) =
+            get_transfer_value(net_transfers, TransferSource::Deposit, &user);
+        let (_, _, trades_profit) = get_transfer_value(net_transfers, TransferSource::Order, &user);
+        let (_, _, fees_profit) =
+            get_transfer_value(net_transfers, TransferSource::TradeFee, &user);
+        let (transfers_sent, transfers_received, _) =
+            get_transfer_value(net_transfers, TransferSource::UserInitiated, &user);
+        let (_, _, gambling_winnings) =
+            get_transfer_value(net_transfers, TransferSource::Gambling, &user);
+        let (tips_sent, tips_received, _) =
+            get_transfer_value(net_transfers, TransferSource::MessageTip, &user);
 
         let net_position_value: anyhow::Result<Currency> = positions
             .iter()
@@ -80,10 +87,12 @@ impl PortfolioValue {
             net_deposits,
             trades_profit,
             fees_profit,
-            gambling_winnings,
-            net_user_transfers,
-            tips,
             positions_value: net_position_value?,
+            gambling_winnings,
+            tips_received,
+            tips_sent,
+            transfers_received,
+            transfers_sent,
         })
     }
 
@@ -92,7 +101,7 @@ impl PortfolioValue {
     }
 
     pub fn deposits(&self) -> Currency {
-        self.net_deposits + self.net_user_transfers
+        self.net_deposits + self.transfers_sent + self.transfers_received
     }
 
     pub fn table_header() -> [String; 7] {
@@ -115,7 +124,7 @@ impl PortfolioValue {
             self.deposits().to_string(),
             self.gambling_winnings.to_string(),
             self.net_profit().to_string(),
-            self.tips.to_string(),
+            (self.tips_sent + self.tips_received).to_string(),
         ]
     }
 }
