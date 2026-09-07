@@ -10,13 +10,13 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Tip {
-    pub id: i64,
+    pub id: i32,
     pub created_at: i64,
     pub channel_id: String,
     pub message_id: String,
     pub amount: Currency,
-    pub user_id: i64,
-    pub transfer_id: i64,
+    pub user_id: i32,
+    pub transfer_id: i32,
 }
 
 #[make(Send)]
@@ -56,13 +56,13 @@ impl TipStore for DbTipStore {
         let tip = query_as(
             r#"
             SELECT
-                CAST(id AS BIGINT) as id,
+                id,
                 EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at,
                 channel_id,
                 message_id,
                 CAST(amount AS BIGINT) as amount,
-                CAST(user_id AS BIGINT) as user_id,
-                CAST(transfer_id AS BIGINT) as transfer_id
+                user_id,
+                transfer_id
             FROM
                 tips
             WHERE
@@ -101,13 +101,13 @@ impl TipStore for DbTipStore {
             )
             VALUES ($1, $2, $3, $4, $5)
             RETURNING
-                CAST(id AS BIGINT) as id,
+                id,
                 EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at,
                 channel_id,
                 message_id,
                 CAST(amount AS BIGINT) as amount,
-                CAST(transfer_id AS BIGINT) as transfer_id,
-                CAST(user_id AS BIGINT) as user_id
+                transfer_id,
+                user_id
             "#,
         )
         .bind(amount)
