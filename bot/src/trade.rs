@@ -251,7 +251,7 @@ pub fn buy(
         shares_price: prices.shares_price,
         fees: prices.fees,
         instrument_id: instrument.id,
-        owner_id: user.id,
+        owner_id: user.id.into(),
     };
 
     let shares_transfer = create_system_debit(
@@ -279,7 +279,7 @@ pub fn buy(
         quantity: held_shares + quantity,
         cost_basis: existing_cost_basis + prices.total(),
         instrument_id: instrument.id,
-        owner_id: user.id,
+        owner_id: user.id.into(),
     };
 
     Ok(TradeResult {
@@ -325,7 +325,7 @@ pub fn sell(
         shares_price: prices.shares_price,
         fees: prices.fees,
         instrument_id: instrument.id,
-        owner_id: user.id,
+        owner_id: user.id.into(),
     };
 
     let shares_transfer = create_system_credit(
@@ -348,7 +348,7 @@ pub fn sell(
         quantity: position.quantity - quantity,
         cost_basis: new_cost_basis,
         instrument_id: instrument.id,
-        owner_id: user.id,
+        owner_id: user.id.into(),
     };
 
     Ok(TradeResult {
@@ -414,7 +414,7 @@ pub fn resolve(
             fees: prices.fees,
             cost_basis,
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
 
         let mut transfers = Vec::new();
@@ -457,7 +457,7 @@ pub fn resolve(
             quantity: 0,
             cost_basis: Currency::from(0),
             instrument_id: position.instrument_id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
 
         results.push(ResolveResult {
@@ -496,7 +496,7 @@ mod test {
                 id: 0,
                 description: "test".to_string(),
                 state: MarketState::Open,
-                owner_id: market_owner.id,
+                owner_id: market_owner.id.into(),
                 message_id: Some("0".to_string()),
                 channel_id: Some("0".to_string()),
                 thread_id: None,
@@ -572,7 +572,7 @@ mod test {
             fees: prices.fees,
             cost_basis: prices.shares_price + prices.fees,
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
 
@@ -580,7 +580,7 @@ mod test {
             quantity: qty,
             cost_basis: prices.shares_price + prices.fees,
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.position, expected_position);
 
@@ -597,7 +597,7 @@ mod test {
             quantity: 10,
             cost_basis: Currency::new_yp(2),
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
 
         let qty = 5;
@@ -625,7 +625,7 @@ mod test {
             fees: prices.fees,
             cost_basis: prices.shares_price + prices.fees,
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
 
@@ -633,7 +633,7 @@ mod test {
             quantity: qty + existing_position.quantity,
             cost_basis: existing_position.cost_basis + prices.shares_price + prices.fees,
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.position, expected_position);
 
@@ -741,7 +741,7 @@ mod test {
             quantity: 10,
             cost_basis: Currency::new_yp(2),
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
 
         let qty = 5;
@@ -772,7 +772,7 @@ mod test {
             fees: prices.fees,
             cost_basis: Currency::new_yp(1),
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
 
@@ -780,7 +780,7 @@ mod test {
             quantity: 5,
             cost_basis: Currency::new_yp(1),
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.position, expected_position);
 
@@ -797,7 +797,7 @@ mod test {
             quantity: 10,
             cost_basis: Currency::new_yp(2),
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
 
         let qty = 10;
@@ -825,7 +825,7 @@ mod test {
             fees: prices.fees,
             cost_basis: Currency::new_yp(2),
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
 
@@ -833,7 +833,7 @@ mod test {
             quantity: 0,
             cost_basis: Currency::new_yp(0),
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.position, expected_position);
 
@@ -850,7 +850,7 @@ mod test {
             quantity: 10,
             cost_basis: Currency::new_yp(2),
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
 
         let qty = 5;
@@ -897,7 +897,7 @@ mod test {
             quantity: 10,
             cost_basis: Currency::new_yp(2),
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
 
         let qty = 15;
@@ -989,7 +989,7 @@ mod test {
                 quantity: 10,
                 cost_basis: Currency::new_yp(2),
                 instrument_id: instrument.id,
-                owner_id: user.id,
+                owner_id: user.id.into(),
             },
             user: user.clone(),
         }];
@@ -1007,7 +1007,7 @@ mod test {
             fees: Currency::new_yp(10) * 0.02,
             cost_basis: Currency::new_yp(2),
             instrument_id: instrument.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
 
@@ -1042,7 +1042,7 @@ mod test {
                 quantity: 10,
                 cost_basis: Currency::new_yp(2),
                 instrument_id: loser.id,
-                owner_id: user.id,
+                owner_id: user.id.into(),
             },
             user: user.clone(),
         }];
@@ -1060,7 +1060,7 @@ mod test {
             fees: Currency::new_yp(0),
             cost_basis: Currency::new_yp(2),
             instrument_id: loser.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
         assert_eq!(result.transfers.len(), 0);
@@ -1086,7 +1086,7 @@ mod test {
                     quantity: 10,
                     cost_basis: Currency::new_yp(2),
                     instrument_id: winner.id,
-                    owner_id: user.id,
+                    owner_id: user.id.into(),
                 },
                 user: user.clone(),
             },
@@ -1096,7 +1096,7 @@ mod test {
                     quantity: 10,
                     cost_basis: Currency::new_yp(2),
                     instrument_id: loser.id,
-                    owner_id: user.id,
+                    owner_id: user.id.into(),
                 },
                 user: user.clone(),
             },
@@ -1106,7 +1106,7 @@ mod test {
                     quantity: 10,
                     cost_basis: Currency::new_yp(2),
                     instrument_id: winner.id,
-                    owner_id: other_user.id,
+                    owner_id: other_user.id.into(),
                 },
                 user: other_user.clone(),
             },
@@ -1126,7 +1126,7 @@ mod test {
             fees: Currency::new_yp(10) * 0.02,
             cost_basis: Currency::new_yp(2),
             instrument_id: winner.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
 
@@ -1157,7 +1157,7 @@ mod test {
             fees: Currency::new_yp(0),
             cost_basis: Currency::new_yp(2),
             instrument_id: loser.id,
-            owner_id: user.id,
+            owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
         assert_eq!(result.transfers.len(), 0);
@@ -1171,7 +1171,7 @@ mod test {
             fees: Currency::new_yp(10) * 0.02,
             cost_basis: Currency::new_yp(2),
             instrument_id: winner.id,
-            owner_id: other_user.id,
+            owner_id: other_user.id.into(),
         };
         assert_eq!(result.order, expected_order);
 

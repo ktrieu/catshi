@@ -147,7 +147,7 @@ pub async fn interact(
         .get_from_message(&mut tx, channel_id.expect_channel(), message_id)
         .await?;
 
-    if db_blackjack.owner_id != user.id {
+    if db_blackjack.owner_id != i64::from(user.id) {
         component
             .create_response(
                 &ctx.http,

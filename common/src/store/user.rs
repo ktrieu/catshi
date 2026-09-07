@@ -8,7 +8,7 @@ use crate::{currency::Currency, store::DbExecutor};
 #[derive(Debug, sqlx::FromRow, Clone, PartialEq, Eq)]
 #[allow(dead_code)]
 pub struct DbUser {
-    pub id: i64,
+    pub id: i32,
     pub discord_id: String,
     pub name: String,
     pub cash_balance: Currency,
@@ -32,12 +32,12 @@ pub trait UserStore {
         db: &mut impl DbExecutor,
         discord_id: &UserId,
     ) -> anyhow::Result<Option<DbUser>>;
-    async fn get_by_id(&self, db: &mut impl DbExecutor, id: i64) -> anyhow::Result<DbUser>;
+    async fn get_by_id(&self, db: &mut impl DbExecutor, id: i32) -> anyhow::Result<DbUser>;
     async fn get_system_user(&self, db: &mut impl DbExecutor) -> anyhow::Result<DbUser>;
     async fn increment_balance_by_id(
         &self,
         db: &mut impl DbExecutor,
-        id: i64,
+        id: i32,
         amount: Currency,
     ) -> anyhow::Result<()>;
 }
@@ -59,7 +59,7 @@ impl UserStore for DbUserStore {
             )
             VALUES ($1, $2, $3) ON CONFLICT (discord_id) DO NOTHING
             RETURNING
-                CAST(id AS BIGINT) as id,
+                id,
                 discord_id,
                 name,
                 cash_balance
@@ -84,7 +84,7 @@ impl UserStore for DbUserStore {
         let user = query_as(
             r#"
             SELECT
-                CAST(id AS BIGINT) as id,
+                id,
                 name,
                 discord_id,
                 cash_balance
@@ -100,11 +100,11 @@ impl UserStore for DbUserStore {
         Ok(user)
     }
 
-    async fn get_by_id(&self, db: &mut impl DbExecutor, id: i64) -> anyhow::Result<DbUser> {
+    async fn get_by_id(&self, db: &mut impl DbExecutor, id: i32) -> anyhow::Result<DbUser> {
         let user = query_as(
             r#"
             SELECT
-                CAST(id AS BIGINT) as id,
+                id,
                 name,
                 discord_id,
                 cash_balance
@@ -129,7 +129,7 @@ impl UserStore for DbUserStore {
     async fn increment_balance_by_id(
         &self,
         db: &mut impl DbExecutor,
-        id: i64,
+        id: i32,
         amount: Currency,
     ) -> anyhow::Result<()> {
         let result = query(r#"UPDATE users SET cash_balance = cash_balance + $1 WHERE id = $2"#)

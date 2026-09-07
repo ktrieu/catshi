@@ -62,7 +62,7 @@ pub async fn initiate_resolve(
         .get_market_by_id(&mut conn, market_id)
         .await?;
 
-    if market.owner_id != user.id {
+    if market.owner_id != i64::from(user.id) {
         component
             .create_response(
                 &ctx.http,
@@ -207,7 +207,9 @@ pub async fn resolve(
         let users = positions.iter().map(|p| &p.user);
 
         let mut profits: HashMap<i64, (&DbUser, Currency)> =
-            users.map(|u| (u.id, (u, Currency::from(0)))).collect();
+            users
+                .map(|u| (i64::from(u.id), (u, Currency::from(0))))
+                .collect();
 
         for r in &results {
             let entry = profits.entry(r.order.owner_id);

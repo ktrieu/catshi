@@ -406,7 +406,7 @@ impl<D: Deck> Blackjack<D> {
         CreateBlackjack {
             dealer: self.dealer_serialized(),
             player: self.player_serialized(),
-            owner_id: owner.id,
+            owner_id: owner.id.into(),
             state: self.state,
             staked: self.staked,
             channel_id: channel_id.to_string(),
@@ -956,7 +956,7 @@ mod tests {
             CreateBlackjack {
                 dealer: "K Q".to_string(),
                 player: "2 2 2".to_string(),
-                owner_id: player.id,
+                owner_id: player.id.into(),
                 state: BlackjackState::Betting,
                 staked: Currency::from(2),
                 channel_id: "7".to_string(),

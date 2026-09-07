@@ -67,7 +67,7 @@ pub async fn run(
     };
 
     // Aggregate transfers by source and direction, keyed by user id.
-    let transfers: HashMap<(i64, TransferSource, TransferDirection), Currency> = handler
+    let transfers: HashMap<(i32, TransferSource, TransferDirection), Currency> = handler
         .transfer_store
         .get_user_transfer_by_source_and_direction(&mut tx)
         .await?
@@ -81,7 +81,7 @@ pub async fn run(
         .get_all_positions_with_market_id(&mut tx)
         .await?
         .into_iter()
-        .filter(|p| p.position.owner_id == target.id)
+        .filter(|p| p.position.owner_id == i64::from(target.id))
         .collect();
 
     // Group open instruments by market so positions can be priced.

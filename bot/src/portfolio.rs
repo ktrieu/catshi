@@ -23,7 +23,7 @@ pub struct PortfolioValue {
     pub positions_value: Currency,
 }
 
-type TransferValueMap = HashMap<(i64, TransferSource, TransferDirection), Currency>;
+type TransferValueMap = HashMap<(i32, TransferSource, TransferDirection), Currency>;
 
 fn get_transfer_value(
     net_transfers: &TransferValueMap,

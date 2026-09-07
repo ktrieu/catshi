@@ -163,7 +163,7 @@ impl PositionStore for DbPositionStore {
                 CAST(positions.cost_basis AS BIGINT) as cost_basis,
                 CAST(positions.instrument_id AS BIGINT) as instrument_id,
                 CAST(positions.owner_id AS BIGINT) as owner_id,
-                CAST(users.id AS BIGINT) as users_id,
+                users.id as users_id,
                 users.name as users_name,
                 users.discord_id as users_discord_id,
                 users.cash_balance as users_cash_balance
@@ -225,7 +225,7 @@ struct PgPositionWithUserRow {
     cost_basis: Currency,
     instrument_id: i64,
     owner_id: i64,
-    users_id: i64,
+    users_id: i32,
     users_name: String,
     users_discord_id: String,
     users_cash_balance: Currency,

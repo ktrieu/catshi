@@ -82,13 +82,13 @@ pub async fn run(
         .await?;
 
     // Get our list of users by going through all unique users from the transfers.
-    let mut users: HashMap<i64, DbUser> = HashMap::new();
+    let mut users: HashMap<i32, DbUser> = HashMap::new();
     for t in transfers.iter() {
         users.entry(t.user.id).or_insert(t.user.clone());
     }
 
     // Process transfers into a HashMap by user and transaction type
-    let transfers: HashMap<(i64, TransferSource, TransferDirection), Currency> = transfers
+    let transfers: HashMap<(i32, TransferSource, TransferDirection), Currency> = transfers
         .into_iter()
         .map(|t| ((t.user.id, t.source, t.direction), t.amount))
         .collect();
@@ -123,7 +123,9 @@ pub async fn run(
     let mut portfolio_values = Vec::new();
 
     for user in users.into_values() {
-        let positions = positions_by_user.get(&user.id).unwrap_or(&empty);
+        let positions = positions_by_user
+            .get(&i64::from(user.id))
+            .unwrap_or(&empty);
         portfolio_values.push(PortfolioValue::new(
             user,
             &transfers,

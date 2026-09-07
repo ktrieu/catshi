@@ -36,8 +36,8 @@ pub struct Transfer {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreateTransfer {
     pub amount: Currency,
-    pub sender: i64,
-    pub receiver: i64,
+    pub sender: i32,
+    pub receiver: i32,
     pub memo: String,
     pub source: TransferSource,
 }
@@ -146,7 +146,7 @@ impl TransferStore for DbTransferStore {
         let rows = query_as::<_, PgUserTransfersBySourceRow>(
             r#"
             SELECT
-                CAST(users.id AS BIGINT) as id,
+                users.id as id,
                 users.name,
                 users.discord_id,
                 users.cash_balance,
@@ -198,7 +198,7 @@ impl TransferStore for DbTransferStore {
             PgUserTransfersBySourceDirectionRow,
             r#"
             SELECT
-                CAST(users.id AS BIGINT) as "id!",
+                users.id as "id!",
                 users.name,
                 users.discord_id,
                 users.cash_balance,
@@ -249,7 +249,7 @@ impl TransferStore for DbTransferStore {
 
 #[derive(sqlx::FromRow)]
 struct PgUserTransfersBySourceRow {
-    id: i64,
+    id: i32,
     name: String,
     discord_id: String,
     cash_balance: Currency,
@@ -259,7 +259,7 @@ struct PgUserTransfersBySourceRow {
 
 #[derive(sqlx::FromRow)]
 struct PgUserTransfersBySourceDirectionRow {
-    id: i64,
+    id: i32,
     name: String,
     discord_id: String,
     cash_balance: Currency,

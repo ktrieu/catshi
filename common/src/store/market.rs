@@ -267,7 +267,7 @@ impl FullMarket {
             .get_instruments_with_share_counts_for_market(exec, row.id)
             .await?;
 
-        let owner = user_store.get_by_id(exec, row.owner_id).await?;
+        let owner = user_store.get_by_id(exec, row.owner_id as i32).await?;
 
         Ok(Self {
             row,
