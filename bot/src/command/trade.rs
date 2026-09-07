@@ -374,7 +374,7 @@ pub async fn trade(
 
     let all_positions = handler
         .position_store
-        .get_all_market_positions(&mut conn, market.row.id.into())
+        .get_all_market_positions(&mut conn, market.row.id)
         .await?;
 
     let new_market_message = render_market_message(&market.row, &market.owner, instruments.iter());

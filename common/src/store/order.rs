@@ -13,7 +13,7 @@ pub enum OrderDirection {
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Order {
-    pub id: i64,
+    pub id: i32,
     pub direction: OrderDirection,
     pub quantity: i64,
     pub shares_price: Currency,
@@ -21,8 +21,8 @@ pub struct Order {
     // Same as shares_price + fees for buys but based on position cost basis for sells.
     // Allows us to calculate the profit on a sell.
     pub cost_basis: Currency,
-    pub instrument_id: i64,
-    pub owner_id: i64,
+    pub instrument_id: i32,
+    pub owner_id: i32,
     pub created_at: i64,
 }
 
@@ -33,8 +33,8 @@ pub struct CreateOrder {
     pub shares_price: Currency,
     pub fees: Currency,
     pub cost_basis: Currency,
-    pub instrument_id: i64,
-    pub owner_id: i64,
+    pub instrument_id: i32,
+    pub owner_id: i32,
 }
 
 #[make(Send)]
@@ -70,14 +70,14 @@ impl OrderStore for DbOrderStore {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING
-                CAST(id AS BIGINT) as id,
+                id,
                 direction,
                 CAST(quantity AS BIGINT) as quantity,
                 CAST(shares_price AS BIGINT) as shares_price,
                 CAST(fees AS BIGINT) as fees,
                 CAST(cost_basis AS BIGINT) as cost_basis,
-                CAST(instrument_id AS BIGINT) as instrument_id,
-                CAST(owner_id AS BIGINT) as owner_id,
+                instrument_id,
+                owner_id,
                 EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at
             "#,
         )

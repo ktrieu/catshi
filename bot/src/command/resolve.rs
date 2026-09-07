@@ -150,7 +150,7 @@ pub async fn resolve(
     let winner = &market.get_instrument(instrument_id)?.0;
     let positions = handler
         .position_store
-        .get_all_market_positions(&mut tx, market.row.id.into())
+        .get_all_market_positions(&mut tx, market.row.id)
         .await?;
     let system_user = handler.user_store.get_system_user(&mut tx).await?;
 
@@ -206,10 +206,8 @@ pub async fn resolve(
     if results.len() != 0 {
         let users = positions.iter().map(|p| &p.user);
 
-        let mut profits: HashMap<i64, (&DbUser, Currency)> =
-            users
-                .map(|u| (i64::from(u.id), (u, Currency::from(0))))
-                .collect();
+        let mut profits: HashMap<i32, (&DbUser, Currency)> =
+            users.map(|u| (u.id, (u, Currency::from(0)))).collect();
 
         for r in &results {
             let entry = profits.entry(r.order.owner_id);

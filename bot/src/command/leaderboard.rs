@@ -97,7 +97,7 @@ pub async fn run(
         .position_store
         .get_all_positions_with_market_id(&mut tx)
         .await?;
-    let mut positions_by_user: HashMap<i64, Vec<PositionWithMarketId>> = HashMap::new();
+    let mut positions_by_user: HashMap<i32, Vec<PositionWithMarketId>> = HashMap::new();
 
     // Process positions into a HashMap of lists per user.
     for p in positions {
@@ -123,9 +123,7 @@ pub async fn run(
     let mut portfolio_values = Vec::new();
 
     for user in users.into_values() {
-        let positions = positions_by_user
-            .get(&i64::from(user.id))
-            .unwrap_or(&empty);
+        let positions = positions_by_user.get(&user.id).unwrap_or(&empty);
         portfolio_values.push(PortfolioValue::new(
             user,
             &transfers,

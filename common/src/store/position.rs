@@ -9,19 +9,19 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Position {
-    pub id: i64,
+    pub id: i32,
     pub quantity: i64,
     pub cost_basis: Currency,
-    pub instrument_id: i64,
-    pub owner_id: i64,
+    pub instrument_id: i32,
+    pub owner_id: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreatePosition {
     pub quantity: i64,
     pub cost_basis: Currency,
-    pub instrument_id: i64,
-    pub owner_id: i64,
+    pub instrument_id: i32,
+    pub owner_id: i32,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -33,7 +33,7 @@ pub struct PositionWithUser {
 #[derive(Debug, PartialEq, Eq)]
 pub struct PositionWithMarketId {
     pub position: Position,
-    pub market_id: i64,
+    pub market_id: i32,
 }
 
 #[make(Send)]
@@ -54,14 +54,14 @@ pub trait PositionStore {
     async fn delete_position(
         &self,
         db: &mut impl DbExecutor,
-        instrument_id: i64,
-        owner_id: i64,
+        instrument_id: i32,
+        owner_id: i32,
     ) -> anyhow::Result<()>;
 
     async fn get_all_market_positions(
         &self,
         db: &mut impl DbExecutor,
-        market_id: i64,
+        market_id: i32,
     ) -> anyhow::Result<Vec<PositionWithUser>>;
 
     async fn get_all_positions_with_market_id(
@@ -82,11 +82,11 @@ impl PositionStore for DbPositionStore {
         let position = query_as(
             r#"
             SELECT
-                CAST(id AS BIGINT) as id,
+                id,
                 CAST(quantity AS BIGINT) as quantity,
                 CAST(cost_basis AS BIGINT) as cost_basis,
-                CAST(instrument_id AS BIGINT) as instrument_id,
-                CAST(owner_id AS BIGINT) as owner_id
+                instrument_id,
+                owner_id
             FROM positions
             WHERE
                 instrument_id = $1 AND owner_id = $2
@@ -118,11 +118,11 @@ impl PositionStore for DbPositionStore {
             ON CONFLICT (instrument_id, owner_id) DO UPDATE
             SET quantity = excluded.quantity, cost_basis = excluded.cost_basis
             RETURNING
-                CAST(id AS BIGINT) as id,
+                id,
                 CAST(quantity AS BIGINT) as quantity,
                 CAST(cost_basis AS BIGINT) as cost_basis,
-                CAST(instrument_id AS BIGINT) as instrument_id,
-                CAST(owner_id AS BIGINT) as owner_id
+                instrument_id,
+                owner_id
             "#,
         )
         .bind(c.quantity)
@@ -138,8 +138,8 @@ impl PositionStore for DbPositionStore {
     async fn delete_position(
         &self,
         db: &mut impl DbExecutor,
-        instrument_id: i64,
-        owner_id: i64,
+        instrument_id: i32,
+        owner_id: i32,
     ) -> anyhow::Result<()> {
         query("DELETE FROM positions WHERE instrument_id = $1 AND owner_id = $2")
             .bind(instrument_id)
@@ -153,16 +153,16 @@ impl PositionStore for DbPositionStore {
     async fn get_all_market_positions(
         &self,
         db: &mut impl DbExecutor,
-        market_id: i64,
+        market_id: i32,
     ) -> anyhow::Result<Vec<PositionWithUser>> {
         let rows = query_as::<_, PgPositionWithUserRow>(
             r#"
             SELECT
-                CAST(positions.id AS BIGINT) as id,
+                positions.id as id,
                 CAST(positions.quantity AS BIGINT) as quantity,
                 CAST(positions.cost_basis AS BIGINT) as cost_basis,
-                CAST(positions.instrument_id AS BIGINT) as instrument_id,
-                CAST(positions.owner_id AS BIGINT) as owner_id,
+                positions.instrument_id as instrument_id,
+                positions.owner_id as owner_id,
                 users.id as users_id,
                 users.name as users_name,
                 users.discord_id as users_discord_id,
@@ -195,12 +195,12 @@ impl PositionStore for DbPositionStore {
         let rows = query_as::<_, PgPositionWithMarketIdRow>(
             r#"
             SELECT
-                CAST(positions.id AS BIGINT) as id,
+                positions.id as id,
                 CAST(positions.quantity AS BIGINT) as quantity,
                 CAST(positions.cost_basis AS BIGINT) as cost_basis,
-                CAST(positions.instrument_id AS BIGINT) as instrument_id,
-                CAST(positions.owner_id AS BIGINT) as owner_id,
-                CAST(instruments.market_id AS BIGINT) as market_id
+                positions.instrument_id as instrument_id,
+                positions.owner_id as owner_id,
+                instruments.market_id as market_id
             FROM positions
             JOIN
                 instruments ON instruments.id = positions.instrument_id
@@ -220,11 +220,11 @@ impl PositionStore for DbPositionStore {
 
 #[derive(sqlx::FromRow)]
 struct PgPositionWithUserRow {
-    id: i64,
+    id: i32,
     quantity: i64,
     cost_basis: Currency,
-    instrument_id: i64,
-    owner_id: i64,
+    instrument_id: i32,
+    owner_id: i32,
     users_id: i32,
     users_name: String,
     users_discord_id: String,
@@ -253,12 +253,12 @@ impl PgPositionWithUserRow {
 
 #[derive(sqlx::FromRow)]
 struct PgPositionWithMarketIdRow {
-    id: i64,
+    id: i32,
     quantity: i64,
     cost_basis: Currency,
-    instrument_id: i64,
-    owner_id: i64,
-    market_id: i64,
+    instrument_id: i32,
+    owner_id: i32,
+    market_id: i32,
 }
 
 impl PgPositionWithMarketIdRow {

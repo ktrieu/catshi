@@ -64,13 +64,13 @@ impl PortfolioValue {
             .iter()
             .map(|p| -> anyhow::Result<Currency> {
                 let market_id = &p.market_id;
-                let instruments = market_shares.get(&(p.market_id as i32)).ok_or(anyhow!(
+                let instruments = market_shares.get(&p.market_id).ok_or(anyhow!(
                     "could not find shares for market {market_id} when calculating portfolio value"
                 ))?;
 
                 let price = calc_sell_prices(
                     p.position.quantity,
-                    p.position.instrument_id as i32,
+                    p.position.instrument_id,
                     instruments.iter(),
                     trade::MARKET_B,
                 );

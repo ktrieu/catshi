@@ -109,7 +109,7 @@ pub fn render_details_message(
     instruments: &Vec<InstrumentWithShares>,
     all_positions: &Vec<PositionWithUser>,
 ) -> String {
-    let mut instrument_positions: HashMap<i64, Vec<&PositionWithUser>> = HashMap::new();
+    let mut instrument_positions: HashMap<i32, Vec<&PositionWithUser>> = HashMap::new();
 
     for p in all_positions.iter() {
         if p.position.quantity == 0 {
@@ -122,7 +122,7 @@ pub fn render_details_message(
             .push(p);
     }
 
-    let mut instrument_positions: Vec<(i64, Vec<&PositionWithUser>)> =
+    let mut instrument_positions: Vec<(i32, Vec<&PositionWithUser>)> =
         instrument_positions.into_iter().collect();
 
     instrument_positions.sort_by_key(|(id, _)| *id);
@@ -132,7 +132,7 @@ pub fn render_details_message(
     for (instrument_id, positions) in instrument_positions.iter_mut() {
         let instrument_name = instruments
             .iter()
-            .find(|(i, _)| i64::from(i.id) == *instrument_id)
+            .find(|(i, _)| i.id == *instrument_id)
             .expect(&format!("instrument {instrument_id} should exist",))
             .0
             .name

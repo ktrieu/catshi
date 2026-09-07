@@ -81,7 +81,7 @@ pub async fn run(
         .get_all_positions_with_market_id(&mut tx)
         .await?
         .into_iter()
-        .filter(|p| p.position.owner_id == i64::from(target.id))
+        .filter(|p| p.position.owner_id == target.id)
         .collect();
 
     // Group open instruments by market so positions can be priced.
