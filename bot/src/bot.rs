@@ -290,10 +290,9 @@ impl EventHandler for Handler {
 
 /// Connects to Discord and runs the bot's event loop until it exits or errors.
 pub async fn run() {
-    let sqlite_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
     let pg_url = env::var("POSTGRES_URL").expect("POSTGRES_URL should be set");
 
-    let db = CatshiDb::new(&sqlite_url, &pg_url)
+    let db = CatshiDb::new(&pg_url)
         .await
         .expect("DB initialization should succeed");
 

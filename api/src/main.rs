@@ -16,10 +16,9 @@ async fn main() {
     dotenvy::dotenv().ok();
 
     let api_port = env::var("API_PORT").expect("API_PORT should be set");
-    let sqlite_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set");
     let pg_url = env::var("POSTGRES_URL").expect("POSTGRES_URL should be set");
 
-    let db = CatshiDb::new(&sqlite_url, &pg_url)
+    let db = CatshiDb::new(&pg_url)
         .await
         .expect("database initialization should succeed");
 

@@ -2,9 +2,5 @@
 /target
 
 # Local dev
-catshi.sqlite
 .env
-
-# Backup folder in production
-backups/
 

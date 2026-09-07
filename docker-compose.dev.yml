@@ -20,7 +20,6 @@ services:
       - ./common:/app/common
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
-      - ./db:/app/db/
       # Cache Cargo build directories in a volume so the build doesn't take forever.
       - cargo-registry-api:/usr/local/cargo/registry
       - cargo-git-api:/usr/local/cargo/git
@@ -43,7 +42,6 @@ services:
       - ./common:/app/common
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
-      - ./db:/app/db/
       - cargo-registry-bot:/usr/local/cargo/registry
       - cargo-git-bot:/usr/local/cargo/git
       - target-bot:/app/target

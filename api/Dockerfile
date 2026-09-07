@@ -2,9 +2,8 @@
 
 # Build context is the repo root (this is a Cargo workspace: api/bot/common
 # share one Cargo.lock, so the workspace manifest needs all three members).
-# WORKDIR is /app throughout so it matches where docker-compose mounts the
-# source (dev) or the sqlite/.env files (prod), and where dotenvy and the
-# relative sqlite:catshi.sqlite DATABASE_URL both resolve at runtime.
+# WORKDIR is /app throughout so it matches where docker-compose.dev.yml
+# bind-mounts the workspace source at runtime.
 FROM rust:1-bookworm AS base
 WORKDIR /app
 

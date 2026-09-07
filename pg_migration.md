@@ -1,5 +1,12 @@
 # SQLite → Postgres store migration principles
 
+> **Status: complete.** Every store now reads and writes Postgres exclusively;
+> SQLite, the shadow-mode dual writes (principle 3), and the `sqlite()` executor
+> accessor have been removed. This doc is kept as a record of how the migration
+> was carried out — principle 7 (narrow-int casting) still explains the
+> `CAST(... AS BIGINT)` in the current queries.
+
+
 Pattern extracted from commits `38f115d`..`9d3e64c`, which introduced the
 `UserStore` trait and ported callers off the old free functions in
 `common/src/store/user.rs`.

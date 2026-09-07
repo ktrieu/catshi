@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# Standalone sqlx-cli image used to run common/migrations against Postgres.
+# Standalone sqlx-cli image used to run common/pg_migrations against Postgres.
 # Migrations are copied in at build time (not bind-mounted), so this image
 # is self-contained for both dev and prod - just rebuild it when a new
 # migration file is added.

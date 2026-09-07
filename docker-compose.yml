@@ -12,7 +12,6 @@ services:
       - "${API_PORT}:${API_PORT}"
     environment:
       - API_PORT=${API_PORT}
-      - DATABASE_URL=sqlite:/app/db/catshi.sqlite?mode=rwc
 
   catshi-bot:
     container_name: "catshi-bot"
@@ -24,7 +23,6 @@ services:
       catshi-migrate:
         condition: service_completed_successfully
     environment:
-      - DATABASE_URL=sqlite:/app/db/catshi.sqlite?mode=rwc
       - GUILD_ID=${GUILD_ID}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
 
