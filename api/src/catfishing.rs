@@ -21,7 +21,7 @@ impl From<CatfishingArticle> for ListCatfishingArticle {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ListCatfishingGame {
-    id: i64,
+    id: i32,
     articles: Vec<ListCatfishingArticle>,
 }
 

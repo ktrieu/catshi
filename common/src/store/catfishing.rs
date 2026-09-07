@@ -7,14 +7,14 @@ use crate::store::{CatshiTx, DbExecutor};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatfishingArticle {
-    pub id: i64,
+    pub id: i32,
     pub names: Vec<String>,
     pub categories: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatfishingGame {
-    pub id: i64,
+    pub id: i32,
     pub published: bool,
     pub articles: Vec<CatfishingArticle>,
 }
@@ -24,7 +24,7 @@ pub trait CatfishingStore {
     async fn get_game_by_id(
         &self,
         db: &mut impl DbExecutor,
-        id: i64,
+        id: i32,
     ) -> anyhow::Result<CatfishingGame>;
 
     async fn list_games(
@@ -38,14 +38,14 @@ pub trait CatfishingStore {
     async fn update_game_articles(
         &self,
         tx: &mut CatshiTx,
-        id: i64,
+        id: i32,
         articles: &[CatfishingArticle],
     ) -> anyhow::Result<()>;
 
     async fn publish_game(
         &self,
         db: &mut impl DbExecutor,
-        id: i64,
+        id: i32,
         published: bool,
     ) -> anyhow::Result<()>;
 }
@@ -55,16 +55,16 @@ pub struct DbCatfishingStore {}
 
 #[derive(sqlx::FromRow)]
 struct GameRow {
-    id: i64,
+    id: i32,
     published: bool,
 }
 
 #[derive(sqlx::FromRow)]
 struct ArticleRow {
-    id: i64,
+    id: i32,
     names: Vec<String>,
     categories: Vec<String>,
-    game_id: i64,
+    game_id: i32,
 }
 
 impl From<ArticleRow> for CatfishingArticle {
@@ -81,15 +81,15 @@ impl CatfishingStore for DbCatfishingStore {
     async fn get_game_by_id(
         &self,
         db: &mut impl DbExecutor,
-        id: i64,
+        id: i32,
     ) -> anyhow::Result<CatfishingGame> {
         let articles: Vec<ArticleRow> = query_as(
             r#"
             SELECT
-                CAST(id AS BIGINT) as id,
+                id,
                 names,
                 categories,
-                CAST(game_id AS BIGINT) as game_id
+                game_id
             FROM cf_articles
             WHERE game_id = $1
             ORDER BY article_order DESC
@@ -102,7 +102,7 @@ impl CatfishingStore for DbCatfishingStore {
         let game: GameRow = query_as(
             r#"
             SELECT
-                CAST(id AS BIGINT) as id,
+                id,
                 published
             FROM cf_games
             WHERE id = $1
@@ -127,7 +127,7 @@ impl CatfishingStore for DbCatfishingStore {
         let game_rows: Vec<GameRow> = query_as(
             r#"
             SELECT
-                CAST(id AS BIGINT) as id,
+                id,
                 published
             FROM cf_games
             WHERE published = true OR $1
@@ -140,10 +140,10 @@ impl CatfishingStore for DbCatfishingStore {
         let article_rows: Vec<ArticleRow> = query_as(
             r#"
             SELECT
-                CAST(cf_articles.id AS BIGINT) as id,
+                cf_articles.id as id,
                 names,
                 categories,
-                CAST(game_id AS BIGINT) as game_id
+                game_id
             FROM cf_articles
             JOIN cf_games ON cf_games.id = cf_articles.game_id
             WHERE cf_games.published = true OR $1
@@ -154,7 +154,7 @@ impl CatfishingStore for DbCatfishingStore {
         .fetch_all(db.psql())
         .await?;
 
-        let mut articles_by_game: HashMap<i64, Vec<CatfishingArticle>> = HashMap::new();
+        let mut articles_by_game: HashMap<i32, Vec<CatfishingArticle>> = HashMap::new();
         for row in article_rows {
             articles_by_game
                 .entry(row.game_id)
@@ -177,7 +177,7 @@ impl CatfishingStore for DbCatfishingStore {
     async fn update_game_articles(
         &self,
         tx: &mut CatshiTx,
-        id: i64,
+        id: i32,
         articles: &[CatfishingArticle],
     ) -> anyhow::Result<()> {
         // We could do clever things to reorder/rearrange the list, or we could
@@ -210,7 +210,7 @@ impl CatfishingStore for DbCatfishingStore {
     async fn publish_game(
         &self,
         db: &mut impl DbExecutor,
-        id: i64,
+        id: i32,
         published: bool,
     ) -> anyhow::Result<()> {
         query(r#"UPDATE cf_games SET published = $1 WHERE id = $2"#)
