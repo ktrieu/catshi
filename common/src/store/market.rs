@@ -19,10 +19,10 @@ pub enum MarketState {
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Market {
-    pub id: i64,
+    pub id: i32,
     pub description: String,
     pub state: MarketState,
-    pub owner_id: i64,
+    pub owner_id: i32,
     pub message_id: Option<String>,
     pub channel_id: Option<String>,
     pub thread_id: Option<String>,
@@ -41,14 +41,14 @@ pub trait MarketStore {
     async fn set_market_message_id(
         &self,
         db: &mut impl DbExecutor,
-        market_id: i64,
+        market_id: i32,
         message_id: MessageId,
         channel_id: GenericChannelId,
         thread_id: ThreadId,
         details_msg_id: MessageId,
     ) -> anyhow::Result<()>;
 
-    async fn get_market_by_id(&self, db: &mut impl DbExecutor, id: i64) -> anyhow::Result<Market>;
+    async fn get_market_by_id(&self, db: &mut impl DbExecutor, id: i32) -> anyhow::Result<Market>;
 
     async fn get_market_by_instrument_id(
         &self,
@@ -88,10 +88,10 @@ impl MarketStore for DbMarketStore {
             )
             VALUES ($1, $2, $3)
             RETURNING
-                CAST(id AS BIGINT) as id,
+                id,
                 description,
                 state,
-                CAST(owner_id AS BIGINT) as owner_id,
+                owner_id,
                 message_id,
                 channel_id,
                 thread_id,
@@ -110,7 +110,7 @@ impl MarketStore for DbMarketStore {
     async fn set_market_message_id(
         &self,
         db: &mut impl DbExecutor,
-        market_id: i64,
+        market_id: i32,
         message_id: MessageId,
         channel_id: GenericChannelId,
         thread_id: ThreadId,
@@ -135,14 +135,14 @@ impl MarketStore for DbMarketStore {
         Ok(())
     }
 
-    async fn get_market_by_id(&self, db: &mut impl DbExecutor, id: i64) -> anyhow::Result<Market> {
+    async fn get_market_by_id(&self, db: &mut impl DbExecutor, id: i32) -> anyhow::Result<Market> {
         let market = query_as(
             r#"
             SELECT
-                CAST(id AS BIGINT) as id,
+                id,
                 description,
                 state,
-                CAST(owner_id AS BIGINT) as owner_id,
+                owner_id,
                 message_id,
                 channel_id,
                 thread_id,
@@ -168,10 +168,10 @@ impl MarketStore for DbMarketStore {
         let market = query_as(
             r#"
             SELECT
-                CAST(markets.id AS BIGINT) as id,
+                markets.id as id,
                 markets.description,
                 markets.state,
-                CAST(markets.owner_id AS BIGINT) as owner_id,
+                markets.owner_id as owner_id,
                 markets.message_id,
                 markets.channel_id,
                 markets.thread_id,
@@ -199,10 +199,10 @@ impl MarketStore for DbMarketStore {
         let markets = query_as(
             r#"
             SELECT
-                CAST(id AS BIGINT) as id,
+                id,
                 description,
                 state,
-                CAST(owner_id AS BIGINT) as owner_id,
+                owner_id,
                 message_id,
                 channel_id,
                 thread_id,
@@ -264,10 +264,10 @@ impl FullMarket {
         let row = market_store.get_market_by_instrument_id(exec, id).await?;
 
         let instruments = instrument_store
-            .get_instruments_with_share_counts_for_market(exec, row.id)
+            .get_instruments_with_share_counts_for_market(exec, row.id.into())
             .await?;
 
-        let owner = user_store.get_by_id(exec, row.owner_id as i32).await?;
+        let owner = user_store.get_by_id(exec, row.owner_id).await?;
 
         Ok(Self {
             row,

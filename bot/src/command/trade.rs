@@ -76,13 +76,13 @@ pub fn parse_trade_button_id(id: &str) -> Option<(TradeAction, i64)> {
 async fn calc_max_buy_shares(
     handler: &Handler,
     balance: Currency,
-    market_id: i64,
+    market_id: i32,
     instrument_id: i64,
 ) -> anyhow::Result<i64> {
     let mut conn = handler.db.conn().await?;
     let shares = handler
         .instrument_store
-        .get_instruments_with_share_counts_for_market(&mut conn, market_id)
+        .get_instruments_with_share_counts_for_market(&mut conn, market_id.into())
         .await?;
 
     let (mut max_shares, prices) =
@@ -150,7 +150,7 @@ pub async fn initiate_trade(
         .await?;
     let instruments = handler
         .instrument_store
-        .get_instruments_with_share_counts_for_market(&mut conn, market.id)
+        .get_instruments_with_share_counts_for_market(&mut conn, market.id.into())
         .await?;
 
     let instrument = handler
@@ -369,12 +369,12 @@ pub async fn trade(
     // Refetch the instruments and positions after the trade is complete to update the market.
     let instruments = handler
         .instrument_store
-        .get_instruments_with_share_counts_for_market(&mut conn, market.row.id)
+        .get_instruments_with_share_counts_for_market(&mut conn, market.row.id.into())
         .await?;
 
     let all_positions = handler
         .position_store
-        .get_all_market_positions(&mut conn, market.row.id)
+        .get_all_market_positions(&mut conn, market.row.id.into())
         .await?;
 
     let new_market_message = render_market_message(&market.row, &market.owner, instruments.iter());

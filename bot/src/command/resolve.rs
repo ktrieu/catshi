@@ -35,7 +35,7 @@ pub fn generate_market_resolve_modal_id(market: &Market) -> String {
     format!("resolve_market|{}", market.id)
 }
 
-pub fn parse_market_resolve_modal_id(id: &str) -> Option<i64> {
+pub fn parse_market_resolve_modal_id(id: &str) -> Option<i32> {
     let components: Vec<&str> = id.split("|").collect();
 
     if components.len() != 2 {
@@ -46,13 +46,13 @@ pub fn parse_market_resolve_modal_id(id: &str) -> Option<i64> {
         return None;
     }
 
-    components[1].parse::<i64>().ok()
+    components[1].parse::<i32>().ok()
 }
 
 pub async fn initiate_resolve(
     ctx: &Context,
     handler: &Handler,
-    market_id: i64,
+    market_id: i32,
     component: &ComponentInteraction,
     user: &DbUser,
 ) -> anyhow::Result<()> {
@@ -62,7 +62,7 @@ pub async fn initiate_resolve(
         .get_market_by_id(&mut conn, market_id)
         .await?;
 
-    if market.owner_id != i64::from(user.id) {
+    if market.owner_id != user.id {
         component
             .create_response(
                 &ctx.http,
@@ -73,7 +73,7 @@ pub async fn initiate_resolve(
 
     let instruments = handler
         .instrument_store
-        .get_instruments_with_share_counts_for_market(&mut conn, market_id)
+        .get_instruments_with_share_counts_for_market(&mut conn, market_id.into())
         .await?;
 
     let question = CreateTextDisplay::new(&market.description);
@@ -115,7 +115,7 @@ pub async fn initiate_resolve(
 pub async fn resolve(
     ctx: &Context,
     handler: &Handler,
-    market_id: i64,
+    market_id: i32,
     modal: &ModalInteraction,
     user: &DbUser,
 ) -> anyhow::Result<()> {
@@ -150,7 +150,7 @@ pub async fn resolve(
     let winner = &market.get_instrument(instrument_id)?.0;
     let positions = handler
         .position_store
-        .get_all_market_positions(&mut tx, market.row.id)
+        .get_all_market_positions(&mut tx, market.row.id.into())
         .await?;
     let system_user = handler.user_store.get_system_user(&mut tx).await?;
 

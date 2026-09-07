@@ -20,7 +20,7 @@ pub fn get_market_resolve_id(market: &Market) -> String {
     format!("resolve_button|{}", market.id)
 }
 
-pub fn parse_market_resolve_button_id(id: &str) -> Option<i64> {
+pub fn parse_market_resolve_button_id(id: &str) -> Option<i32> {
     let components: Vec<&str> = id.split('|').collect();
 
     if components.len() != 2 {
@@ -31,7 +31,7 @@ pub fn parse_market_resolve_button_id(id: &str) -> Option<i64> {
         return None;
     }
 
-    components[1].parse::<i64>().ok()
+    components[1].parse::<i32>().ok()
 }
 
 pub fn render_market_message<'a>(

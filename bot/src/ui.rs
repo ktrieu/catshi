@@ -68,7 +68,7 @@ pub fn get_command_option_user<'i>(command: &'i CommandInteraction, name: &str) 
     get_command_option_value(command, name).and_then(|o| o.as_user_id())
 }
 
-pub fn format_market_id(id: i64) -> String {
+pub fn format_market_id(id: i32) -> String {
     format!("#{id:04}")
 }
 
