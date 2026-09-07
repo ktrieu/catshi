@@ -14,11 +14,11 @@ use crate::{
     ui::{extract_modal_values, truncate_text_for_modal_header},
 };
 
-pub fn generate_trade_modal_id(action: TradeAction, instrument_id: i64) -> String {
+pub fn generate_trade_modal_id(action: TradeAction, instrument_id: i32) -> String {
     format!("trade_modal|{}|{}", action.to_string(), instrument_id)
 }
 
-pub fn parse_trade_modal_id(id: &str) -> Option<(TradeAction, i64)> {
+pub fn parse_trade_modal_id(id: &str) -> Option<(TradeAction, i32)> {
     let components: Vec<&str> = id.split('|').collect();
 
     if components.len() != 3 {
@@ -30,7 +30,7 @@ pub fn parse_trade_modal_id(id: &str) -> Option<(TradeAction, i64)> {
     }
 
     let action = TradeAction::from_str(components[1]).ok()?;
-    let id = components[2].parse::<i64>().ok()?;
+    let id = components[2].parse::<i32>().ok()?;
 
     Some((action, id))
 }

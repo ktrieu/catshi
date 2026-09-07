@@ -14,10 +14,10 @@ pub enum InstrumentState {
 #[derive(Debug, sqlx::FromRow, Clone, PartialEq, Eq)]
 #[allow(dead_code)]
 pub struct Instrument {
-    pub id: i64,
+    pub id: i32,
     pub name: String,
     pub state: InstrumentState,
-    pub market_id: i64,
+    pub market_id: i32,
 }
 
 pub type InstrumentWithShares = (Instrument, i64);
@@ -34,7 +34,7 @@ pub trait InstrumentStore {
     async fn get_instrument_by_id(
         &self,
         db: &mut impl DbExecutor,
-        id: i64,
+        id: i32,
     ) -> anyhow::Result<Instrument>;
 
     async fn set_instrument_state(
@@ -47,7 +47,7 @@ pub trait InstrumentStore {
     async fn get_instruments_with_share_counts_for_market(
         &self,
         db: &mut impl DbExecutor,
-        market_id: i64,
+        market_id: i32,
     ) -> anyhow::Result<Vec<InstrumentWithShares>>;
 
     async fn get_all_open_instruments_with_share_counts(
@@ -73,9 +73,7 @@ impl InstrumentStore for DbInstrumentStore {
             b.push_bind(market.id);
         });
 
-        builder.push(
-            " RETURNING CAST(id AS BIGINT) as id, name, state, CAST(market_id AS BIGINT) as market_id",
-        );
+        builder.push(" RETURNING id, name, state, market_id");
 
         let instruments = builder
             .build_query_as::<Instrument>()
@@ -88,15 +86,15 @@ impl InstrumentStore for DbInstrumentStore {
     async fn get_instrument_by_id(
         &self,
         db: &mut impl DbExecutor,
-        id: i64,
+        id: i32,
     ) -> anyhow::Result<Instrument> {
         let instrument = query_as(
             r#"
             SELECT
-                CAST(id AS BIGINT) as id,
+                id,
                 name,
                 state,
-                CAST(market_id AS BIGINT) as market_id
+                market_id
             FROM
                 instruments
             WHERE
@@ -137,16 +135,16 @@ impl InstrumentStore for DbInstrumentStore {
     async fn get_instruments_with_share_counts_for_market(
         &self,
         db: &mut impl DbExecutor,
-        market_id: i64,
+        market_id: i32,
     ) -> anyhow::Result<Vec<InstrumentWithShares>> {
         // Maybe one day we'll cache this data on the instrument but it seems fine for now?
         let rows = query_as::<_, PgInstrumentWithSharesRow>(
             r#"
             SELECT
-                CAST(instruments.id AS BIGINT) as id,
+                instruments.id as id,
                 instruments.name,
                 instruments.state,
-                CAST(instruments.market_id AS BIGINT) as market_id,
+                instruments.market_id as market_id,
                 COALESCE(SUM(quantity), 0) as shares
             FROM
                 instruments
@@ -177,10 +175,10 @@ impl InstrumentStore for DbInstrumentStore {
         let rows = query_as::<_, PgInstrumentWithSharesRow>(
             r#"
             SELECT
-                CAST(instruments.id AS BIGINT) as id,
+                instruments.id as id,
                 instruments.name,
                 instruments.state,
-                CAST(instruments.market_id AS BIGINT) as market_id,
+                instruments.market_id as market_id,
                 COALESCE(SUM(quantity), 0) as shares
             FROM
                 instruments
@@ -205,10 +203,10 @@ impl InstrumentStore for DbInstrumentStore {
 
 #[derive(sqlx::FromRow)]
 struct PgInstrumentWithSharesRow {
-    id: i64,
+    id: i32,
     name: String,
     state: InstrumentState,
-    market_id: i64,
+    market_id: i32,
     shares: i64,
 }
 

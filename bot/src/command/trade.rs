@@ -56,7 +56,7 @@ pub fn get_trade_button_id(instrument: &Instrument, action: TradeAction) -> Stri
     format!("trade_button|{}|{}", action.to_string(), instrument.id)
 }
 
-pub fn parse_trade_button_id(id: &str) -> Option<(TradeAction, i64)> {
+pub fn parse_trade_button_id(id: &str) -> Option<(TradeAction, i32)> {
     let components: Vec<&str> = id.split('|').collect();
 
     if components.len() != 3 {
@@ -68,7 +68,7 @@ pub fn parse_trade_button_id(id: &str) -> Option<(TradeAction, i64)> {
     }
 
     let action = TradeAction::from_str(components[1]).ok()?;
-    let id = components[2].parse::<i64>().ok()?;
+    let id = components[2].parse::<i32>().ok()?;
 
     Some((action, id))
 }
@@ -77,12 +77,12 @@ async fn calc_max_buy_shares(
     handler: &Handler,
     balance: Currency,
     market_id: i32,
-    instrument_id: i64,
+    instrument_id: i32,
 ) -> anyhow::Result<i64> {
     let mut conn = handler.db.conn().await?;
     let shares = handler
         .instrument_store
-        .get_instruments_with_share_counts_for_market(&mut conn, market_id.into())
+        .get_instruments_with_share_counts_for_market(&mut conn, market_id)
         .await?;
 
     let (mut max_shares, prices) =
@@ -116,7 +116,7 @@ async fn calc_max_sell_shares(
 
 fn get_prefilled_quantity(
     quantity: i64,
-    instrument_id: i64,
+    instrument_id: i32,
     instruments: &Vec<(Instrument, i64)>,
     action: TradeAction,
 ) -> (i64, Currency) {
@@ -141,7 +141,7 @@ pub async fn initiate_trade(
     user: &DbUser,
     component: &ComponentInteraction,
     action: TradeAction,
-    instrument_id: i64,
+    instrument_id: i32,
 ) -> anyhow::Result<()> {
     let mut conn = handler.db.conn().await?;
     let market = handler
@@ -150,7 +150,7 @@ pub async fn initiate_trade(
         .await?;
     let instruments = handler
         .instrument_store
-        .get_instruments_with_share_counts_for_market(&mut conn, market.id.into())
+        .get_instruments_with_share_counts_for_market(&mut conn, market.id)
         .await?;
 
     let instrument = handler
@@ -206,7 +206,7 @@ pub async fn trade(
     user: &DbUser,
     modal: &ModalInteraction,
     action: TradeAction,
-    instrument_id: i64,
+    instrument_id: i32,
 ) -> anyhow::Result<()> {
     let quantity = match extract_quantity_from_trade_modal(modal) {
         Some(quantity) => quantity,
@@ -369,7 +369,7 @@ pub async fn trade(
     // Refetch the instruments and positions after the trade is complete to update the market.
     let instruments = handler
         .instrument_store
-        .get_instruments_with_share_counts_for_market(&mut conn, market.row.id.into())
+        .get_instruments_with_share_counts_for_market(&mut conn, market.row.id)
         .await?;
 
     let all_positions = handler

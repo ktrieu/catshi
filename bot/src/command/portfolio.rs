@@ -85,7 +85,7 @@ pub async fn run(
         .collect();
 
     // Group open instruments by market so positions can be priced.
-    let mut instruments_by_market: HashMap<i64, Vec<InstrumentWithShares>> = HashMap::new();
+    let mut instruments_by_market: HashMap<i32, Vec<InstrumentWithShares>> = HashMap::new();
     for i in handler
         .instrument_store
         .get_all_open_instruments_with_share_counts(&mut tx)

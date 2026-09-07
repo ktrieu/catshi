@@ -73,7 +73,7 @@ pub async fn initiate_resolve(
 
     let instruments = handler
         .instrument_store
-        .get_instruments_with_share_counts_for_market(&mut conn, market_id.into())
+        .get_instruments_with_share_counts_for_market(&mut conn, market_id)
         .await?;
 
     let question = CreateTextDisplay::new(&market.description);
@@ -124,7 +124,7 @@ pub async fn resolve(
     let instrument_id = values
         .get(RESOLVE_INSTRUMENT_ID)
         .ok_or(anyhow!("market resolve instrument field not present"))?
-        .parse::<i64>()?;
+        .parse::<i32>()?;
 
     let mut tx = handler.db.begin().await?;
 

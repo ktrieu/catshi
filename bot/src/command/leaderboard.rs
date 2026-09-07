@@ -111,7 +111,7 @@ pub async fn run(
         .instrument_store
         .get_all_open_instruments_with_share_counts(&mut tx)
         .await?;
-    let mut instruments_by_market: HashMap<i64, Vec<InstrumentWithShares>> = HashMap::new();
+    let mut instruments_by_market: HashMap<i32, Vec<InstrumentWithShares>> = HashMap::new();
     for i in instruments {
         instruments_by_market
             .entry(i.0.market_id)

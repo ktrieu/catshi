@@ -55,7 +55,7 @@ fn cost(share_counts: impl IntoIterator<Item = i64>, b: f32) -> f32 {
 
 fn calc_cost_delta<'s>(
     quantity: i64,
-    instrument_id: i64,
+    instrument_id: i32,
     shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
 ) -> Currency {
@@ -79,7 +79,7 @@ fn calc_cost_delta<'s>(
 }
 
 fn calc_price_raw<'s>(
-    instrument_id: i64,
+    instrument_id: i32,
     shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
 ) -> f32 {
@@ -99,7 +99,7 @@ fn calc_price_raw<'s>(
 }
 
 pub fn calc_price<'s>(
-    instrument_id: i64,
+    instrument_id: i32,
     shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
 ) -> Currency {
@@ -108,7 +108,7 @@ pub fn calc_price<'s>(
 
 pub fn get_max_buy_shares<'s>(
     budget: Currency,
-    instrument_id: i64,
+    instrument_id: i32,
     shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
 ) -> (i64, OrderPrices) {
@@ -151,7 +151,7 @@ impl OrderPrices {
 
 pub fn calc_buy_prices<'s>(
     quantity: i64,
-    instrument_id: i64,
+    instrument_id: i32,
     shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
 ) -> OrderPrices {
@@ -166,7 +166,7 @@ pub fn calc_buy_prices<'s>(
 
 pub fn calc_sell_prices<'s>(
     quantity: i64,
-    instrument_id: i64,
+    instrument_id: i32,
     shares: impl Iterator<Item = &'s InstrumentWithShares> + Clone,
     b: f32,
 ) -> OrderPrices {
@@ -250,7 +250,7 @@ pub fn buy(
         cost_basis: total,
         shares_price: prices.shares_price,
         fees: prices.fees,
-        instrument_id: instrument.id,
+        instrument_id: instrument.id.into(),
         owner_id: user.id.into(),
     };
 
@@ -278,7 +278,7 @@ pub fn buy(
     let position = CreatePosition {
         quantity: held_shares + quantity,
         cost_basis: existing_cost_basis + prices.total(),
-        instrument_id: instrument.id,
+        instrument_id: instrument.id.into(),
         owner_id: user.id.into(),
     };
 
@@ -324,7 +324,7 @@ pub fn sell(
         cost_basis: order_cost_basis,
         shares_price: prices.shares_price,
         fees: prices.fees,
-        instrument_id: instrument.id,
+        instrument_id: instrument.id.into(),
         owner_id: user.id.into(),
     };
 
@@ -347,7 +347,7 @@ pub fn sell(
     let position = CreatePosition {
         quantity: position.quantity - quantity,
         cost_basis: new_cost_basis,
-        instrument_id: instrument.id,
+        instrument_id: instrument.id.into(),
         owner_id: user.id.into(),
     };
 
@@ -387,12 +387,12 @@ pub fn resolve(
     for p in positions {
         let position = &p.position;
         let user = &p.user;
-        let instrument = &market.get_instrument(position.instrument_id)?.0;
+        let instrument = &market.get_instrument(position.instrument_id as i32)?.0;
 
         // We're closing out the whole position.
         let quantity = position.quantity;
         let cost_basis = position.cost_basis;
-        let is_winning_position = position.instrument_id == winner.id;
+        let is_winning_position = position.instrument_id as i32 == winner.id;
 
         let resolve_price = if is_winning_position {
             Currency::from_instrument_price(1.0)
@@ -413,7 +413,7 @@ pub fn resolve(
             shares_price,
             fees: prices.fees,
             cost_basis,
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
 
@@ -571,7 +571,7 @@ mod test {
             shares_price: prices.shares_price,
             fees: prices.fees,
             cost_basis: prices.shares_price + prices.fees,
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
@@ -579,7 +579,7 @@ mod test {
         let expected_position = CreatePosition {
             quantity: qty,
             cost_basis: prices.shares_price + prices.fees,
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.position, expected_position);
@@ -596,7 +596,7 @@ mod test {
             id: 0,
             quantity: 10,
             cost_basis: Currency::new_yp(2),
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
 
@@ -624,7 +624,7 @@ mod test {
             shares_price: prices.shares_price,
             fees: prices.fees,
             cost_basis: prices.shares_price + prices.fees,
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
@@ -632,7 +632,7 @@ mod test {
         let expected_position = CreatePosition {
             quantity: qty + existing_position.quantity,
             cost_basis: existing_position.cost_basis + prices.shares_price + prices.fees,
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.position, expected_position);
@@ -740,7 +740,7 @@ mod test {
             id: 0,
             quantity: 10,
             cost_basis: Currency::new_yp(2),
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
 
@@ -771,7 +771,7 @@ mod test {
             shares_price: prices.shares_price,
             fees: prices.fees,
             cost_basis: Currency::new_yp(1),
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
@@ -779,7 +779,7 @@ mod test {
         let expected_position = CreatePosition {
             quantity: 5,
             cost_basis: Currency::new_yp(1),
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.position, expected_position);
@@ -796,7 +796,7 @@ mod test {
             id: 0,
             quantity: 10,
             cost_basis: Currency::new_yp(2),
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
 
@@ -824,7 +824,7 @@ mod test {
             shares_price: prices.shares_price,
             fees: prices.fees,
             cost_basis: Currency::new_yp(2),
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
@@ -832,7 +832,7 @@ mod test {
         let expected_position = CreatePosition {
             quantity: 0,
             cost_basis: Currency::new_yp(0),
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.position, expected_position);
@@ -849,7 +849,7 @@ mod test {
             id: 0,
             quantity: 10,
             cost_basis: Currency::new_yp(2),
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
 
@@ -896,7 +896,7 @@ mod test {
             id: 0,
             quantity: 10,
             cost_basis: Currency::new_yp(2),
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
 
@@ -988,7 +988,7 @@ mod test {
                 id: 0,
                 quantity: 10,
                 cost_basis: Currency::new_yp(2),
-                instrument_id: instrument.id,
+                instrument_id: instrument.id.into(),
                 owner_id: user.id.into(),
             },
             user: user.clone(),
@@ -1006,7 +1006,7 @@ mod test {
             shares_price: Currency::new_yp(10),
             fees: Currency::new_yp(10) * 0.02,
             cost_basis: Currency::new_yp(2),
-            instrument_id: instrument.id,
+            instrument_id: instrument.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
@@ -1041,7 +1041,7 @@ mod test {
                 id: 0,
                 quantity: 10,
                 cost_basis: Currency::new_yp(2),
-                instrument_id: loser.id,
+                instrument_id: loser.id.into(),
                 owner_id: user.id.into(),
             },
             user: user.clone(),
@@ -1059,7 +1059,7 @@ mod test {
             shares_price: Currency::new_yp(0),
             fees: Currency::new_yp(0),
             cost_basis: Currency::new_yp(2),
-            instrument_id: loser.id,
+            instrument_id: loser.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
@@ -1085,7 +1085,7 @@ mod test {
                     id: 0,
                     quantity: 10,
                     cost_basis: Currency::new_yp(2),
-                    instrument_id: winner.id,
+                    instrument_id: winner.id.into(),
                     owner_id: user.id.into(),
                 },
                 user: user.clone(),
@@ -1095,7 +1095,7 @@ mod test {
                     id: 0,
                     quantity: 10,
                     cost_basis: Currency::new_yp(2),
-                    instrument_id: loser.id,
+                    instrument_id: loser.id.into(),
                     owner_id: user.id.into(),
                 },
                 user: user.clone(),
@@ -1105,7 +1105,7 @@ mod test {
                     id: 0,
                     quantity: 10,
                     cost_basis: Currency::new_yp(2),
-                    instrument_id: winner.id,
+                    instrument_id: winner.id.into(),
                     owner_id: other_user.id.into(),
                 },
                 user: other_user.clone(),
@@ -1125,7 +1125,7 @@ mod test {
             shares_price: Currency::new_yp(10),
             fees: Currency::new_yp(10) * 0.02,
             cost_basis: Currency::new_yp(2),
-            instrument_id: winner.id,
+            instrument_id: winner.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
@@ -1156,7 +1156,7 @@ mod test {
             shares_price: Currency::new_yp(0),
             fees: Currency::new_yp(0),
             cost_basis: Currency::new_yp(2),
-            instrument_id: loser.id,
+            instrument_id: loser.id.into(),
             owner_id: user.id.into(),
         };
         assert_eq!(result.order, expected_order);
@@ -1170,7 +1170,7 @@ mod test {
             shares_price: Currency::new_yp(10),
             fees: Currency::new_yp(10) * 0.02,
             cost_basis: Currency::new_yp(2),
-            instrument_id: winner.id,
+            instrument_id: winner.id.into(),
             owner_id: other_user.id.into(),
         };
         assert_eq!(result.order, expected_order);

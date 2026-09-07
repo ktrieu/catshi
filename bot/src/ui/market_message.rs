@@ -132,7 +132,7 @@ pub fn render_details_message(
     for (instrument_id, positions) in instrument_positions.iter_mut() {
         let instrument_name = instruments
             .iter()
-            .find(|(i, _)| i.id == *instrument_id)
+            .find(|(i, _)| i64::from(i.id) == *instrument_id)
             .expect(&format!("instrument {instrument_id} should exist",))
             .0
             .name

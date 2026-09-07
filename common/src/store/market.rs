@@ -53,7 +53,7 @@ pub trait MarketStore {
     async fn get_market_by_instrument_id(
         &self,
         db: &mut impl DbExecutor,
-        instrument_id: i64,
+        instrument_id: i32,
     ) -> anyhow::Result<Market>;
 
     async fn get_markets_by_state(
@@ -163,7 +163,7 @@ impl MarketStore for DbMarketStore {
     async fn get_market_by_instrument_id(
         &self,
         db: &mut impl DbExecutor,
-        instrument_id: i64,
+        instrument_id: i32,
     ) -> anyhow::Result<Market> {
         let market = query_as(
             r#"
@@ -259,12 +259,12 @@ impl FullMarket {
         market_store: &impl MarketStore,
         instrument_store: &impl InstrumentStore,
         user_store: &impl UserStore,
-        id: i64,
+        id: i32,
     ) -> anyhow::Result<Self> {
         let row = market_store.get_market_by_instrument_id(exec, id).await?;
 
         let instruments = instrument_store
-            .get_instruments_with_share_counts_for_market(exec, row.id.into())
+            .get_instruments_with_share_counts_for_market(exec, row.id)
             .await?;
 
         let owner = user_store.get_by_id(exec, row.owner_id).await?;
@@ -276,7 +276,7 @@ impl FullMarket {
         })
     }
 
-    pub fn get_instrument(&self, id: i64) -> anyhow::Result<&InstrumentWithShares> {
+    pub fn get_instrument(&self, id: i32) -> anyhow::Result<&InstrumentWithShares> {
         // We expect markets to have very few instruments - just linear search.
         self.instruments
             .iter()
