@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use std::collections::HashMap;
 
 use serenity::all::{
-    CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
+    CacheHttp, CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
 };
 
 use common::currency::Currency;
@@ -45,12 +45,26 @@ pub async fn run(
     let mut tx = handler.db.begin().await?;
 
     let target = match ui::get_command_option_user(command, USER_OPT_NAME) {
-        Some(user_id) => handler
-            .user_store
-            .get_by_discord_id(&mut tx, &user_id)
-            .await?
-            .ok_or(anyhow!("user {user_id} not found"))?,
-        None => user.clone(),
+        Some(user_id) => {
+            handler
+                .user_store
+                .get_by_discord_id(&mut tx, &user_id)
+                .await?
+        }
+        None => Some(user.clone()),
+    };
+
+    let target = match target {
+        Some(t) => t,
+        None => {
+            command
+                .create_response(
+                    ctx.http(),
+                    utils::text_interaction_response("User not found", true),
+                )
+                .await?;
+            return Ok(());
+        }
     };
 
     // Aggregate transfers by source and direction, keyed by user id.
