@@ -24,10 +24,10 @@ pub enum TransferSource {
 #[derive(Debug, PartialEq, Eq, sqlx::FromRow)]
 #[allow(dead_code)]
 pub struct Transfer {
-    pub id: i64,
+    pub id: i32,
     pub amount: Currency,
-    pub sender: i64,
-    pub receiver: i64,
+    pub sender: i32,
+    pub receiver: i32,
     pub memo: String,
     pub created_at: i64,
     pub source: TransferSource,
@@ -109,10 +109,10 @@ impl TransferStore for DbTransferStore {
             )
             VALUES ($1, $2, $3, $4, $5)
             RETURNING
-                CAST(id AS BIGINT) as id,
+                id,
                 CAST(amount AS BIGINT) as amount,
-                CAST(sender AS BIGINT) as sender,
-                CAST(receiver AS BIGINT) as receiver,
+                sender,
+                receiver,
                 memo,
                 EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at,
                 source
