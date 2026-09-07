@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use std::collections::HashMap;
 
 use serenity::all::{
@@ -104,16 +103,17 @@ pub async fn run(
         ["Trades".to_string(), pv.trades_profit.to_string()],
         ["Fees".to_string(), pv.fees_profit.to_string()],
         ["Tips (in)".to_string(), pv.tips_received.to_string()],
-        ["Tips (out)".to_string(), (pv.tips_sent * -1).to_string()],
+        ["Tips (out)".to_string(), pv.tips_sent.to_string()],
         [
             "Ctransfers (in)".to_string(),
             pv.transfers_received.to_string(),
         ],
         [
             "Ctransfers (out)".to_string(),
-            (pv.transfers_sent * -1).to_string(),
+            pv.transfers_sent.to_string(),
         ],
         ["Gambling".to_string(), pv.gambling_winnings.to_string()],
+        ["Deposits".to_string(), pv.net_deposits.to_string()],
         ["".to_string(), "".to_string()],
         ["Cash".to_string(), pv.user.cash_balance.to_string()],
         ["Positions".to_string(), pv.positions_value.to_string()],
