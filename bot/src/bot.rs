@@ -113,6 +113,7 @@ impl Handler {
                     command::market::create(),
                     command::open_markets::create(),
                     command::leaderboard::create(),
+                    command::portfolio::create(),
                     command::transfer::create(),
                 ],
             )
@@ -175,6 +176,9 @@ impl Handler {
             command::open_markets::NAME => command::open_markets::run(&ctx, self, &command).await?,
             command::market::NAME => command::market::run(&ctx, self, &command).await?,
             command::leaderboard::NAME => command::leaderboard::run(&ctx, self, &command).await?,
+            command::portfolio::NAME => {
+                command::portfolio::run(&ctx, self, &user, &command).await?
+            }
             command::transfer::NAME => command::transfer::run(&ctx, self, &user, &command).await?,
             _ => {
                 warn!("Unrecognized command {}", command.data.name);

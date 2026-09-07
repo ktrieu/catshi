@@ -2,6 +2,7 @@ pub mod blackjack;
 pub mod leaderboard;
 pub mod market;
 pub mod open_markets;
+pub mod portfolio;
 pub mod resolve;
 pub mod tip;
 pub mod trade;

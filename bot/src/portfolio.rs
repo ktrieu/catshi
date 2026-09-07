@@ -97,15 +97,7 @@ impl PortfolioValue {
         self.trades_profit + self.fees_profit + self.positions_value
     }
 
-    pub fn deposits(&self) -> Currency {
-        self.net_deposits + self.transfers_sent - self.transfers_received
-    }
-
     pub fn net_worth(&self) -> Currency {
-        self.user.cash_balance
-            + self.deposits()
-            + self.net_profit()
-            + self.gambling_winnings
-            + (self.tips_received - self.tips_sent)
+        self.user.cash_balance + self.positions_value
     }
 }
