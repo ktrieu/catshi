@@ -13,13 +13,13 @@ pub enum BlackjackState {
 
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::FromRow)]
 pub struct DbBlackjack {
-    pub id: i64,
+    pub id: i32,
     pub dealer: String,
     pub player: String,
     pub state: BlackjackState,
     pub channel_id: String,
     pub message_id: String,
-    pub owner_id: i64,
+    pub owner_id: i32,
     pub staked: Currency,
 }
 
@@ -35,7 +35,7 @@ pub struct UpdateBlackjack {
 pub struct CreateBlackjack {
     pub dealer: String,
     pub player: String,
-    pub owner_id: i64,
+    pub owner_id: i32,
     pub state: BlackjackState,
     pub staked: Currency,
     pub channel_id: String,
@@ -54,7 +54,7 @@ pub trait BlackjackStore {
     async fn update(
         &self,
         db: &mut impl DbExecutor,
-        id: i64,
+        id: i32,
         u: &UpdateBlackjack,
     ) -> anyhow::Result<()>;
 
@@ -80,13 +80,13 @@ impl BlackjackStore for DbBlackjackStore {
         let blackjack = query_as(
             r#"
             SELECT
-                CAST(id AS BIGINT) as id,
+                id,
                 dealer,
                 player,
                 state,
                 channel_id,
                 message_id,
-                CAST(owner_id AS BIGINT) as owner_id,
+                owner_id,
                 CAST(staked AS BIGINT) as staked
             FROM
                 blackjacks
@@ -104,7 +104,7 @@ impl BlackjackStore for DbBlackjackStore {
     async fn update(
         &self,
         db: &mut impl DbExecutor,
-        id: i64,
+        id: i32,
         u: &UpdateBlackjack,
     ) -> anyhow::Result<()> {
         query(
@@ -147,13 +147,13 @@ impl BlackjackStore for DbBlackjackStore {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING
-                CAST(id AS BIGINT) as id,
+                id,
                 dealer,
                 player,
                 state,
                 channel_id,
                 message_id,
-                CAST(owner_id AS BIGINT) as owner_id,
+                owner_id,
                 CAST(staked AS BIGINT) as staked
             "#,
         )
