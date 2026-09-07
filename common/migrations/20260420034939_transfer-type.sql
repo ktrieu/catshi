@@ -1,1 +1,0 @@
-ALTER TABLE transfers ADD COLUMN source TEXT NOT NULL DEFAULT 'unknown';
