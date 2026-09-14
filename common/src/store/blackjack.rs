@@ -77,24 +77,25 @@ impl BlackjackStore for DbBlackjackStore {
         let channel_id = channel_id.to_string();
         let message_id = message_id.to_string();
 
-        let blackjack = query_as(
+        let blackjack = query_as!(
+            DbBlackjack,
             r#"
             SELECT
                 id,
                 dealer,
                 player,
-                state,
+                state as "state: BlackjackState",
                 channel_id,
                 message_id,
                 owner_id,
-                CAST(staked AS BIGINT) as staked
+                CAST(staked AS BIGINT) as "staked!"
             FROM
                 blackjacks
             WHERE
                 channel_id = $1 AND message_id = $2"#,
+            channel_id,
+            message_id,
         )
-        .bind(&channel_id)
-        .bind(&message_id)
         .fetch_one(db.psql())
         .await?;
 
@@ -107,22 +108,22 @@ impl BlackjackStore for DbBlackjackStore {
         id: i32,
         u: &UpdateBlackjack,
     ) -> anyhow::Result<()> {
-        query(
+        query!(
             r#"
             UPDATE blackjacks SET
                 dealer = $1,
                 player = $2,
-                staked = $3,
+                staked = $3::bigint,
                 state = $4
             WHERE
                 id = $5
             "#,
+            u.dealer,
+            u.player,
+            i64::from(u.staked),
+            u.state as BlackjackState,
+            id,
         )
-        .bind(&u.dealer)
-        .bind(&u.player)
-        .bind(u.staked)
-        .bind(u.state)
-        .bind(id)
         .execute(db.psql())
         .await?;
 
@@ -134,7 +135,8 @@ impl BlackjackStore for DbBlackjackStore {
         db: &mut impl DbExecutor,
         c: &CreateBlackjack,
     ) -> anyhow::Result<DbBlackjack> {
-        let created = query_as(
+        let created = query_as!(
+            DbBlackjack,
             r#"
             INSERT INTO blackjacks (
                 dealer,
@@ -145,25 +147,25 @@ impl BlackjackStore for DbBlackjackStore {
                 channel_id,
                 message_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2, $3, $4, $5::bigint, $6, $7)
             RETURNING
                 id,
                 dealer,
                 player,
-                state,
+                state as "state: BlackjackState",
                 channel_id,
                 message_id,
                 owner_id,
-                CAST(staked AS BIGINT) as staked
+                CAST(staked AS BIGINT) as "staked!"
             "#,
+            c.dealer,
+            c.player,
+            c.state as BlackjackState,
+            c.owner_id,
+            i64::from(c.staked),
+            c.channel_id,
+            c.message_id,
         )
-        .bind(&c.dealer)
-        .bind(&c.player)
-        .bind(c.state)
-        .bind(c.owner_id)
-        .bind(c.staked)
-        .bind(&c.channel_id)
-        .bind(&c.message_id)
         .fetch_one(db.psql())
         .await?;
 
