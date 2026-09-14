@@ -88,20 +88,21 @@ impl InstrumentStore for DbInstrumentStore {
         db: &mut impl DbExecutor,
         id: i32,
     ) -> anyhow::Result<Instrument> {
-        let instrument = query_as(
+        let instrument = query_as!(
+            Instrument,
             r#"
             SELECT
                 id,
                 name,
-                state,
+                state as "state: InstrumentState",
                 market_id
             FROM
                 instruments
             WHERE
                 id = $1
             "#,
+            id,
         )
-        .bind(id)
         .fetch_one(db.psql())
         .await?;
 
@@ -114,7 +115,7 @@ impl InstrumentStore for DbInstrumentStore {
         instrument: &Instrument,
         state: InstrumentState,
     ) -> anyhow::Result<()> {
-        query(
+        query!(
             r#"
             UPDATE
                 instruments
@@ -123,9 +124,9 @@ impl InstrumentStore for DbInstrumentStore {
             WHERE
                 id = $2
             "#,
+            state as InstrumentState,
+            instrument.id,
         )
-        .bind(state)
-        .bind(instrument.id)
         .execute(db.psql())
         .await?;
 
@@ -138,14 +139,15 @@ impl InstrumentStore for DbInstrumentStore {
         market_id: i32,
     ) -> anyhow::Result<Vec<InstrumentWithShares>> {
         // Maybe one day we'll cache this data on the instrument but it seems fine for now?
-        let rows = query_as::<_, PgInstrumentWithSharesRow>(
+        let rows = query_as!(
+            PgInstrumentWithSharesRow,
             r#"
             SELECT
-                instruments.id as id,
+                instruments.id,
                 instruments.name,
-                instruments.state,
-                instruments.market_id as market_id,
-                COALESCE(SUM(quantity), 0) as shares
+                instruments.state as "state: InstrumentState",
+                instruments.market_id,
+                COALESCE(SUM(quantity), 0) as "shares!"
             FROM
                 instruments
             LEFT JOIN
@@ -154,8 +156,8 @@ impl InstrumentStore for DbInstrumentStore {
                 instruments.market_id = $1
             GROUP BY instruments.id
             "#,
+            market_id,
         )
-        .bind(market_id)
         .fetch_all(db.psql())
         .await?;
 
@@ -172,14 +174,15 @@ impl InstrumentStore for DbInstrumentStore {
         db: &mut impl DbExecutor,
     ) -> anyhow::Result<Vec<InstrumentWithShares>> {
         // Maybe one day we'll cache this data on the instrument but it seems fine for now?
-        let rows = query_as::<_, PgInstrumentWithSharesRow>(
+        let rows = query_as!(
+            PgInstrumentWithSharesRow,
             r#"
             SELECT
-                instruments.id as id,
+                instruments.id,
                 instruments.name,
-                instruments.state,
-                instruments.market_id as market_id,
-                COALESCE(SUM(quantity), 0) as shares
+                instruments.state as "state: InstrumentState",
+                instruments.market_id,
+                COALESCE(SUM(quantity), 0) as "shares!"
             FROM
                 instruments
                 LEFT JOIN
@@ -187,8 +190,8 @@ impl InstrumentStore for DbInstrumentStore {
             WHERE instruments.state = $1
             GROUP BY instruments.id
             "#,
+            InstrumentState::Open as InstrumentState,
         )
-        .bind(InstrumentState::Open)
         .fetch_all(db.psql())
         .await?;
 

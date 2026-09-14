@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                instruments.id,\n                instruments.name,\n                instruments.state as \"state: InstrumentState\",\n                instruments.market_id,\n                COALESCE(SUM(quantity), 0) as \"shares!\"\n            FROM\n                instruments\n            LEFT JOIN\n                positions ON instruments.id = positions.instrument_id\n            WHERE\n                instruments.market_id = $1\n            GROUP BY instruments.id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "state: InstrumentState",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "market_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "shares!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "dac116075d807e2ced9b5b5bbdad62de19f3f996561988dcf122c4b33f075930"
+}
