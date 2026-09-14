@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                markets.id,\n                markets.description,\n                markets.state as \"state: MarketState\",\n                markets.owner_id,\n                markets.message_id,\n                markets.channel_id,\n                markets.thread_id,\n                markets.details_msg_id\n            FROM\n                markets\n            JOIN\n                instruments ON instruments.market_id = markets.id\n            WHERE\n                instruments.id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "state: MarketState",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "owner_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "message_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "channel_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "thread_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "details_msg_id",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "82055d4ee44c9195b17a3c9ffb4cd75f6ba34a0673da261c953ebaef2e4e7895"
+}

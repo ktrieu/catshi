@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id,\n                description,\n                state as \"state: MarketState\",\n                owner_id,\n                message_id,\n                channel_id,\n                thread_id,\n                details_msg_id\n            FROM\n                markets\n            WHERE\n                state = $1\n            ORDER BY id ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "state: MarketState",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "owner_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "message_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "channel_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "thread_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "details_msg_id",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "f45a06048f88057e1ecb0d08860a7efbabe9b769cac5fe1b98745ffcabab5804"
+}

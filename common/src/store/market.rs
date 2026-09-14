@@ -79,7 +79,8 @@ impl MarketStore for DbMarketStore {
         description: &str,
         owner: &DbUser,
     ) -> anyhow::Result<Market> {
-        let market = query_as(
+        let market = query_as!(
+            Market,
             r#"
             INSERT INTO markets (
                 description,
@@ -90,17 +91,17 @@ impl MarketStore for DbMarketStore {
             RETURNING
                 id,
                 description,
-                state,
+                state as "state: MarketState",
                 owner_id,
                 message_id,
                 channel_id,
                 thread_id,
                 details_msg_id
             "#,
+            description,
+            MarketState::Open as MarketState,
+            owner.id,
         )
-        .bind(description)
-        .bind(MarketState::Open)
-        .bind(owner.id)
         .fetch_one(db.psql())
         .await?;
 
@@ -121,14 +122,14 @@ impl MarketStore for DbMarketStore {
         let thread_id = thread_id.to_string();
         let details_msg_id = details_msg_id.to_string();
 
-        query(
+        query!(
             "UPDATE markets SET message_id = $1, channel_id = $2, thread_id = $3, details_msg_id = $4 WHERE id = $5",
+            message_id,
+            channel_id,
+            thread_id,
+            details_msg_id,
+            market_id,
         )
-        .bind(&message_id)
-        .bind(&channel_id)
-        .bind(&thread_id)
-        .bind(&details_msg_id)
-        .bind(market_id)
         .execute(db.psql())
         .await?;
 
@@ -136,12 +137,13 @@ impl MarketStore for DbMarketStore {
     }
 
     async fn get_market_by_id(&self, db: &mut impl DbExecutor, id: i32) -> anyhow::Result<Market> {
-        let market = query_as(
+        let market = query_as!(
+            Market,
             r#"
             SELECT
                 id,
                 description,
-                state,
+                state as "state: MarketState",
                 owner_id,
                 message_id,
                 channel_id,
@@ -152,8 +154,8 @@ impl MarketStore for DbMarketStore {
             WHERE
                 id = $1
             "#,
+            id,
         )
-        .bind(id)
         .fetch_one(db.psql())
         .await?;
 
@@ -165,13 +167,14 @@ impl MarketStore for DbMarketStore {
         db: &mut impl DbExecutor,
         instrument_id: i32,
     ) -> anyhow::Result<Market> {
-        let market = query_as(
+        let market = query_as!(
+            Market,
             r#"
             SELECT
-                markets.id as id,
+                markets.id,
                 markets.description,
-                markets.state,
-                markets.owner_id as owner_id,
+                markets.state as "state: MarketState",
+                markets.owner_id,
                 markets.message_id,
                 markets.channel_id,
                 markets.thread_id,
@@ -183,8 +186,8 @@ impl MarketStore for DbMarketStore {
             WHERE
                 instruments.id = $1
             "#,
+            instrument_id,
         )
-        .bind(instrument_id)
         .fetch_one(db.psql())
         .await?;
 
@@ -196,12 +199,13 @@ impl MarketStore for DbMarketStore {
         db: &mut impl DbExecutor,
         state: MarketState,
     ) -> anyhow::Result<Vec<Market>> {
-        let markets = query_as(
+        let markets = query_as!(
+            Market,
             r#"
             SELECT
                 id,
                 description,
-                state,
+                state as "state: MarketState",
                 owner_id,
                 message_id,
                 channel_id,
@@ -213,8 +217,8 @@ impl MarketStore for DbMarketStore {
                 state = $1
             ORDER BY id ASC
             "#,
+            state as MarketState,
         )
-        .bind(state)
         .fetch_all(db.psql())
         .await?;
 
@@ -227,7 +231,7 @@ impl MarketStore for DbMarketStore {
         market: &Market,
         state: MarketState,
     ) -> anyhow::Result<()> {
-        query(
+        query!(
             r#"
             UPDATE
                 markets
@@ -236,9 +240,9 @@ impl MarketStore for DbMarketStore {
             WHERE
                 id = $2
             "#,
+            state as MarketState,
+            market.id,
         )
-        .bind(state)
-        .bind(market.id)
         .execute(db.psql())
         .await?;
 
