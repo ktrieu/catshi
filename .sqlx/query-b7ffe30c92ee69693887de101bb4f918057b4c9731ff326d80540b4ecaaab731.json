@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                instruments.id,\n                instruments.name,\n                instruments.state as \"state: InstrumentState\",\n                instruments.market_id,\n                COALESCE(SUM(quantity), 0) as \"shares!\"\n            FROM\n                instruments\n            LEFT JOIN\n                positions ON instruments.id = positions.instrument_id\n            WHERE\n                instruments.market_id = $1\n            GROUP BY instruments.id\n            ",
+  "query": "\n            SELECT\n                instruments.id,\n                instruments.name,\n                instruments.state as \"state: InstrumentState\",\n                instruments.market_id,\n                CAST(COALESCE(SUM(quantity), 0) AS BIGINT) as \"shares!\"\n            FROM\n                instruments\n                LEFT JOIN\n                positions ON instruments.id = positions.instrument_id\n            WHERE instruments.state = $1\n            GROUP BY instruments.id\n            ",
   "describe": {
     "columns": [
       {
@@ -31,7 +31,7 @@
     ],
     "parameters": {
       "Left": [
-        "Int4"
+        "Text"
       ]
     },
     "nullable": [
@@ -42,5 +42,5 @@
       null
     ]
   },
-  "hash": "dac116075d807e2ced9b5b5bbdad62de19f3f996561988dcf122c4b33f075930"
+  "hash": "b7ffe30c92ee69693887de101bb4f918057b4c9731ff326d80540b4ecaaab731"
 }

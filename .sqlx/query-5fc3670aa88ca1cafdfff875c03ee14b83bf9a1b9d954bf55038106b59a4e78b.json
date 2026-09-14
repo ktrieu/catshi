@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                positions.id,\n                CAST(positions.quantity AS BIGINT) as \"quantity!\",\n                CAST(positions.cost_basis AS BIGINT) as \"cost_basis!\",\n                positions.instrument_id,\n                positions.owner_id,\n                users.id as users_id,\n                users.name as users_name,\n                users.discord_id as users_discord_id,\n                users.cash_balance as users_cash_balance\n            FROM positions\n            JOIN\n                instruments ON instruments.id = positions.instrument_id\n            JOIN\n                users on users.id = positions.owner_id\n            WHERE\n                instruments.market_id = $1\n            ",
+  "query": "\n            SELECT\n                positions.id,\n                positions.quantity,\n                positions.cost_basis,\n                positions.instrument_id,\n                positions.owner_id,\n                users.id as users_id,\n                users.name as users_name,\n                users.discord_id as users_discord_id,\n                users.cash_balance as users_cash_balance\n            FROM positions\n            JOIN\n                instruments ON instruments.id = positions.instrument_id\n            JOIN\n                users on users.id = positions.owner_id\n            WHERE\n                instruments.market_id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -10,12 +10,12 @@
       },
       {
         "ordinal": 1,
-        "name": "quantity!",
+        "name": "quantity",
         "type_info": "Int8"
       },
       {
         "ordinal": 2,
-        "name": "cost_basis!",
+        "name": "cost_basis",
         "type_info": "Int8"
       },
       {
@@ -56,8 +56,8 @@
     },
     "nullable": [
       false,
-      null,
-      null,
+      false,
+      false,
       false,
       false,
       false,
@@ -66,5 +66,5 @@
       false
     ]
   },
-  "hash": "fc149686d753f84951fc75a92f7ef3ce12174c46a45924b630f12749abbeef6b"
+  "hash": "5fc3670aa88ca1cafdfff875c03ee14b83bf9a1b9d954bf55038106b59a4e78b"
 }

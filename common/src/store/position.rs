@@ -84,8 +84,8 @@ impl PositionStore for DbPositionStore {
             r#"
             SELECT
                 id,
-                CAST(quantity AS BIGINT) as "quantity!",
-                CAST(cost_basis AS BIGINT) as "cost_basis!",
+                quantity,
+                cost_basis,
                 instrument_id,
                 owner_id
             FROM positions
@@ -116,13 +116,13 @@ impl PositionStore for DbPositionStore {
                 instrument_id,
                 owner_id
             )
-            VALUES ($1::bigint, $2::bigint, $3, $4)
+            VALUES ($1, $2, $3, $4)
             ON CONFLICT (instrument_id, owner_id) DO UPDATE
             SET quantity = excluded.quantity, cost_basis = excluded.cost_basis
             RETURNING
                 id,
-                CAST(quantity AS BIGINT) as "quantity!",
-                CAST(cost_basis AS BIGINT) as "cost_basis!",
+                quantity,
+                cost_basis,
                 instrument_id,
                 owner_id
             "#,
@@ -164,8 +164,8 @@ impl PositionStore for DbPositionStore {
             r#"
             SELECT
                 positions.id,
-                CAST(positions.quantity AS BIGINT) as "quantity!",
-                CAST(positions.cost_basis AS BIGINT) as "cost_basis!",
+                positions.quantity,
+                positions.cost_basis,
                 positions.instrument_id,
                 positions.owner_id,
                 users.id as users_id,
@@ -202,8 +202,8 @@ impl PositionStore for DbPositionStore {
             r#"
             SELECT
                 positions.id,
-                CAST(positions.quantity AS BIGINT) as "quantity!",
-                CAST(positions.cost_basis AS BIGINT) as "cost_basis!",
+                positions.quantity,
+                positions.cost_basis,
                 positions.instrument_id,
                 positions.owner_id,
                 instruments.market_id

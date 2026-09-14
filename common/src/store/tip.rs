@@ -61,7 +61,7 @@ impl TipStore for DbTipStore {
                 EXTRACT(EPOCH FROM created_at)::BIGINT AS "created_at!",
                 channel_id,
                 message_id,
-                CAST(amount AS BIGINT) as "amount!",
+                amount,
                 user_id,
                 transfer_id
             FROM
@@ -101,13 +101,13 @@ impl TipStore for DbTipStore {
                 message_id,
                 user_id
             )
-            VALUES ($1::bigint, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING
                 id,
                 EXTRACT(EPOCH FROM created_at)::BIGINT AS "created_at!",
                 channel_id,
                 message_id,
-                CAST(amount AS BIGINT) as "amount!",
+                amount,
                 transfer_id,
                 user_id
             "#,

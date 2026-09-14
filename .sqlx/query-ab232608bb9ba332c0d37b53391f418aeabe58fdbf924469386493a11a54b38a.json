@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                id,\n                EXTRACT(EPOCH FROM created_at)::BIGINT AS \"created_at!\",\n                channel_id,\n                message_id,\n                CAST(amount AS BIGINT) as \"amount!\",\n                user_id,\n                transfer_id\n            FROM\n                tips\n            WHERE\n                channel_id = $1 AND message_id = $2 AND user_id = $3\n            ",
+  "query": "\n            SELECT\n                id,\n                EXTRACT(EPOCH FROM created_at)::BIGINT AS \"created_at!\",\n                channel_id,\n                message_id,\n                amount,\n                user_id,\n                transfer_id\n            FROM\n                tips\n            WHERE\n                channel_id = $1 AND message_id = $2 AND user_id = $3\n            ",
   "describe": {
     "columns": [
       {
@@ -25,7 +25,7 @@
       },
       {
         "ordinal": 4,
-        "name": "amount!",
+        "name": "amount",
         "type_info": "Int8"
       },
       {
@@ -51,10 +51,10 @@
       null,
       false,
       false,
-      null,
+      false,
       false,
       false
     ]
   },
-  "hash": "bdf5ec6d3fafeff52022d3e6fe8c094b681417cfa560ac3651c64ce3ad830c22"
+  "hash": "ab232608bb9ba332c0d37b53391f418aeabe58fdbf924469386493a11a54b38a"
 }

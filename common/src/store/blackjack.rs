@@ -88,7 +88,7 @@ impl BlackjackStore for DbBlackjackStore {
                 channel_id,
                 message_id,
                 owner_id,
-                CAST(staked AS BIGINT) as "staked!"
+                staked
             FROM
                 blackjacks
             WHERE
@@ -113,7 +113,7 @@ impl BlackjackStore for DbBlackjackStore {
             UPDATE blackjacks SET
                 dealer = $1,
                 player = $2,
-                staked = $3::bigint,
+                staked = $3,
                 state = $4
             WHERE
                 id = $5
@@ -147,7 +147,7 @@ impl BlackjackStore for DbBlackjackStore {
                 channel_id,
                 message_id
             )
-            VALUES ($1, $2, $3, $4, $5::bigint, $6, $7)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING
                 id,
                 dealer,
@@ -156,7 +156,7 @@ impl BlackjackStore for DbBlackjackStore {
                 channel_id,
                 message_id,
                 owner_id,
-                CAST(staked AS BIGINT) as "staked!"
+                staked
             "#,
             c.dealer,
             c.player,

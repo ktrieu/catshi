@@ -108,10 +108,10 @@ impl TransferStore for DbTransferStore {
                 memo,
                 source
             )
-            VALUES ($1::bigint, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING
                 id,
-                CAST(amount AS BIGINT) as "amount!",
+                amount,
                 sender,
                 receiver,
                 memo,
@@ -153,7 +153,7 @@ impl TransferStore for DbTransferStore {
                 users.discord_id,
                 users.cash_balance,
                 source as "source!: TransferSource",
-                SUM(net_amount) AS "net!"
+                CAST(SUM(net_amount) AS BIGINT) AS "net!"
             FROM (
                 SELECT
                     receiver AS user_id,
@@ -206,7 +206,7 @@ impl TransferStore for DbTransferStore {
                 users.cash_balance,
                 source as "source!: TransferSource",
                 direction as "direction!: TransferDirection",
-                SUM(amount) as "amount!"
+                CAST(SUM(amount) AS BIGINT) as "amount!"
             FROM (
                 SELECT
                     receiver AS user_id,

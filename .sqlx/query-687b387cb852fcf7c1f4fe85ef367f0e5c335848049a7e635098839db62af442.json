@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO orders (\n                direction,\n                quantity,\n                shares_price,\n                fees,\n                cost_basis,\n                instrument_id,\n                owner_id\n            )\n            VALUES ($1, $2::bigint, $3::bigint, $4::bigint, $5::bigint, $6, $7)\n            RETURNING\n                id,\n                direction as \"direction: OrderDirection\",\n                CAST(quantity AS BIGINT) as \"quantity!\",\n                CAST(shares_price AS BIGINT) as \"shares_price!\",\n                CAST(fees AS BIGINT) as \"fees!\",\n                CAST(cost_basis AS BIGINT) as \"cost_basis!\",\n                instrument_id,\n                owner_id,\n                EXTRACT(EPOCH FROM created_at)::BIGINT AS \"created_at!\"\n            ",
+  "query": "\n            INSERT INTO orders (\n                direction,\n                quantity,\n                shares_price,\n                fees,\n                cost_basis,\n                instrument_id,\n                owner_id\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7)\n            RETURNING\n                id,\n                direction as \"direction: OrderDirection\",\n                quantity,\n                shares_price,\n                fees,\n                cost_basis,\n                instrument_id,\n                owner_id,\n                EXTRACT(EPOCH FROM created_at)::BIGINT AS \"created_at!\"\n            ",
   "describe": {
     "columns": [
       {
@@ -15,22 +15,22 @@
       },
       {
         "ordinal": 2,
-        "name": "quantity!",
+        "name": "quantity",
         "type_info": "Int8"
       },
       {
         "ordinal": 3,
-        "name": "shares_price!",
+        "name": "shares_price",
         "type_info": "Int8"
       },
       {
         "ordinal": 4,
-        "name": "fees!",
+        "name": "fees",
         "type_info": "Int8"
       },
       {
         "ordinal": 5,
-        "name": "cost_basis!",
+        "name": "cost_basis",
         "type_info": "Int8"
       },
       {
@@ -63,14 +63,14 @@
     "nullable": [
       false,
       false,
-      null,
-      null,
-      null,
-      null,
+      false,
+      false,
+      false,
+      false,
       false,
       false,
       null
     ]
   },
-  "hash": "e722e47b0b28c9809c079dd52603e6b621a981b6ffd03a9c1f490b1438592fbb"
+  "hash": "687b387cb852fcf7c1f4fe85ef367f0e5c335848049a7e635098839db62af442"
 }

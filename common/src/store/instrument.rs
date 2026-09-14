@@ -147,7 +147,7 @@ impl InstrumentStore for DbInstrumentStore {
                 instruments.name,
                 instruments.state as "state: InstrumentState",
                 instruments.market_id,
-                COALESCE(SUM(quantity), 0) as "shares!"
+                CAST(COALESCE(SUM(quantity), 0) AS BIGINT) as "shares!"
             FROM
                 instruments
             LEFT JOIN
@@ -182,7 +182,7 @@ impl InstrumentStore for DbInstrumentStore {
                 instruments.name,
                 instruments.state as "state: InstrumentState",
                 instruments.market_id,
-                COALESCE(SUM(quantity), 0) as "shares!"
+                CAST(COALESCE(SUM(quantity), 0) AS BIGINT) as "shares!"
             FROM
                 instruments
                 LEFT JOIN

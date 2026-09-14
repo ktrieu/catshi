@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                positions.id,\n                CAST(positions.quantity AS BIGINT) as \"quantity!\",\n                CAST(positions.cost_basis AS BIGINT) as \"cost_basis!\",\n                positions.instrument_id,\n                positions.owner_id,\n                instruments.market_id\n            FROM positions\n            JOIN\n                instruments ON instruments.id = positions.instrument_id\n            ",
+  "query": "\n            SELECT\n                positions.id,\n                positions.quantity,\n                positions.cost_basis,\n                positions.instrument_id,\n                positions.owner_id,\n                instruments.market_id\n            FROM positions\n            JOIN\n                instruments ON instruments.id = positions.instrument_id\n            ",
   "describe": {
     "columns": [
       {
@@ -10,12 +10,12 @@
       },
       {
         "ordinal": 1,
-        "name": "quantity!",
+        "name": "quantity",
         "type_info": "Int8"
       },
       {
         "ordinal": 2,
-        "name": "cost_basis!",
+        "name": "cost_basis",
         "type_info": "Int8"
       },
       {
@@ -39,12 +39,12 @@
     },
     "nullable": [
       false,
-      null,
-      null,
+      false,
+      false,
       false,
       false,
       false
     ]
   },
-  "hash": "e53cbec7af72da9cfb0d6839da1f27c92e013fb5d9506099124a9cbc465fb72c"
+  "hash": "6a3610ada65d7b454e16901af871bd081f7b95cad66f296d658fd3b53fd63c5d"
 }

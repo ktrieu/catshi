@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO positions (\n                quantity,\n                cost_basis,\n                instrument_id,\n                owner_id\n            )\n            VALUES ($1, $2, $3, $4)\n            ON CONFLICT (instrument_id, owner_id) DO UPDATE\n            SET quantity = excluded.quantity, cost_basis = excluded.cost_basis\n            RETURNING\n                id,\n                quantity,\n                cost_basis,\n                instrument_id,\n                owner_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "cost_basis",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "instrument_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "owner_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "137a7116c347a0925a554e461485db9388934ca9f039bea8e36a231c1a787905"
+}

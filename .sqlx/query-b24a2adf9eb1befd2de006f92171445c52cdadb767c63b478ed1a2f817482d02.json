@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO transfers (\n                amount,\n                sender,\n                receiver,\n                memo,\n                source\n            )\n            VALUES ($1::bigint, $2, $3, $4, $5)\n            RETURNING\n                id,\n                CAST(amount AS BIGINT) as \"amount!\",\n                sender,\n                receiver,\n                memo,\n                EXTRACT(EPOCH FROM created_at)::BIGINT AS \"created_at!\",\n                source as \"source!: TransferSource\"\n            ",
+  "query": "\n            INSERT INTO transfers (\n                amount,\n                sender,\n                receiver,\n                memo,\n                source\n            )\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING\n                id,\n                amount,\n                sender,\n                receiver,\n                memo,\n                EXTRACT(EPOCH FROM created_at)::BIGINT AS \"created_at!\",\n                source as \"source!: TransferSource\"\n            ",
   "describe": {
     "columns": [
       {
@@ -10,7 +10,7 @@
       },
       {
         "ordinal": 1,
-        "name": "amount!",
+        "name": "amount",
         "type_info": "Int8"
       },
       {
@@ -50,7 +50,7 @@
     },
     "nullable": [
       false,
-      null,
+      false,
       false,
       false,
       false,
@@ -58,5 +58,5 @@
       false
     ]
   },
-  "hash": "b95eaf700b769e6289130ff57572079ad10fdabda4cd05b5cf2db4e2162f81e6"
+  "hash": "b24a2adf9eb1befd2de006f92171445c52cdadb767c63b478ed1a2f817482d02"
 }

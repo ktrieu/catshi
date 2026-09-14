@@ -69,14 +69,14 @@ impl OrderStore for DbOrderStore {
                 instrument_id,
                 owner_id
             )
-            VALUES ($1, $2::bigint, $3::bigint, $4::bigint, $5::bigint, $6, $7)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING
                 id,
                 direction as "direction: OrderDirection",
-                CAST(quantity AS BIGINT) as "quantity!",
-                CAST(shares_price AS BIGINT) as "shares_price!",
-                CAST(fees AS BIGINT) as "fees!",
-                CAST(cost_basis AS BIGINT) as "cost_basis!",
+                quantity,
+                shares_price,
+                fees,
+                cost_basis,
                 instrument_id,
                 owner_id,
                 EXTRACT(EPOCH FROM created_at)::BIGINT AS "created_at!"
