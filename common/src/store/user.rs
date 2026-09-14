@@ -50,7 +50,8 @@ impl UserStore for DbUserStore {
         db: &mut impl DbExecutor,
         c: CreateDbUser,
     ) -> anyhow::Result<DbUser> {
-        let user = query_as(
+        let user = query_as!(
+            DbUser,
             r#"
             INSERT INTO users (
                 discord_id,
@@ -64,10 +65,10 @@ impl UserStore for DbUserStore {
                 name,
                 cash_balance
             "#,
+            c.discord_id,
+            c.name,
+            i64::from(c.initial_balance),
         )
-        .bind(c.discord_id)
-        .bind(c.name)
-        .bind(c.initial_balance)
         .fetch_one(db.psql())
         .await?;
 
@@ -81,7 +82,8 @@ impl UserStore for DbUserStore {
     ) -> anyhow::Result<Option<DbUser>> {
         let discord_id = discord_id.to_string();
 
-        let user = query_as(
+        let user = query_as!(
+            DbUser,
             r#"
             SELECT
                 id,
@@ -92,8 +94,8 @@ impl UserStore for DbUserStore {
             WHERE
                 discord_id = $1
             "#,
+            discord_id,
         )
-        .bind(discord_id)
         .fetch_optional(db.psql())
         .await?;
 
@@ -101,7 +103,8 @@ impl UserStore for DbUserStore {
     }
 
     async fn get_by_id(&self, db: &mut impl DbExecutor, id: i32) -> anyhow::Result<DbUser> {
-        let user = query_as(
+        let user = query_as!(
+            DbUser,
             r#"
             SELECT
                 id,
@@ -112,8 +115,8 @@ impl UserStore for DbUserStore {
             WHERE
                 id = $1
             "#,
+            id,
         )
-        .bind(id)
         .fetch_one(db.psql())
         .await?;
 
@@ -132,11 +135,13 @@ impl UserStore for DbUserStore {
         id: i32,
         amount: Currency,
     ) -> anyhow::Result<()> {
-        let result = query(r#"UPDATE users SET cash_balance = cash_balance + $1 WHERE id = $2"#)
-            .bind(amount)
-            .bind(id)
-            .execute(db.psql())
-            .await?;
+        let result = query!(
+            r#"UPDATE users SET cash_balance = cash_balance + $1 WHERE id = $2"#,
+            i64::from(amount),
+            id,
+        )
+        .execute(db.psql())
+        .await?;
 
         if result.rows_affected() != 1 {
             bail!("no rows written for increment_balance_by_id")
