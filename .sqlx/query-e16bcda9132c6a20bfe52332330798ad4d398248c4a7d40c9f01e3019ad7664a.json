@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                cf_articles.id,\n                names,\n                categories,\n                game_id\n            FROM cf_articles\n            JOIN cf_games ON cf_games.id = cf_articles.game_id\n            WHERE cf_games.published = true OR $1\n            ORDER BY game_id, article_order DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "names",
+        "type_info": "TextArray"
+      },
+      {
+        "ordinal": 2,
+        "name": "categories",
+        "type_info": "TextArray"
+      },
+      {
+        "ordinal": 3,
+        "name": "game_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e16bcda9132c6a20bfe52332330798ad4d398248c4a7d40c9f01e3019ad7664a"
+}

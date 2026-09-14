@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id,\n                names,\n                categories,\n                game_id\n            FROM cf_articles\n            WHERE game_id = $1\n            ORDER BY article_order DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "names",
+        "type_info": "TextArray"
+      },
+      {
+        "ordinal": 2,
+        "name": "categories",
+        "type_info": "TextArray"
+      },
+      {
+        "ordinal": 3,
+        "name": "game_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0f1a8a882f44da70a0d215b7b0110314c4133a35e572c1a688d72f2d086c9838"
+}

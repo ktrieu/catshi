@@ -83,7 +83,8 @@ impl CatfishingStore for DbCatfishingStore {
         db: &mut impl DbExecutor,
         id: i32,
     ) -> anyhow::Result<CatfishingGame> {
-        let articles: Vec<ArticleRow> = query_as(
+        let articles = query_as!(
+            ArticleRow,
             r#"
             SELECT
                 id,
@@ -94,12 +95,13 @@ impl CatfishingStore for DbCatfishingStore {
             WHERE game_id = $1
             ORDER BY article_order DESC
             "#,
+            id,
         )
-        .bind(id)
         .fetch_all(db.psql())
         .await?;
 
-        let game: GameRow = query_as(
+        let game = query_as!(
+            GameRow,
             r#"
             SELECT
                 id,
@@ -107,8 +109,8 @@ impl CatfishingStore for DbCatfishingStore {
             FROM cf_games
             WHERE id = $1
             "#,
+            id,
         )
-        .bind(id)
         .fetch_one(db.psql())
         .await?;
 
@@ -124,7 +126,8 @@ impl CatfishingStore for DbCatfishingStore {
         db: &mut impl DbExecutor,
         include_unpublished: bool,
     ) -> anyhow::Result<Vec<CatfishingGame>> {
-        let game_rows: Vec<GameRow> = query_as(
+        let game_rows = query_as!(
+            GameRow,
             r#"
             SELECT
                 id,
@@ -132,15 +135,16 @@ impl CatfishingStore for DbCatfishingStore {
             FROM cf_games
             WHERE published = true OR $1
             "#,
+            include_unpublished,
         )
-        .bind(include_unpublished)
         .fetch_all(db.psql())
         .await?;
 
-        let article_rows: Vec<ArticleRow> = query_as(
+        let article_rows = query_as!(
+            ArticleRow,
             r#"
             SELECT
-                cf_articles.id as id,
+                cf_articles.id,
                 names,
                 categories,
                 game_id
@@ -149,8 +153,8 @@ impl CatfishingStore for DbCatfishingStore {
             WHERE cf_games.published = true OR $1
             ORDER BY game_id, article_order DESC
             "#,
+            include_unpublished,
         )
-        .bind(include_unpublished)
         .fetch_all(db.psql())
         .await?;
 
@@ -182,8 +186,7 @@ impl CatfishingStore for DbCatfishingStore {
     ) -> anyhow::Result<()> {
         // We could do clever things to reorder/rearrange the list, or we could
         // just wipe all the rows and reinsert them fresh.
-        query(r#"DELETE FROM cf_articles WHERE game_id = $1"#)
-            .bind(id)
+        query!(r#"DELETE FROM cf_articles WHERE game_id = $1"#, id)
             .execute(tx.psql())
             .await?;
 
@@ -213,11 +216,13 @@ impl CatfishingStore for DbCatfishingStore {
         id: i32,
         published: bool,
     ) -> anyhow::Result<()> {
-        query(r#"UPDATE cf_games SET published = $1 WHERE id = $2"#)
-            .bind(published)
-            .bind(id)
-            .execute(db.psql())
-            .await?;
+        query!(
+            r#"UPDATE cf_games SET published = $1 WHERE id = $2"#,
+            published,
+            id,
+        )
+        .execute(db.psql())
+        .await?;
 
         Ok(())
     }
