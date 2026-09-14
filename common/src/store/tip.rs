@@ -53,14 +53,15 @@ impl TipStore for DbTipStore {
         let channel_id = channel_id.to_string();
         let message_id = message_id.to_string();
 
-        let tip = query_as(
+        let tip = query_as!(
+            Tip,
             r#"
             SELECT
                 id,
-                EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at,
+                EXTRACT(EPOCH FROM created_at)::BIGINT AS "created_at!",
                 channel_id,
                 message_id,
-                CAST(amount AS BIGINT) as amount,
+                CAST(amount AS BIGINT) as "amount!",
                 user_id,
                 transfer_id
             FROM
@@ -68,10 +69,10 @@ impl TipStore for DbTipStore {
             WHERE
                 channel_id = $1 AND message_id = $2 AND user_id = $3
             "#,
+            channel_id,
+            message_id,
+            user.id,
         )
-        .bind(&channel_id)
-        .bind(&message_id)
-        .bind(user.id)
         .fetch_optional(db.psql())
         .await?;
 
@@ -90,7 +91,8 @@ impl TipStore for DbTipStore {
         let channel_id = channel_id.to_string();
         let message_id = message_id.to_string();
 
-        let tip = query_as(
+        let tip = query_as!(
+            Tip,
             r#"
             INSERT INTO tips (
                 amount,
@@ -99,22 +101,22 @@ impl TipStore for DbTipStore {
                 message_id,
                 user_id
             )
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1::bigint, $2, $3, $4, $5)
             RETURNING
                 id,
-                EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at,
+                EXTRACT(EPOCH FROM created_at)::BIGINT AS "created_at!",
                 channel_id,
                 message_id,
-                CAST(amount AS BIGINT) as amount,
+                CAST(amount AS BIGINT) as "amount!",
                 transfer_id,
                 user_id
             "#,
+            i64::from(amount),
+            transfer.id,
+            channel_id,
+            message_id,
+            user.id,
         )
-        .bind(amount)
-        .bind(transfer.id)
-        .bind(&channel_id)
-        .bind(&message_id)
-        .bind(user.id)
         .fetch_one(db.psql())
         .await?;
 

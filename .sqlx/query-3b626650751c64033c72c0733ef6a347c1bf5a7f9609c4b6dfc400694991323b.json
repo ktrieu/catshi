@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO tips (\n                amount,\n                transfer_id,\n                channel_id,\n                message_id,\n                user_id\n            )\n            VALUES ($1::bigint, $2, $3, $4, $5)\n            RETURNING\n                id,\n                EXTRACT(EPOCH FROM created_at)::BIGINT AS \"created_at!\",\n                channel_id,\n                message_id,\n                CAST(amount AS BIGINT) as \"amount!\",\n                transfer_id,\n                user_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "channel_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "message_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "amount!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "transfer_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "user_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4",
+        "Text",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      false,
+      false,
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "3b626650751c64033c72c0733ef6a347c1bf5a7f9609c4b6dfc400694991323b"
+}
