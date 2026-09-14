@@ -57,7 +57,8 @@ impl OrderStore for DbOrderStore {
         // `created_at` is read back as a unix-epoch bigint (postgres stores it as
         // TIMESTAMPTZ, defaulted by `CURRENT_TIMESTAMP`) so it decodes into the
         // `Order` shape.
-        let order = query_as(
+        let order = query_as!(
+            Order,
             r#"
             INSERT INTO orders (
                 direction,
@@ -68,26 +69,26 @@ impl OrderStore for DbOrderStore {
                 instrument_id,
                 owner_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2::bigint, $3::bigint, $4::bigint, $5::bigint, $6, $7)
             RETURNING
                 id,
-                direction,
-                CAST(quantity AS BIGINT) as quantity,
-                CAST(shares_price AS BIGINT) as shares_price,
-                CAST(fees AS BIGINT) as fees,
-                CAST(cost_basis AS BIGINT) as cost_basis,
+                direction as "direction: OrderDirection",
+                CAST(quantity AS BIGINT) as "quantity!",
+                CAST(shares_price AS BIGINT) as "shares_price!",
+                CAST(fees AS BIGINT) as "fees!",
+                CAST(cost_basis AS BIGINT) as "cost_basis!",
                 instrument_id,
                 owner_id,
-                EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at
+                EXTRACT(EPOCH FROM created_at)::BIGINT AS "created_at!"
             "#,
+            c.direction.clone() as OrderDirection,
+            c.quantity,
+            i64::from(c.shares_price),
+            i64::from(c.fees),
+            i64::from(c.cost_basis),
+            c.instrument_id,
+            c.owner_id,
         )
-        .bind(c.direction.clone())
-        .bind(c.quantity)
-        .bind(c.shares_price)
-        .bind(c.fees)
-        .bind(c.cost_basis)
-        .bind(c.instrument_id)
-        .bind(c.owner_id)
         .fetch_one(db.psql())
         .await?;
 
