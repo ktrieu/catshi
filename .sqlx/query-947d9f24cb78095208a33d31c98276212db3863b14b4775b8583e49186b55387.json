@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                users.id as \"id!\",\n                users.name,\n                users.discord_id,\n                users.cash_balance,\n                source as \"source!: TransferSource\",\n                SUM(net_amount) AS \"net!\"\n            FROM (\n                SELECT\n                    receiver AS user_id,\n                    source,\n                    amount AS net_amount\n                FROM transfers\n                UNION ALL\n                SELECT\n                    sender AS user_id,\n                    source,\n                    -amount AS net_amount\n                FROM transfers\n            ) t\n            JOIN users ON users.id = t.user_id\n            GROUP BY users.id, source\n            ORDER BY users.id, source\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "discord_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "cash_balance",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "source!: TransferSource",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "net!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "947d9f24cb78095208a33d31c98276212db3863b14b4775b8583e49186b55387"
+}

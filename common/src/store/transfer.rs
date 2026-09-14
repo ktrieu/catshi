@@ -98,7 +98,8 @@ impl TransferStore for DbTransferStore {
         // `created_at` is read back as a unix-epoch bigint (postgres stores it as
         // TIMESTAMPTZ, defaulted by `CURRENT_TIMESTAMP`) so it decodes into the
         // `Transfer` shape.
-        let transfer: Transfer = query_as(
+        let transfer = query_as!(
+            Transfer,
             r#"
             INSERT INTO transfers (
                 amount,
@@ -107,22 +108,22 @@ impl TransferStore for DbTransferStore {
                 memo,
                 source
             )
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1::bigint, $2, $3, $4, $5)
             RETURNING
                 id,
-                CAST(amount AS BIGINT) as amount,
+                CAST(amount AS BIGINT) as "amount!",
                 sender,
                 receiver,
                 memo,
-                EXTRACT(EPOCH FROM created_at)::BIGINT AS created_at,
-                source
+                EXTRACT(EPOCH FROM created_at)::BIGINT AS "created_at!",
+                source as "source!: TransferSource"
             "#,
+            i64::from(create.amount),
+            create.sender,
+            create.receiver,
+            create.memo,
+            create.source as TransferSource,
         )
-        .bind(create.amount)
-        .bind(create.sender)
-        .bind(create.receiver)
-        .bind(&create.memo)
-        .bind(create.source)
         .fetch_one(tx.psql())
         .await?;
 
@@ -143,15 +144,16 @@ impl TransferStore for DbTransferStore {
         &self,
         db: &mut impl DbExecutor,
     ) -> anyhow::Result<Vec<UserTransfersBySource>> {
-        let rows = query_as::<_, PgUserTransfersBySourceRow>(
+        let rows = query_as!(
+            PgUserTransfersBySourceRow,
             r#"
             SELECT
-                users.id as id,
+                users.id as "id!",
                 users.name,
                 users.discord_id,
                 users.cash_balance,
-                source,
-                SUM(net_amount) AS net
+                source as "source!: TransferSource",
+                SUM(net_amount) AS "net!"
             FROM (
                 SELECT
                     receiver AS user_id,
