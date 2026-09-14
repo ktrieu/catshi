@@ -79,21 +79,22 @@ impl PositionStore for DbPositionStore {
         instrument: &Instrument,
         owner: &DbUser,
     ) -> anyhow::Result<Option<Position>> {
-        let position = query_as(
+        let position = query_as!(
+            Position,
             r#"
             SELECT
                 id,
-                CAST(quantity AS BIGINT) as quantity,
-                CAST(cost_basis AS BIGINT) as cost_basis,
+                CAST(quantity AS BIGINT) as "quantity!",
+                CAST(cost_basis AS BIGINT) as "cost_basis!",
                 instrument_id,
                 owner_id
             FROM positions
             WHERE
                 instrument_id = $1 AND owner_id = $2
             "#,
+            instrument.id,
+            owner.id,
         )
-        .bind(instrument.id)
-        .bind(owner.id)
         .fetch_optional(db.psql())
         .await?;
 
@@ -106,7 +107,8 @@ impl PositionStore for DbPositionStore {
         c: &CreatePosition,
     ) -> anyhow::Result<Position> {
         // We have a unique index on (instrument_id, owner_id). Use a CONFLICT clause.
-        let position = query_as(
+        let position = query_as!(
+            Position,
             r#"
             INSERT INTO positions (
                 quantity,
@@ -114,21 +116,21 @@ impl PositionStore for DbPositionStore {
                 instrument_id,
                 owner_id
             )
-            VALUES ($1, $2, $3, $4)
+            VALUES ($1::bigint, $2::bigint, $3, $4)
             ON CONFLICT (instrument_id, owner_id) DO UPDATE
             SET quantity = excluded.quantity, cost_basis = excluded.cost_basis
             RETURNING
                 id,
-                CAST(quantity AS BIGINT) as quantity,
-                CAST(cost_basis AS BIGINT) as cost_basis,
+                CAST(quantity AS BIGINT) as "quantity!",
+                CAST(cost_basis AS BIGINT) as "cost_basis!",
                 instrument_id,
                 owner_id
             "#,
+            c.quantity,
+            i64::from(c.cost_basis),
+            c.instrument_id,
+            c.owner_id,
         )
-        .bind(c.quantity)
-        .bind(c.cost_basis)
-        .bind(c.instrument_id)
-        .bind(c.owner_id)
         .fetch_one(db.psql())
         .await?;
 
@@ -141,11 +143,13 @@ impl PositionStore for DbPositionStore {
         instrument_id: i32,
         owner_id: i32,
     ) -> anyhow::Result<()> {
-        query("DELETE FROM positions WHERE instrument_id = $1 AND owner_id = $2")
-            .bind(instrument_id)
-            .bind(owner_id)
-            .execute(db.psql())
-            .await?;
+        query!(
+            "DELETE FROM positions WHERE instrument_id = $1 AND owner_id = $2",
+            instrument_id,
+            owner_id,
+        )
+        .execute(db.psql())
+        .await?;
 
         Ok(())
     }
@@ -155,14 +159,15 @@ impl PositionStore for DbPositionStore {
         db: &mut impl DbExecutor,
         market_id: i32,
     ) -> anyhow::Result<Vec<PositionWithUser>> {
-        let rows = query_as::<_, PgPositionWithUserRow>(
+        let rows = query_as!(
+            PgPositionWithUserRow,
             r#"
             SELECT
-                positions.id as id,
-                CAST(positions.quantity AS BIGINT) as quantity,
-                CAST(positions.cost_basis AS BIGINT) as cost_basis,
-                positions.instrument_id as instrument_id,
-                positions.owner_id as owner_id,
+                positions.id,
+                CAST(positions.quantity AS BIGINT) as "quantity!",
+                CAST(positions.cost_basis AS BIGINT) as "cost_basis!",
+                positions.instrument_id,
+                positions.owner_id,
                 users.id as users_id,
                 users.name as users_name,
                 users.discord_id as users_discord_id,
@@ -175,8 +180,8 @@ impl PositionStore for DbPositionStore {
             WHERE
                 instruments.market_id = $1
             "#,
+            market_id,
         )
-        .bind(market_id)
         .fetch_all(db.psql())
         .await?;
 
@@ -192,15 +197,16 @@ impl PositionStore for DbPositionStore {
         &self,
         db: &mut impl DbExecutor,
     ) -> anyhow::Result<Vec<PositionWithMarketId>> {
-        let rows = query_as::<_, PgPositionWithMarketIdRow>(
+        let rows = query_as!(
+            PgPositionWithMarketIdRow,
             r#"
             SELECT
-                positions.id as id,
-                CAST(positions.quantity AS BIGINT) as quantity,
-                CAST(positions.cost_basis AS BIGINT) as cost_basis,
-                positions.instrument_id as instrument_id,
-                positions.owner_id as owner_id,
-                instruments.market_id as market_id
+                positions.id,
+                CAST(positions.quantity AS BIGINT) as "quantity!",
+                CAST(positions.cost_basis AS BIGINT) as "cost_basis!",
+                positions.instrument_id,
+                positions.owner_id,
+                instruments.market_id
             FROM positions
             JOIN
                 instruments ON instruments.id = positions.instrument_id

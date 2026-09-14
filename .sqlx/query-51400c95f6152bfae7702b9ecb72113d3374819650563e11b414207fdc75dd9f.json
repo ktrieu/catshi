@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id,\n                CAST(quantity AS BIGINT) as \"quantity!\",\n                CAST(cost_basis AS BIGINT) as \"cost_basis!\",\n                instrument_id,\n                owner_id\n            FROM positions\n            WHERE\n                instrument_id = $1 AND owner_id = $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "quantity!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "cost_basis!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "instrument_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "owner_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "51400c95f6152bfae7702b9ecb72113d3374819650563e11b414207fdc75dd9f"
+}

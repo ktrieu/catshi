@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO positions (\n                quantity,\n                cost_basis,\n                instrument_id,\n                owner_id\n            )\n            VALUES ($1::bigint, $2::bigint, $3, $4)\n            ON CONFLICT (instrument_id, owner_id) DO UPDATE\n            SET quantity = excluded.quantity, cost_basis = excluded.cost_basis\n            RETURNING\n                id,\n                CAST(quantity AS BIGINT) as \"quantity!\",\n                CAST(cost_basis AS BIGINT) as \"cost_basis!\",\n                instrument_id,\n                owner_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "quantity!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "cost_basis!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "instrument_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "owner_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "30ab23870493fabc64b1f32be653aa226eba25213146b6aa873bc40481b0d169"
+}
