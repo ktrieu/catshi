@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use common::store;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
 
-use crate::Commands::ExportUsers;
+use crate::Commands::{DailyDigest, ExportUsers};
 
 mod blackjack;
 mod bot;
@@ -17,6 +17,8 @@ mod utils;
 enum Commands {
     #[command(name = "export_users")]
     ExportUsers,
+    #[command(name = "daily_digest")]
+    DailyDigest,
 }
 
 #[derive(Parser)]
@@ -43,6 +45,7 @@ async fn main() {
 
     match &args.commands {
         Some(ExportUsers) => scripts::export_users::run(),
+        Some(DailyDigest) => scripts::daily_digest::run(),
         None => bot::run().await,
     }
 }
