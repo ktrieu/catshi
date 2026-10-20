@@ -39,9 +39,5 @@ pub async fn run(
 
     let resp = lines.join("\n");
 
-    command
-        .create_response(&ctx.http, utils::text_interaction_response(&resp, false))
-        .await?;
-
-    Ok(())
+    utils::send_long_message_safe(ctx, command, &resp, false).await
 }
