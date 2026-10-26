@@ -221,6 +221,19 @@ pub async fn trade(
         }
     };
 
+    if quantity <= 0 {
+        modal
+            .create_response(
+                &ctx.http,
+                utils::text_interaction_response(
+                    "Negative quantity trades are not permitted.",
+                    true,
+                ),
+            )
+            .await?;
+        return Ok(());
+    }
+
     let mut tx = handler.db.begin().await?;
 
     let market = FullMarket::new_from_instrument_id(
