@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO login_tokens (\n                user_id,\n                expires_at\n            )\n            VALUES ($1, CURRENT_TIMESTAMP + $2::BIGINT * INTERVAL '1 second')\n            RETURNING\n                token,\n                user_id,\n                EXTRACT(EPOCH FROM expires_at)::BIGINT AS \"expires_at!\",\n                EXTRACT(EPOCH FROM used_at)::BIGINT AS used_at,\n                EXTRACT(EPOCH FROM created_at)::BIGINT AS \"created_at!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "token",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "expires_at!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "used_at",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "da68b062f34609b9f2eeed14a20d9b4f4e633791271da440fa2682bd911466e2"
+}

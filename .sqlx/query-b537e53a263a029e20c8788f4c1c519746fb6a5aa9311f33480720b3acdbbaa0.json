@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE login_tokens\n            SET used_at = CURRENT_TIMESTAMP\n            WHERE\n                token = $1\n                AND used_at IS NULL\n                AND expires_at > CURRENT_TIMESTAMP\n            RETURNING\n                token,\n                user_id,\n                EXTRACT(EPOCH FROM expires_at)::BIGINT AS \"expires_at!\",\n                EXTRACT(EPOCH FROM used_at)::BIGINT AS used_at,\n                EXTRACT(EPOCH FROM created_at)::BIGINT AS \"created_at!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "token",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "expires_at!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "used_at",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "b537e53a263a029e20c8788f4c1c519746fb6a5aa9311f33480720b3acdbbaa0"
+}
