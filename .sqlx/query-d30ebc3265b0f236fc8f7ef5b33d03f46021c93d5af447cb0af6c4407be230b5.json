@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM login_tokens WHERE expires_at <= CURRENT_TIMESTAMP",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "d30ebc3265b0f236fc8f7ef5b33d03f46021c93d5af447cb0af6c4407be230b5"
+}
