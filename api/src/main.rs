@@ -13,6 +13,7 @@ use crate::{session_store::PgSessionStore, state::AppState};
 mod auth;
 mod catfishing;
 mod error;
+mod portfolio;
 mod session_store;
 mod state;
 
@@ -37,6 +38,7 @@ async fn main() {
     let app = Router::new()
         .route("/auth/me/", get(auth::me))
         .route("/auth/redeem/{token}/", post(auth::redeem))
+        .route("/portfolio/", get(portfolio::get_portfolio))
         .route("/catfishing/", get(catfishing::list_games))
         .layer(session_layer);
 

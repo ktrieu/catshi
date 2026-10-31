@@ -70,6 +70,7 @@ pub trait PositionStore {
     ) -> anyhow::Result<Vec<PositionWithMarketId>>;
 }
 
+#[derive(Debug, Clone)]
 pub struct DbPositionStore {}
 
 impl PositionStore for DbPositionStore {

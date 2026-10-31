@@ -86,6 +86,7 @@ pub trait TransferStore {
     ) -> anyhow::Result<Vec<UserTransfersBySourceAndDirection>>;
 }
 
+#[derive(Debug, Clone)]
 pub struct DbTransferStore {}
 
 impl TransferStore for DbTransferStore {

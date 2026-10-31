@@ -56,6 +56,7 @@ pub trait InstrumentStore {
     ) -> anyhow::Result<Vec<InstrumentWithShares>>;
 }
 
+#[derive(Debug, Clone)]
 pub struct DbInstrumentStore {}
 
 impl InstrumentStore for DbInstrumentStore {
