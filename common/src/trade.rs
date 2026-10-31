@@ -501,6 +501,7 @@ mod test {
                 channel_id: Some("0".to_string()),
                 thread_id: None,
                 details_msg_id: None,
+                tag: None,
             },
             instruments: vec![
                 (

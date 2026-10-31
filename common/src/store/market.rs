@@ -27,6 +27,7 @@ pub struct Market {
     pub channel_id: Option<String>,
     pub thread_id: Option<String>,
     pub details_msg_id: Option<String>,
+    pub tag: Option<String>,
 }
 
 #[make(Send)]
@@ -49,6 +50,12 @@ pub trait MarketStore {
     ) -> anyhow::Result<()>;
 
     async fn get_market_by_id(&self, db: &mut impl DbExecutor, id: i32) -> anyhow::Result<Market>;
+
+    async fn get_market_by_tag(
+        &self,
+        db: &mut impl DbExecutor,
+        tag: &str,
+    ) -> anyhow::Result<Option<Market>>;
 
     async fn get_market_by_instrument_id(
         &self,
@@ -96,7 +103,8 @@ impl MarketStore for DbMarketStore {
                 message_id,
                 channel_id,
                 thread_id,
-                details_msg_id
+                details_msg_id,
+                tag
             "#,
             description,
             MarketState::Open as MarketState,
@@ -148,7 +156,8 @@ impl MarketStore for DbMarketStore {
                 message_id,
                 channel_id,
                 thread_id,
-                details_msg_id
+                details_msg_id,
+                tag
             FROM
                 markets
             WHERE
@@ -157,6 +166,37 @@ impl MarketStore for DbMarketStore {
             id,
         )
         .fetch_one(db.psql())
+        .await?;
+
+        Ok(market)
+    }
+
+    async fn get_market_by_tag(
+        &self,
+        db: &mut impl DbExecutor,
+        tag: &str,
+    ) -> anyhow::Result<Option<Market>> {
+        let market = query_as!(
+            Market,
+            r#"
+            SELECT
+                id,
+                description,
+                state as "state: MarketState",
+                owner_id,
+                message_id,
+                channel_id,
+                thread_id,
+                details_msg_id,
+                tag
+            FROM
+                markets
+            WHERE
+                tag = $1
+            "#,
+            tag,
+        )
+        .fetch_optional(db.psql())
         .await?;
 
         Ok(market)
@@ -178,7 +218,8 @@ impl MarketStore for DbMarketStore {
                 markets.message_id,
                 markets.channel_id,
                 markets.thread_id,
-                markets.details_msg_id
+                markets.details_msg_id,
+                markets.tag
             FROM
                 markets
             JOIN
@@ -210,7 +251,8 @@ impl MarketStore for DbMarketStore {
                 message_id,
                 channel_id,
                 thread_id,
-                details_msg_id
+                details_msg_id,
+                tag
             FROM
                 markets
             WHERE

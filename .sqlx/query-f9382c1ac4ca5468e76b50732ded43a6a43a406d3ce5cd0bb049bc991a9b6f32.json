@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id,\n                description,\n                state as \"state: MarketState\",\n                owner_id,\n                message_id,\n                channel_id,\n                thread_id,\n                details_msg_id,\n                tag\n            FROM\n                markets\n            WHERE\n                id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "state: MarketState",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "owner_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "message_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "channel_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "thread_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "details_msg_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "tag",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "f9382c1ac4ca5468e76b50732ded43a6a43a406d3ce5cd0bb049bc991a9b6f32"
+}
