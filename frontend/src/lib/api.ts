@@ -27,6 +27,29 @@ export interface AuthUser {
   cash_balance: number
 }
 
+export interface Portfolio {
+  user: AuthUser
+  net_deposits: number
+  trades_profit: number
+  fees_profit: number
+  gambling_winnings: number
+  tips_received: number
+  tips_sent: number
+  transfers_received: number
+  transfers_sent: number
+  positions_value: number
+  net_profit: number
+  net_worth: number
+}
+
+export const portfolioQueryOptions = queryOptions({
+  queryKey: ['portfolio'],
+  queryFn: async (): Promise<Portfolio> => {
+    const res = await apiFetch('/portfolio/')
+    return res.json()
+  },
+})
+
 export async function redeemLoginToken(token: string): Promise<AuthUser> {
   const res = await apiFetch(`/auth/redeem/${encodeURIComponent(token)}/`, {
     method: 'POST',
