@@ -1,6 +1,6 @@
-use crate::ui::instrument_display_text;
-use common::currency::Currency;
-use common::store::{
+use crate::currency::Currency;
+use crate::format::instrument_display_text;
+use crate::store::{
     instrument::{Instrument, InstrumentWithShares},
     market::{FullMarket, Market},
     order::{CreateOrder, OrderDirection},

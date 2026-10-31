@@ -7,9 +7,9 @@ use crate::Commands::ExportUsers;
 mod blackjack;
 mod bot;
 mod command;
-mod portfolio;
+use common::portfolio;
 mod scripts;
-mod trade;
+use common::trade;
 mod ui;
 mod utils;
 

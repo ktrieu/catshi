@@ -6,7 +6,7 @@ use serenity::all::{
     GuildThread, Label, Message, MessageId, ModalInteraction, UserId,
 };
 
-use common::store::{blackjack::DbBlackjack, instrument::Instrument, market::Market};
+use common::store::{blackjack::DbBlackjack, market::Market};
 
 pub mod blackjack;
 pub mod market_create_modal;
@@ -68,17 +68,7 @@ pub fn get_command_option_user<'i>(command: &'i CommandInteraction, name: &str) 
     get_command_option_value(command, name).and_then(|o| o.as_user_id())
 }
 
-pub fn format_market_id(id: i32) -> String {
-    format!("#{id:04}")
-}
-
-pub fn instrument_display_text(instrument: &Instrument, market: &Market) -> String {
-    format!(
-        "{} (market {})",
-        instrument.name,
-        format_market_id(market.id)
-    )
-}
+pub use common::format::{format_market_id, instrument_display_text};
 
 pub fn truncate_text(text: &str, size: usize) -> String {
     if text.len() <= size {
