@@ -14,5 +14,14 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: Number(process.env.FRONTEND_PORT) || 5173,
+    proxy: {
+      // The API routes have no /api prefix, so strip it when forwarding.
+      '/api': {
+        target:
+          process.env.API_URL ||
+          `http://localhost:${process.env.API_PORT || 3000}`,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
   },
 })

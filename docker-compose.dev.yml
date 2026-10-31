@@ -79,6 +79,7 @@ services:
       - "${FRONTEND_PORT}:${FRONTEND_PORT}"
     environment:
       - FRONTEND_PORT=${FRONTEND_PORT}
+      - API_URL=http://catshi-api:${API_PORT}
     volumes:
       - ./frontend:/app
       - /app/node_modules
