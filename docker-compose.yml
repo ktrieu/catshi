@@ -25,6 +25,7 @@ services:
     environment:
       - GUILD_ID=${GUILD_ID}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL}
 
   catshi-migrate:
     container_name: "catshi-migrate"

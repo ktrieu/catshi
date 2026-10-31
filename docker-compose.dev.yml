@@ -35,6 +35,7 @@ services:
     environment:
       - POSTGRES_URL=postgres://catshi:catshi@postgres:5432/catshi
       - SQLX_OFFLINE=true
+      - FRONTEND_BASE_URL=http://localhost:${FRONTEND_PORT}
     volumes:
       - ./api:/app/api
       - ./bot:/app/bot

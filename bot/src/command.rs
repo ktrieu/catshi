@@ -7,3 +7,4 @@ pub mod resolve;
 pub mod tip;
 pub mod trade;
 pub mod transfer;
+pub mod web;

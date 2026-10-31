@@ -22,6 +22,7 @@ use crate::{
 use common::store::{
     blackjack::DbBlackjackStore,
     instrument::DbInstrumentStore,
+    login_token::DbLoginTokenStore,
     market::DbMarketStore,
     order::DbOrderStore,
     position::DbPositionStore,
@@ -42,6 +43,9 @@ pub struct Handler {
     pub instrument_store: DbInstrumentStore,
     pub position_store: DbPositionStore,
     pub order_store: DbOrderStore,
+    pub login_token_store: DbLoginTokenStore,
+    // Front-end origin that /web magic links point at, without a trailing slash.
+    pub frontend_base_url: String,
 }
 
 // Everyone starts with 20 YP.
@@ -115,6 +119,7 @@ impl Handler {
                     command::leaderboard::create(),
                     command::portfolio::create(),
                     command::transfer::create(),
+                    command::web::create(),
                 ],
             )
             .await
@@ -180,6 +185,7 @@ impl Handler {
                 command::portfolio::run(&ctx, self, &user, &command).await?
             }
             command::transfer::NAME => command::transfer::run(&ctx, self, &user, &command).await?,
+            command::web::NAME => command::web::run(&ctx, self, &user, &command).await?,
             _ => {
                 warn!("Unrecognized command {}", command.data.name);
             }
@@ -302,6 +308,11 @@ pub async fn run() {
         .expect("GUILD_ID should be a valid u64");
     let guild_id = GuildId::new(guild_id);
 
+    let frontend_base_url = env::var("FRONTEND_BASE_URL")
+        .expect("FRONTEND_BASE_URL should be set")
+        .trim_end_matches('/')
+        .to_string();
+
     let handler = Arc::new(Handler {
         guild_id,
         db,
@@ -313,6 +324,8 @@ pub async fn run() {
         instrument_store: DbInstrumentStore {},
         position_store: DbPositionStore {},
         order_store: DbOrderStore {},
+        login_token_store: DbLoginTokenStore {},
+        frontend_base_url,
     });
 
     let discord_token =
