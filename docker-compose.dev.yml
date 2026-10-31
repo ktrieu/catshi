@@ -75,10 +75,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    init: true
     ports:
       - "${FRONTEND_PORT}:${FRONTEND_PORT}"
     environment:
       - FRONTEND_PORT=${FRONTEND_PORT}
+      - CHOKIDAR_USEPOLLING=true
       - API_URL=http://catshi-api:${API_PORT}
     volumes:
       - ./frontend:/app

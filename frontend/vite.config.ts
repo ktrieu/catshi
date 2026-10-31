@@ -14,6 +14,11 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: Number(process.env.FRONTEND_PORT) || 5173,
+    // Bind mounts from a Windows host don't emit inotify events, so poll
+    // when running in Docker (set via docker-compose.dev.yml).
+    watch: process.env.CHOKIDAR_USEPOLLING
+      ? { usePolling: true, interval: 300 }
+      : undefined,
     proxy: {
       // The API routes have no /api prefix, so strip it when forwarding.
       '/api': {
