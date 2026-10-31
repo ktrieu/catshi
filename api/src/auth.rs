@@ -1,8 +1,8 @@
 use anyhow::anyhow;
 use axum::{
     Json,
-    extract::{Path, State},
-    http::StatusCode,
+    extract::{FromRequestParts, Path, State},
+    http::{StatusCode, request::Parts},
 };
 use common::store::{
     login_token::LoginTokenStore,
@@ -39,6 +39,39 @@ impl From<DbUser> for AuthUser {
             cash_balance: value.cash_balance.into(),
         }
     }
+}
+
+// Extractor for handlers that require a logged-in user. Rejects with 403 if
+// the session has no user.
+pub struct CurrentUser(pub DbUser);
+
+impl FromRequestParts<AppState> for CurrentUser {
+    type Rejection = AppError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let session = Session::from_request_parts(parts, state)
+            .await
+            .map_err(|(status, msg)| AppError::with_status_code(anyhow!(msg), status))?;
+
+        let Some(user_id) = session.get::<i32>(SESSION_USER_ID_KEY).await? else {
+            return Err(AppError::with_status_code(
+                anyhow!("not authenticated"),
+                StatusCode::FORBIDDEN,
+            ));
+        };
+
+        let mut conn = state.db.conn().await?;
+        let user = state.user_store.get_by_id(&mut conn, user_id).await?;
+
+        Ok(Self(user))
+    }
+}
+
+pub async fn me(CurrentUser(user): CurrentUser) -> Json<AuthUser> {
+    Json(user.into())
 }
 
 pub async fn redeem(
