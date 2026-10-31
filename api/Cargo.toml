@@ -14,4 +14,4 @@ tower-sessions = { version = "0.15.0", default-features = false, features = [ "a
 async-trait = "0.1.92"
 serde_json = "1.0.154"
 time = "0.3.55"
-
+uuid = { version = "1.29.0", features = [ "serde" ] }

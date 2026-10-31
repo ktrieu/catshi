@@ -42,6 +42,7 @@ pub trait UserStore {
     ) -> anyhow::Result<()>;
 }
 
+#[derive(Debug, Clone)]
 pub struct DbUserStore {}
 
 impl UserStore for DbUserStore {

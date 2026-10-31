@@ -36,6 +36,7 @@ pub trait LoginTokenStore {
     async fn delete_expired(&self, db: &mut impl DbExecutor) -> anyhow::Result<u64>;
 }
 
+#[derive(Debug, Clone)]
 pub struct DbLoginTokenStore {}
 
 impl LoginTokenStore for DbLoginTokenStore {

@@ -1,12 +1,16 @@
 use std::{env, sync::Arc};
 
-use axum::{Router, routing::get};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use common::store::CatshiDb;
 use time::Duration;
 use tower_sessions::{Expiry, SessionManagerLayer};
 
 use crate::{session_store::PgSessionStore, state::AppState};
 
+mod auth;
 mod catfishing;
 mod error;
 mod session_store;
@@ -31,6 +35,7 @@ async fn main() {
         .with_expiry(Expiry::OnInactivity(Duration::days(30)));
 
     let app = Router::new()
+        .route("/auth/redeem/{token}", post(auth::redeem))
         .route("/catfishing", get(catfishing::list_games))
         .layer(session_layer);
 
