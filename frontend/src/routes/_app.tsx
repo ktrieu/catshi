@@ -28,8 +28,6 @@ function Navbar() {
         <Link to="/">
           <img src={logo} alt="Catshi" className="h-14" />
         </Link>
-        <span className="text-gray-500">Markets</span>
-        <span className="text-gray-500">Portfolio</span>
         <span className="ml-auto text-gray-500">{user?.name}</span>
       </nav>
     </header>
