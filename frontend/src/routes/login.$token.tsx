@@ -1,11 +1,13 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { ApiError, redeemLoginToken } from '../lib/api'
+import { ApiError, currentUserQueryOptions, redeemLoginToken } from '../lib/api'
 
 export const Route = createFileRoute('/login/$token')({
   // Tokens are single use, so redeem in beforeLoad (runs once per navigation)
   // rather than in an effect, which StrictMode would run twice.
-  beforeLoad: async ({ params }) => {
-    await redeemLoginToken(params.token)
+  beforeLoad: async ({ params, context }) => {
+    const user = await redeemLoginToken(params.token)
+    // Redeem returns the user, so seed the cache and skip a /auth/me/ round trip.
+    context.queryClient.setQueryData(currentUserQueryOptions.queryKey, user)
     throw redirect({ to: '/', replace: true })
   },
   errorComponent: LoginError,

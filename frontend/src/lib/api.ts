@@ -1,3 +1,5 @@
+import { queryOptions } from '@tanstack/react-query'
+
 // All API calls go through /api, which the dev server proxies to the backend.
 // Keeping it same-origin means the session cookie needs no CORS setup.
 export class ApiError extends Error {
@@ -31,3 +33,18 @@ export async function redeemLoginToken(token: string): Promise<AuthUser> {
   })
   return res.json()
 }
+
+// The API answers 403 when there is no session; treat that as "logged out"
+// (null) rather than an error so consumers don't have to special-case it.
+export const currentUserQueryOptions = queryOptions({
+  queryKey: ['auth', 'me'],
+  queryFn: async (): Promise<AuthUser | null> => {
+    try {
+      const res = await apiFetch('/auth/me/')
+      return await res.json()
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 403) return null
+      throw e
+    }
+  },
+})
