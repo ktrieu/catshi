@@ -7,6 +7,7 @@ pub mod login_token;
 pub mod market;
 pub mod order;
 pub mod position;
+pub mod session;
 pub mod tip;
 pub mod transfer;
 pub mod user;
