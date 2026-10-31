@@ -31,6 +31,7 @@ pub trait SessionStore {
     async fn delete(&self, db: &mut impl DbExecutor, id: &str) -> anyhow::Result<()>;
 }
 
+#[derive(Debug, Clone)]
 pub struct DbSessionStore {}
 
 impl SessionStore for DbSessionStore {
