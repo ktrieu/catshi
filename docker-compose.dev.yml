@@ -13,6 +13,7 @@ services:
     environment:
       - POSTGRES_URL=postgres://catshi:catshi@postgres:5432/catshi
       - SQLX_OFFLINE=true
+      - DEV_AUTH=1
     volumes:
       - ./api:/app/api
       - ./bot:/app/bot

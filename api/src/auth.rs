@@ -41,6 +41,34 @@ impl From<DbUser> for AuthUser {
     }
 }
 
+#[cfg(debug_assertions)]
+const DEV_AUTH_HEADER: &str = "x-dev-user-id";
+
+#[cfg(debug_assertions)]
+pub fn dev_auth_enabled() -> bool {
+    std::env::var_os("DEV_AUTH").is_some()
+}
+
+#[cfg(debug_assertions)]
+fn dev_auth_user_id(parts: &Parts) -> Result<Option<i32>, AppError> {
+    let Some(value) = parts.headers.get(DEV_AUTH_HEADER) else {
+        return Ok(None);
+    };
+
+    let id = value
+        .to_str()
+        .ok()
+        .and_then(|v| v.parse::<i32>().ok())
+        .ok_or_else(|| {
+            AppError::with_status_code(
+                anyhow!("{DEV_AUTH_HEADER} must be an integer user id"),
+                StatusCode::BAD_REQUEST,
+            )
+        })?;
+
+    Ok(Some(id))
+}
+
 // Extractor for handlers that require a logged-in user. Rejects with 403 if
 // the session has no user.
 pub struct CurrentUser(pub DbUser);
@@ -52,6 +80,15 @@ impl FromRequestParts<AppState> for CurrentUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
+        #[cfg(debug_assertions)]
+        if dev_auth_enabled()
+            && let Some(user_id) = dev_auth_user_id(parts)?
+        {
+            let mut conn = state.db.conn().await?;
+            let user = state.user_store.get_by_id(&mut conn, user_id).await?;
+            return Ok(Self(user));
+        }
+
         let session = Session::from_request_parts(parts, state)
             .await
             .map_err(|(status, msg)| AppError::with_status_code(anyhow!(msg), status))?;

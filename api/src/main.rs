@@ -26,6 +26,11 @@ async fn main() {
     let api_port = env::var("API_PORT").expect("API_PORT should be set");
     let pg_url = env::var("POSTGRES_URL").expect("POSTGRES_URL should be set");
 
+    #[cfg(debug_assertions)]
+    if auth::dev_auth_enabled() {
+        eprintln!("WARNING: DEV_AUTH is set; X-Dev-User-Id header bypasses authentication");
+    }
+
     let db = CatshiDb::new(&pg_url)
         .await
         .expect("database initialization should succeed");
