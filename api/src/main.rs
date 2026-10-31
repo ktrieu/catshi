@@ -35,9 +35,9 @@ async fn main() {
         .with_expiry(Expiry::OnInactivity(Duration::days(30)));
 
     let app = Router::new()
-        .route("/auth/me", get(auth::me))
-        .route("/auth/redeem/{token}", post(auth::redeem))
-        .route("/catfishing", get(catfishing::list_games))
+        .route("/auth/me/", get(auth::me))
+        .route("/auth/redeem/{token}/", post(auth::redeem))
+        .route("/catfishing/", get(catfishing::list_games))
         .layer(session_layer);
 
     // run our app with hyper, listening globally on port 3000
