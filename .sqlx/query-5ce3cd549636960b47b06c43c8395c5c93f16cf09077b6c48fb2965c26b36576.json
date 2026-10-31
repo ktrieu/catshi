@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id,\n                data,\n                EXTRACT(EPOCH FROM expires_at)::BIGINT AS \"expires_at!\",\n                EXTRACT(EPOCH FROM created_at)::BIGINT AS \"created_at!\",\n                EXTRACT(EPOCH FROM updated_at)::BIGINT AS \"updated_at!\"\n            FROM\n                sessions\n            WHERE\n                id = $1 AND expires_at > CURRENT_TIMESTAMP\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "data",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 2,
+        "name": "expires_at!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "updated_at!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "5ce3cd549636960b47b06c43c8395c5c93f16cf09077b6c48fb2965c26b36576"
+}
