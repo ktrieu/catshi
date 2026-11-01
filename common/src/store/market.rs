@@ -77,6 +77,7 @@ pub trait MarketStore {
     ) -> anyhow::Result<()>;
 }
 
+#[derive(Debug, Clone)]
 pub struct DbMarketStore {}
 
 impl MarketStore for DbMarketStore {

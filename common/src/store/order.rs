@@ -46,6 +46,7 @@ pub trait OrderStore {
     ) -> anyhow::Result<Order>;
 }
 
+#[derive(Debug, Clone)]
 pub struct DbOrderStore {}
 
 impl OrderStore for DbOrderStore {

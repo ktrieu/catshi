@@ -16,6 +16,7 @@ mod error;
 mod portfolio;
 mod session_store;
 mod state;
+mod trade;
 
 #[tokio::main]
 async fn main() {
@@ -45,6 +46,7 @@ async fn main() {
         .route("/auth/redeem/{token}/", post(auth::redeem))
         .route("/portfolio/", get(portfolio::get_portfolio))
         .route("/catfishing/", get(catfishing::list_games))
+        .route("/trade/", post(trade::post_trade))
         .layer(session_layer);
 
     // run our app with hyper, listening globally on port 3000
