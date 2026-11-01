@@ -24,8 +24,7 @@ const MOCK_SENATE_MARGINS: SenateMarginBucket[] = [
 function Election2026() {
   return (
     <section className="py-6">
-      <h1 className="text-3xl font-bold">ELECTION 2026</h1>
-      <h2 className="mt-6 text-xl font-semibold">Senate seat differential</h2>
+      <h1 className="text-3xl font-bold mb-6">ELECTION 2026</h1>
       <SenateMarginChart data={MOCK_SENATE_MARGINS} />
     </section>
   )

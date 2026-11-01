@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { scaleBand, scaleLinear } from 'd3-scale'
-import { faDemocrat, faRepublican, type IconDefinition } from '@fortawesome/free-solid-svg-icons'
 import { useElementWidth } from '../lib/useElementWidth'
 
 export type Party = 'D' | 'R' | 'even'
@@ -12,11 +11,11 @@ export interface SenateMarginBucket {
 }
 
 const COMPACT_BREAKPOINT = 640
-const CORNER_RADIUS = 4
 const MARGIN = { top: 28, bottom: 36 }
 
-const WIDE_LAYOUT = { height: 380, sideWidth: 120, axisWidth: 44, iconWidth: 80 }
-const COMPACT_LAYOUT = { height: 260, sideWidth: 0, axisWidth: 36, iconWidth: 0 }
+const HEIGHT = 240
+const WIDE_AXIS_WIDTH = 44
+const COMPACT_AXIS_WIDTH = 36
 
 const PARTY_FILL: Record<Party, string> = {
   D: 'fill-blue-600',
@@ -26,29 +25,16 @@ const PARTY_FILL: Record<Party, string> = {
 
 const formatPercent = (p: number) => `${Math.round(p * 100)}%`
 
-function topRoundedBar(x: number, y: number, width: number, height: number) {
-  const r = Math.min(CORNER_RADIUS, width / 2, height)
-  return [
-    `M${x},${y + height}`,
-    `V${y + r}`,
-    `Q${x},${y} ${x + r},${y}`,
-    `H${x + width - r}`,
-    `Q${x + width},${y} ${x + width},${y + r}`,
-    `V${y + height}`,
-    'Z',
-  ].join(' ')
-}
-
 export function SenateMarginChart({ data }: { data: SenateMarginBucket[] }) {
   const [containerRef, width] = useElementWidth<HTMLDivElement>()
   const compact = width < COMPACT_BREAKPOINT
 
   return (
     <div ref={containerRef} className="w-full">
-      {width > 0 && compact && (
+      {width > 0 && (
         <div className="mb-2 flex items-center justify-between">
-          <PartyBadge icon={faDemocrat} name="DEMOCRATIC" fill="fill-blue-600" text="text-blue-600" />
-          <PartyBadge icon={faRepublican} name="REPUBLICAN" fill="fill-red-600" text="text-red-600" iconRight />
+          <PartyLabel name="DEMOCRATIC" className="text-blue-600" compact={compact} />
+          <PartyLabel name="REPUBLICAN" className="text-red-600" compact={compact} />
         </div>
       )}
       {width > 0 && <Chart data={data} width={width} compact={compact} />}
@@ -67,10 +53,9 @@ function Chart({
 }) {
   const [selected, setSelected] = useState<string | null>(null)
 
-  const { height, sideWidth, axisWidth, iconWidth } = compact ? COMPACT_LAYOUT : WIDE_LAYOUT
-  const plotLeft = sideWidth + axisWidth
-  const plotRight = width - sideWidth
-  const plotBottom = height - MARGIN.bottom
+  const plotLeft = compact ? COMPACT_AXIS_WIDTH : WIDE_AXIS_WIDTH
+  const plotRight = width
+  const plotBottom = HEIGHT - MARGIN.bottom
 
   const x = scaleBand<string>()
     .domain(data.map((d) => d.label))
@@ -80,12 +65,10 @@ function Chart({
 
   const y = scaleLinear().domain([0, 1]).range([plotBottom, MARGIN.top])
 
-  const centerY = (MARGIN.top + plotBottom) / 2
-
   return (
     <svg
       width={width}
-      height={height}
+      height={HEIGHT}
       className="block"
       role="img"
       aria-label="Probability of each Senate seat differential"
@@ -105,7 +88,7 @@ function Chart({
             y={y(tick)}
             textAnchor="end"
             dominantBaseline="middle"
-            className="fill-gray-500 text-xs"
+            className={`fill-gray-500 ${compact ? 'text-xs' : 'text-sm'}`}
           >
             {formatPercent(tick)}
           </text>
@@ -134,8 +117,18 @@ function Chart({
               height={plotBottom - MARGIN.top}
               className={isSelected ? 'fill-gray-100' : 'fill-transparent'}
             />
-            <path
-              d={topRoundedBar(bx, by, x.bandwidth(), plotBottom - by)}
+            <rect
+              x={bx - (x.step() - x.bandwidth()) / 2}
+              y={MARGIN.top}
+              width={x.step()}
+              height={plotBottom - MARGIN.top}
+              className="fill-transparent"
+            />
+            <rect
+              x={bx}
+              y={by}
+              width={x.bandwidth()}
+              height={plotBottom - by}
               className={PARTY_FILL[d.party]}
               opacity={selected && !isSelected ? 0.6 : 1}
             />
@@ -144,7 +137,7 @@ function Chart({
                 x={bx + x.bandwidth() / 2}
                 y={by - 6}
                 textAnchor="middle"
-                className="fill-gray-900 text-sm font-semibold"
+                className={`fill-gray-900 font-semibold ${compact ? 'text-sm' : 'text-base'}`}
               >
                 {formatPercent(d.probability)}
               </text>
@@ -154,7 +147,7 @@ function Chart({
                 x={bx + x.bandwidth() / 2}
                 y={plotBottom + 20}
                 textAnchor="middle"
-                className={`text-xs ${isSelected ? 'fill-gray-900 font-semibold' : 'fill-gray-600'}`}
+                className={`${compact ? 'text-xs' : 'text-sm'} ${isSelected ? 'fill-gray-900 font-semibold' : 'fill-gray-600'}`}
               >
                 {d.label}
               </text>
@@ -162,80 +155,10 @@ function Chart({
           </g>
         )
       })}
-
-      {!compact && (
-        <>
-          <PartyLabel icon={faDemocrat} name="DEMOCRATIC" cx={sideWidth / 2} cy={centerY} iconWidth={iconWidth} fill="fill-blue-600" />
-          <PartyLabel icon={faRepublican} name="REPUBLICAN" cx={width - sideWidth / 2} cy={centerY} iconWidth={iconWidth} fill="fill-red-600" />
-        </>
-      )}
     </svg>
   )
 }
 
-function iconPathData(icon: IconDefinition) {
-  const [iconWidth, iconHeight, , , pathData] = icon.icon
-  return {
-    iconWidth,
-    iconHeight,
-    d: Array.isArray(pathData) ? pathData.join(' ') : pathData,
-  }
-}
-
-function PartyLabel({
-  icon,
-  name,
-  cx,
-  cy,
-  iconWidth: targetWidth,
-  fill,
-}: {
-  icon: IconDefinition
-  name: string
-  cx: number
-  cy: number
-  iconWidth: number
-  fill: string
-}) {
-  const { iconWidth, iconHeight, d } = iconPathData(icon)
-  const scale = targetWidth / iconWidth
-  const height = iconHeight * scale
-
-  return (
-    <g>
-      <path
-        d={d}
-        transform={`translate(${cx - targetWidth / 2}, ${cy - height}) scale(${scale})`}
-        className={fill}
-      />
-      <text x={cx} y={cy + 22} textAnchor="middle" className={`${fill} text-sm font-bold tracking-wide`}>
-        {name}
-      </text>
-    </g>
-  )
-}
-
-function PartyBadge({
-  icon,
-  name,
-  fill,
-  text,
-  iconRight = false,
-}: {
-  icon: IconDefinition
-  name: string
-  fill: string
-  text: string
-  iconRight?: boolean
-}) {
-  const { iconWidth, iconHeight, d } = iconPathData(icon)
-
-  return (
-    <div className={`flex items-center gap-2 ${iconRight ? 'flex-row-reverse' : ''}`}>
-      <svg viewBox={`0 0 ${iconWidth} ${iconHeight}`} className="h-6 w-auto" aria-hidden>
-        <path d={d} className={fill} />
-      </svg>
-      <span className={`${text} text-sm font-bold tracking-wide`}>{name}</span>
-    </div>
-  )
+function PartyLabel({ name, className, compact }: { name: string; className: string; compact: boolean }) {
+  return <span className={`${className} ${compact ? 'text-sm' : 'text-lg'} font-bold tracking-wide`}>{name}</span>
 }
