@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppElection2026RouteImport } from './routes/_app/election-2026'
 import { Route as LoginTokenRouteImport } from './routes/login.$token'
 
 const AppRoute = AppRouteImport.update({
@@ -22,6 +23,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppElection2026Route = AppElection2026RouteImport.update({
+  id: '/election-2026',
+  path: '/election-2026',
+  getParentRoute: () => AppRoute,
+} as any)
 const LoginTokenRoute = LoginTokenRouteImport.update({
   id: '/login/$token',
   path: '/login/$token',
@@ -30,24 +36,27 @@ const LoginTokenRoute = LoginTokenRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/election-2026': typeof AppElection2026Route
   '/login/$token': typeof LoginTokenRoute
 }
 export interface FileRoutesByTo {
+  '/election-2026': typeof AppElection2026Route
   '/login/$token': typeof LoginTokenRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/_app/election-2026': typeof AppElection2026Route
   '/login/$token': typeof LoginTokenRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login/$token'
+  fullPaths: '/' | '/election-2026' | '/login/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login/$token' | '/'
-  id: '__root__' | '/_app' | '/login/$token' | '/_app/'
+  to: '/election-2026' | '/login/$token' | '/'
+  id: '__root__' | '/_app' | '/_app/election-2026' | '/login/$token' | '/_app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -71,6 +80,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/election-2026': {
+      id: '/_app/election-2026'
+      path: '/election-2026'
+      fullPath: '/election-2026'
+      preLoaderRoute: typeof AppElection2026RouteImport
+      parentRoute: typeof AppRoute
+    }
     '/login/$token': {
       id: '/login/$token'
       path: '/login/$token'
@@ -82,10 +98,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppElection2026Route: typeof AppElection2026Route
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppElection2026Route: AppElection2026Route,
   AppIndexRoute: AppIndexRoute,
 }
 

@@ -28,6 +28,12 @@ function Navbar() {
         <Link to="/">
           <img src={logo} alt="Catshi" className="h-14" />
         </Link>
+        <Link
+          to="/election-2026"
+          className="text-gray-700 hover:text-black [&.active]:font-semibold [&.active]:text-black"
+        >
+          Election 2026
+        </Link>
         <span className="ml-auto text-gray-500">{user?.name}</span>
       </nav>
     </header>
