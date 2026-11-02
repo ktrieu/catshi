@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { SenateMarginChart, type SenateMarginBucket } from '../../components/SenateMarginChart'
+import { SenateStateMap, type SwingStateOdds } from '../../components/SenateStateMap'
 
 export const Route = createFileRoute('/_app/election-2026')({
   component: Election2026,
@@ -21,11 +22,23 @@ const MOCK_SENATE_MARGINS: SenateMarginBucket[] = [
   { label: 'R+6+', party: 'R', probability: 0.12 },
 ]
 
+const MOCK_SWING_STATES: SwingStateOdds[] = [
+  { fips: '37', name: 'North Carolina', demProbability: 0.58 },
+  { fips: '23', name: 'Maine', demProbability: 0.52 },
+  { fips: '26', name: 'Michigan', demProbability: 0.55 },
+  { fips: '39', name: 'Ohio', demProbability: 0.41 },
+  { fips: '19', name: 'Iowa', demProbability: 0.38 },
+  { fips: '48', name: 'Texas', demProbability: 0.31 },
+  { fips: '02', name: 'Alaska', demProbability: 0.46 },
+]
+
 function Election2026() {
   return (
     <section className="py-6">
       <h1 className="text-3xl font-bold mb-6">ELECTION 2026</h1>
       <SenateMarginChart data={MOCK_SENATE_MARGINS} />
+      <h2 className="mt-10 text-xl font-semibold">Swing states</h2>
+      <SenateStateMap swingStates={MOCK_SWING_STATES} />
     </section>
   )
 }
