@@ -50,6 +50,12 @@ pub trait InstrumentStore {
         market_id: i32,
     ) -> anyhow::Result<Vec<InstrumentWithShares>>;
 
+    async fn get_instruments_with_share_counts_for_markets(
+        &self,
+        db: &mut impl DbExecutor,
+        market_ids: &[i32],
+    ) -> anyhow::Result<Vec<InstrumentWithShares>>;
+
     async fn get_all_open_instruments_with_share_counts(
         &self,
         db: &mut impl DbExecutor,
@@ -168,6 +174,39 @@ impl InstrumentStore for DbInstrumentStore {
             .collect();
 
         Ok(instruments)
+    }
+
+    async fn get_instruments_with_share_counts_for_markets(
+        &self,
+        db: &mut impl DbExecutor,
+        market_ids: &[i32],
+    ) -> anyhow::Result<Vec<InstrumentWithShares>> {
+        let rows = sqlx::query_as::<_, PgInstrumentWithSharesRow>(
+            r#"
+            SELECT
+                instruments.id,
+                instruments.name,
+                instruments.state,
+                instruments.market_id,
+                CAST(COALESCE(SUM(quantity), 0) AS BIGINT) as shares
+            FROM
+                instruments
+            LEFT JOIN
+                positions ON instruments.id = positions.instrument_id
+            WHERE
+                instruments.market_id = ANY($1)
+            GROUP BY instruments.id
+            ORDER BY instruments.id ASC
+            "#,
+        )
+        .bind(market_ids)
+        .fetch_all(db.psql())
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(PgInstrumentWithSharesRow::into_pair)
+            .collect())
     }
 
     async fn get_all_open_instruments_with_share_counts(

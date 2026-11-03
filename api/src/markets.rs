@@ -1,0 +1,117 @@
+use std::collections::HashMap;
+
+use axum::{Json, extract::State};
+use common::{
+    currency::Currency,
+    trade::{MARKET_B, calc_price},
+};
+use common::store::{
+    instrument::{InstrumentState, InstrumentWithShares},
+    market::{FullMarket, MarketState},
+};
+use serde::Serialize;
+
+use crate::{error::HandlerResult, state::AppState};
+
+const ELXN26_TAGS: &[&str] = &[
+    "elxn26-senate-margin",
+    "elxn26-senate-nc",
+    "elxn26-senate-me",
+    "elxn26-senate-mi",
+    "elxn26-senate-oh",
+    "elxn26-senate-ia",
+    "elxn26-senate-tx",
+    "elxn26-senate-ak",
+    "elxn26-senate-sc",
+    "elxn26-senate-ne",
+    "elxn26-senate-ks",
+    "elxn26-senate-ga",
+    "elxn26-senate-nh",
+    "elxn26-house-nj7",
+];
+
+#[derive(Serialize)]
+pub struct InstrumentResponse {
+    id: i32,
+    name: String,
+    state: &'static str,
+    shares: i64,
+    price: i64,
+}
+
+impl InstrumentResponse {
+    fn new((instrument, shares): InstrumentWithShares, price: Currency) -> Self {
+        Self {
+            id: instrument.id,
+            name: instrument.name,
+            state: match instrument.state {
+                InstrumentState::Open => "open",
+                InstrumentState::Winner => "winner",
+                InstrumentState::Loser => "loser",
+            },
+            shares,
+            price: price.into(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct MarketResponse {
+    id: i32,
+    description: String,
+    state: &'static str,
+    owner_id: i32,
+    owner_name: String,
+    instruments: Vec<InstrumentResponse>,
+}
+
+impl From<FullMarket> for MarketResponse {
+    fn from(market: FullMarket) -> Self {
+        let prices: Vec<Currency> = market
+            .instruments
+            .iter()
+            .map(|(i, _)| calc_price(i.id, market.instruments.iter(), MARKET_B))
+            .collect();
+
+        Self {
+            id: market.row.id,
+            description: market.row.description,
+            state: match market.row.state {
+                MarketState::Open => "open",
+                MarketState::Closed => "closed",
+            },
+            owner_id: market.owner.id,
+            owner_name: market.owner.name,
+            instruments: market
+                .instruments
+                .into_iter()
+                .zip(prices)
+                .map(|(iws, price)| InstrumentResponse::new(iws, price))
+                .collect(),
+        }
+    }
+}
+
+pub async fn get_elxn26_markets(
+    State(state): State<AppState>,
+) -> HandlerResult<Json<HashMap<String, MarketResponse>>> {
+    let tags: Vec<String> = ELXN26_TAGS.iter().map(|t| (*t).to_owned()).collect();
+
+    let mut conn = state.db.conn().await?;
+
+    let markets = FullMarket::new_from_tags(
+        &mut conn,
+        &state.market_store,
+        &state.instrument_store,
+        &state.user_store,
+        &tags,
+    )
+    .await?;
+
+    let response = markets
+        .into_iter()
+        .filter_map(|m| m.row.tag.clone().map(|tag| (tag, m.into())))
+        .collect();
+
+    Ok(Json(response))
+}

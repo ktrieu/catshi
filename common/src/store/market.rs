@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 use anyhow::anyhow;
 use serenity::all::{GenericChannelId, MessageId, ThreadId};
 use sqlx::{query, query_as};
@@ -61,11 +63,12 @@ pub trait MarketStore {
 
     async fn get_market_by_id(&self, db: &mut impl DbExecutor, id: i32) -> anyhow::Result<Market>;
 
-    async fn get_market_by_tag(
+    /// Fetches the market for every given tag. Errors if any tag has no market.
+    async fn get_markets_by_tags(
         &self,
         db: &mut impl DbExecutor,
-        tag: &str,
-    ) -> anyhow::Result<Option<Market>>;
+        tags: &[String],
+    ) -> anyhow::Result<Vec<Market>>;
 
     async fn get_market_by_instrument_id(
         &self,
@@ -222,18 +225,17 @@ impl MarketStore for DbMarketStore {
         Ok(market)
     }
 
-    async fn get_market_by_tag(
+    async fn get_markets_by_tags(
         &self,
         db: &mut impl DbExecutor,
-        tag: &str,
-    ) -> anyhow::Result<Option<Market>> {
-        let market = query_as!(
-            Market,
+        tags: &[String],
+    ) -> anyhow::Result<Vec<Market>> {
+        let markets = sqlx::query_as::<_, Market>(
             r#"
             SELECT
                 id,
                 description,
-                state as "state: MarketState",
+                state,
                 owner_id,
                 message_id,
                 channel_id,
@@ -243,14 +245,30 @@ impl MarketStore for DbMarketStore {
             FROM
                 markets
             WHERE
-                tag = $1
+                tag = ANY($1)
+            ORDER BY id ASC
             "#,
-            tag,
         )
-        .fetch_optional(db.psql())
+        .bind(tags)
+        .fetch_all(db.psql())
         .await?;
 
-        Ok(market)
+        if markets.len() != tags.len() {
+            let found: HashSet<&str> = markets.iter().filter_map(|m| m.tag.as_deref()).collect();
+            let missing: Vec<&str> = tags
+                .iter()
+                .map(String::as_str)
+                .filter(|t| !found.contains(t))
+                .collect();
+            return Err(anyhow!(
+                "expected {} markets but found {}; missing tags: {}",
+                tags.len(),
+                markets.len(),
+                missing.join(", ")
+            ));
+        }
+
+        Ok(markets)
     }
 
     async fn get_market_by_instrument_id(
@@ -371,6 +389,38 @@ impl FullMarket {
             instruments,
             owner,
         })
+    }
+
+    pub async fn new_from_tags(
+        exec: &mut impl DbExecutor,
+        market_store: &impl MarketStore,
+        instrument_store: &impl InstrumentStore,
+        user_store: &impl UserStore,
+        tags: &[String],
+    ) -> anyhow::Result<Vec<Self>> {
+        let rows = market_store.get_markets_by_tags(exec, tags).await?;
+
+        let market_ids: Vec<i32> = rows.iter().map(|m| m.id).collect();
+        let mut instruments_by_market: HashMap<i32, Vec<InstrumentWithShares>> = HashMap::new();
+        for i in instrument_store
+            .get_instruments_with_share_counts_for_markets(exec, &market_ids)
+            .await?
+        {
+            instruments_by_market.entry(i.0.market_id).or_default().push(i);
+        }
+
+        let mut markets = Vec::with_capacity(rows.len());
+        for row in rows {
+            let owner = user_store.get_by_id(exec, row.owner_id).await?;
+            let instruments = instruments_by_market.remove(&row.id).unwrap_or_default();
+            markets.push(Self {
+                row,
+                instruments,
+                owner,
+            });
+        }
+
+        Ok(markets)
     }
 
     pub fn get_instrument(&self, id: i32) -> anyhow::Result<&InstrumentWithShares> {
