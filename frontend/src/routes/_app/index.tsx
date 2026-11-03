@@ -14,7 +14,7 @@ function Home() {
   return (
     <>
       <section className="py-6">
-        <p className="text-9xl font-bold">
+        <p className="text-5xl sm:text-7xl lg:text-9xl font-bold">
           {portfolio ? formatCurrency(portfolio.net_worth) : '—'}
         </p>
       </section>
