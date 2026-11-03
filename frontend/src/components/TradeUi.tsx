@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatCurrency } from '../lib/currency'
-import { placeTrade } from '../lib/api'
+import { currentUserQueryOptions, placeTrade } from '../lib/api'
 import type { ApiInstrument, ApiMarket, TradeResult } from '../lib/api'
 
 type Side = 'buy' | 'sell'
@@ -13,6 +13,7 @@ interface Selection {
 
 export function TradeUi({ market }: { market: ApiMarket }) {
   const queryClient = useQueryClient()
+  const { data: user } = useQuery(currentUserQueryOptions)
   const [selection, setSelection] = useState<Selection | null>(null)
   const [quantity, setQuantity] = useState('1')
 
@@ -24,6 +25,24 @@ export function TradeUi({ market }: { market: ApiMarket }) {
       queryClient.invalidateQueries({ queryKey: ['elxn26', 'markets'] })
     },
   })
+
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+
+  const toggleExpanded = (id: number) => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const allExpanded =
+    market.instruments.length > 0 && market.instruments.every((i) => expanded.has(i.id))
+
+  const toggleAll = () => {
+    setExpanded(allExpanded ? new Set() : new Set(market.instruments.map((i) => i.id)))
+  }
 
   const select = (instrument: ApiInstrument, side: Side) => {
     trade.reset()
@@ -52,33 +71,93 @@ export function TradeUi({ market }: { market: ApiMarket }) {
 
   return (
     <div className="flex flex-col rounded-lg border border-gray-200">
-      <div className="border-b border-gray-200 p-4">
-        <p className="font-semibold">{market.description}</p>
-        <p className="text-sm text-gray-500">Owner: {market.owner_name}</p>
+      <div className="flex items-start justify-between gap-3 border-b border-gray-200 p-4">
+        <div className="min-w-0">
+          <p className="font-semibold">{market.description}</p>
+          <p className="text-sm text-gray-500">Owner: {market.owner_name}</p>
+        </div>
+        <button
+          type="button"
+          onClick={toggleAll}
+          className="shrink-0 text-sm text-gray-500 hover:text-black"
+        >
+          {allExpanded ? 'Collapse all' : 'Expand all'}
+        </button>
       </div>
       <ul className="divide-y divide-gray-100">
-        {market.instruments.map((instrument) => (
-          <li key={instrument.id} className="flex items-center gap-3 p-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate">{instrument.name}</p>
-              <p className="text-sm text-gray-500">{formatCurrency(instrument.price)}</p>
+        {market.instruments.map((instrument) => {
+          const mine = instrument.positions.find((p) => p.owner_id === user?.id)
+          return (
+          <li key={instrument.id} className={mine ? 'bg-blue-50' : ''}>
+            <div className="flex items-center gap-3 p-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate">{instrument.name}</p>
+                <p className="text-sm text-gray-500">
+                  {formatCurrency(instrument.price)}
+                  {' · '}
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(instrument.id)}
+                    aria-expanded={expanded.has(instrument.id)}
+                    className="inline-flex items-center gap-1 hover:text-black"
+                  >
+                    {instrument.positions.length}{' '}
+                    {instrument.positions.length === 1 ? 'owner' : 'owners'}
+                    <span
+                      className={`inline-block transition-transform ${expanded.has(instrument.id) ? 'rotate-180' : ''}`}
+                    >
+                      ▾
+                    </span>
+                  </button>
+                </p>
+                {mine && (
+                  <p className="text-sm font-medium text-blue-600">{mine.quantity} owned</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => select(instrument, 'buy')}
+                className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
+              >
+                Buy
+              </button>
+              <button
+                type="button"
+                onClick={() => select(instrument, 'sell')}
+                className="rounded bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Sell
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => select(instrument, 'buy')}
-              className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
+            <div
+              className={`grid transition-all duration-200 ${expanded.has(instrument.id) ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
             >
-              Buy
-            </button>
-            <button
-              type="button"
-              onClick={() => select(instrument, 'sell')}
-              className="rounded bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-700"
-            >
-              Sell
-            </button>
+              <div className="overflow-hidden">
+                {instrument.positions.length === 0 ? (
+                  <p className="px-3 pb-3 text-sm text-gray-500">No owners yet</p>
+                ) : (
+                  <ul className="space-y-1 px-3 pb-3 text-sm">
+                    {[...instrument.positions]
+                      .sort((a, b) => b.quantity - a.quantity)
+                      .map((p) => (
+                        <li
+                          key={p.id}
+                          className={`flex justify-between ${p.owner_id === user?.id ? 'font-medium text-blue-600' : 'text-gray-700'}`}
+                        >
+                          <span className="truncate">
+                            {p.owner_name}
+                            {p.owner_id === user?.id && ' (you)'}
+                          </span>
+                          <span>{p.quantity}</span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           </li>
-        ))}
+          )
+        })}
       </ul>
       <div
         className={`grid transition-all duration-200 ${selection ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}

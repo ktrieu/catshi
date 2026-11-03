@@ -8,6 +8,7 @@ use common::{
 use common::store::{
     instrument::{InstrumentState, InstrumentWithShares},
     market::{FullMarket, MarketState},
+    position::{PositionStore, PositionWithUser},
 };
 use serde::Serialize;
 
@@ -31,16 +32,42 @@ const ELXN26_TAGS: &[&str] = &[
 ];
 
 #[derive(Serialize)]
+pub struct PositionResponse {
+    id: i32,
+    owner_id: i32,
+    owner_name: String,
+    quantity: i64,
+    cost_basis: i64,
+}
+
+impl From<PositionWithUser> for PositionResponse {
+    fn from(p: PositionWithUser) -> Self {
+        Self {
+            id: p.position.id,
+            owner_id: p.user.id,
+            owner_name: p.user.name,
+            quantity: p.position.quantity,
+            cost_basis: p.position.cost_basis.into(),
+        }
+    }
+}
+
+#[derive(Serialize)]
 pub struct InstrumentResponse {
     id: i32,
     name: String,
     state: &'static str,
     shares: i64,
     price: i64,
+    positions: Vec<PositionResponse>,
 }
 
 impl InstrumentResponse {
-    fn new((instrument, shares): InstrumentWithShares, price: Currency) -> Self {
+    fn new(
+        (instrument, shares): InstrumentWithShares,
+        price: Currency,
+        positions: Vec<PositionResponse>,
+    ) -> Self {
         Self {
             id: instrument.id,
             name: instrument.name,
@@ -51,6 +78,7 @@ impl InstrumentResponse {
             },
             shares,
             price: price.into(),
+            positions,
         }
     }
 }
@@ -65,8 +93,8 @@ pub struct MarketResponse {
     instruments: Vec<InstrumentResponse>,
 }
 
-impl From<FullMarket> for MarketResponse {
-    fn from(market: FullMarket) -> Self {
+impl MarketResponse {
+    fn new(market: FullMarket, positions: &mut HashMap<i32, Vec<PositionResponse>>) -> Self {
         let prices: Vec<Currency> = market
             .instruments
             .iter()
@@ -86,7 +114,10 @@ impl From<FullMarket> for MarketResponse {
                 .instruments
                 .into_iter()
                 .zip(prices)
-                .map(|(iws, price)| InstrumentResponse::new(iws, price))
+                .map(|(iws, price)| {
+                    let instrument_positions = positions.remove(&iws.0.id).unwrap_or_default();
+                    InstrumentResponse::new(iws, price, instrument_positions)
+                })
                 .collect(),
         }
     }
@@ -108,9 +139,28 @@ pub async fn get_elxn26_markets(
     )
     .await?;
 
+    let mut positions: HashMap<i32, Vec<PositionResponse>> = HashMap::new();
+    for market in &markets {
+        for p in state
+            .position_store
+            .get_all_market_positions(&mut conn, market.row.id)
+            .await?
+        {
+            positions
+                .entry(p.position.instrument_id)
+                .or_default()
+                .push(p.into());
+        }
+    }
+
     let response = markets
         .into_iter()
-        .filter_map(|m| m.row.tag.clone().map(|tag| (tag, m.into())))
+        .filter_map(|m| {
+            m.row
+                .tag
+                .clone()
+                .map(|tag| (tag, MarketResponse::new(m, &mut positions)))
+        })
         .collect();
 
     Ok(Json(response))

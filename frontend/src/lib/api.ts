@@ -106,6 +106,15 @@ export const currentUserQueryOptions = queryOptions({
   },
 })
 
+export interface ApiPosition {
+  id: number
+  owner_id: number
+  owner_name: string
+  quantity: number
+  // Integer 1000ths of a YP.
+  cost_basis: number
+}
+
 export interface ApiInstrument {
   id: number
   name: string
@@ -113,6 +122,7 @@ export interface ApiInstrument {
   shares: number
   // Integer 1000ths of a YP; a probability out of 1000.
   price: number
+  positions: ApiPosition[]
 }
 
 export interface ApiMarket {
