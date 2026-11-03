@@ -69,6 +69,7 @@ pub fn get_command_option_user<'i>(command: &'i CommandInteraction, name: &str) 
     get_command_option_value(command, name).and_then(|o| o.as_user_id())
 }
 
+pub use common::discord_ui::{code_block, tabulate, user_shortname};
 pub use common::format::{format_market_id, instrument_display_text};
 
 pub fn truncate_text(text: &str, size: usize) -> String {
@@ -89,17 +90,6 @@ pub fn truncate_text_for_modal_header(text: &str) -> String {
 
 pub fn truncate_text_for_form_option(text: &str) -> String {
     truncate_text(text, 100)
-}
-
-pub fn user_shortname(name: &str) -> String {
-    let mut shortname = name.to_uppercase();
-    shortname.truncate(3);
-
-    shortname
-}
-
-pub fn code_block(s: &str) -> String {
-    format!("```\n{s}```")
 }
 
 pub async fn get_market_message(market: &Market, ctx: &Context) -> anyhow::Result<Message> {
@@ -197,44 +187,4 @@ pub async fn get_blackjack_message(
         .await?;
 
     Ok(msg)
-}
-
-const TABULATE_ROW_SEPARATOR: char = '|';
-
-pub fn tabulate<const N: usize>(rows: Vec<[String; N]>) -> String {
-    let num_cols = N;
-    let num_rows = rows.len();
-
-    let mut sizes: [usize; N] = [0; N];
-
-    for r in &rows {
-        for (i, s) in r.iter().enumerate() {
-            sizes[i] = sizes[i].max(s.len() + 2);
-        }
-    }
-
-    // Sum of all column sizes + all our separators (col count + 1)
-    let row_length = sizes.iter().sum::<usize>() + (num_cols + 1);
-
-    // Add num rows for the newlines and 6 more for the Discord monospace backticks.
-    let table_length = (row_length * num_rows) + num_rows;
-
-    let mut tabulated = String::with_capacity(table_length);
-
-    for r in &rows {
-        for (i, cell) in r.iter().enumerate() {
-            // Minus 1 because we added one space on the left
-            let cell_length = sizes[i] - 1;
-            let formatted = format!(
-                "{TABULATE_ROW_SEPARATOR} {cell:<width$}",
-                width = cell_length
-            );
-            tabulated += &formatted
-        }
-        // Add the last row separator and the new line
-        tabulated.push(TABULATE_ROW_SEPARATOR);
-        tabulated.push('\n');
-    }
-
-    tabulated
 }

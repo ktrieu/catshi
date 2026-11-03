@@ -5,6 +5,7 @@ use axum::{
     http::StatusCode,
 };
 use common::{
+    discord_ui::render_trade_thread_message,
     place_trade::{
         PlaceTradeError, PlacedTrade, TradeAction, TradeRequest, place_trade, validate_trade,
     },
@@ -15,6 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     auth::{AuthUser, CurrentUser},
+    discord::sync_market_after_trade,
     error::{AppError, HandlerResult},
     state::AppState,
 };
@@ -87,8 +89,8 @@ pub async fn post_trade(
     let PlacedTrade {
         market,
         instrument,
+        user: placed_user,
         result,
-        ..
     } = place_trade(
         &mut tx,
         &state.market_store,
@@ -104,6 +106,25 @@ pub async fn post_trade(
     .map_err(trade_error_response)?;
 
     tx.commit().await?;
+
+    let thread_message = render_trade_thread_message(
+        &placed_user.name,
+        body.direction.into(),
+        result.quantity,
+        &instrument.name,
+        &result.prices,
+    );
+    {
+        let state = state.clone();
+        let market = market.clone();
+        let placed_user = placed_user.clone();
+        tokio::spawn(async move {
+            if let Err(e) = sync_market_after_trade(&state, &market, &placed_user, &thread_message).await
+            {
+                eprintln!("failed to update Discord after trade: {e:#}");
+            }
+        });
+    }
 
     let mut conn = state.db.conn().await?;
     let user = state.user_store.get_by_id(&mut conn, user.id).await?;

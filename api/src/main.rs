@@ -12,6 +12,7 @@ use crate::{session_store::PgSessionStore, state::AppState};
 
 mod auth;
 mod catfishing;
+mod discord;
 mod error;
 mod markets;
 mod portfolio;
@@ -57,7 +58,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{api_port}"))
         .await
         .unwrap();
-    axum::serve(listener, app.with_state(AppState::new(db, guild_id)))
+    axum::serve(listener, app.with_state(AppState::new(db, guild_id, Arc::new(discord::new_http()))))
         .await
         .unwrap();
 }

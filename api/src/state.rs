@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use serenity::http::Http;
+
 use common::store::{
     CatshiDb, catfishing::DbCatfishingStore, instrument::DbInstrumentStore,
     login_token::DbLoginTokenStore, market::DbMarketStore, order::DbOrderStore,
@@ -18,13 +20,15 @@ pub struct AppState {
     pub position_store: DbPositionStore,
     pub transfer_store: DbTransferStore,
     pub guild_id: String,
+    pub http: Arc<Http>,
 }
 
 impl AppState {
-    pub fn new(db: Arc<CatshiDb>, guild_id: String) -> Self {
+    pub fn new(db: Arc<CatshiDb>, guild_id: String, http: Arc<Http>) -> Self {
         Self {
             db,
             guild_id,
+            http,
             cf_store: DbCatfishingStore {},
             login_token_store: DbLoginTokenStore {},
             user_store: DbUserStore {},

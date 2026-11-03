@@ -114,6 +114,7 @@ dependencies = [
  "dotenvy",
  "serde",
  "serde_json",
+ "serenity",
  "time",
  "tokio",
  "tower-sessions",

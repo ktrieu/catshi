@@ -15,3 +15,5 @@ async-trait = "0.1.92"
 serde_json = "1.0.154"
 time = "0.3.55"
 uuid = { version = "1.29.0", features = [ "serde" ] }
+# Unstable new version of Serenity, matching common/bot for Components v2 support.
+serenity = { git = "https://github.com/serenity-rs/serenity", rev = "71843741a5db01de63a051af93726e444eeb08ef"}

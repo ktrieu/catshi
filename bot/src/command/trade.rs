@@ -16,6 +16,7 @@ use crate::{
     utils,
 };
 use common::currency::Currency;
+use common::discord_ui::render_trade_thread_message;
 pub use common::place_trade::TradeAction;
 use common::place_trade::{PlaceTradeError, PlacedTrade, TradeRequest, place_trade};
 use common::store::{
@@ -24,10 +25,6 @@ use common::store::{
     position::PositionStore,
     user::DbUser,
 };
-
-pub fn get_trade_button_id(instrument: &Instrument, action: TradeAction) -> String {
-    format!("trade_button|{}|{}", action.to_string(), instrument.id)
-}
 
 pub fn parse_trade_button_id(id: &str) -> Option<(TradeAction, i32)> {
     let components: Vec<&str> = id.split('|').collect();
@@ -262,13 +259,12 @@ pub async fn trade(
         .await?;
 
     if market.row.thread_id.is_some() {
-        let thread_msg = format!(
-            "{} {} {} shares of {}. {}",
-            user.name,
-            verb.to_lowercase(),
+        let thread_msg = render_trade_thread_message(
+            &user.name,
+            action,
             quantity,
-            traded_instrument.name,
-            prices_msg
+            &traded_instrument.name,
+            &prices,
         );
         // This function doesn't return an Option because ideally
         // all market should have a thread. We will backfill later to make this true.
