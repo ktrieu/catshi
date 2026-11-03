@@ -7,7 +7,7 @@ use serenity::all::{
 
 use crate::{
     bot::Handler,
-    trade::{self, MARKET_B, TradeError, TradeResult, calc_buy_prices, calc_sell_prices},
+    trade::{self, TradeResult, calc_buy_prices, calc_sell_prices},
     ui::{
         self, create_market_thread, instrument_display_text,
         market_message::{render_details_message, render_market_message},
@@ -16,41 +16,14 @@ use crate::{
     utils,
 };
 use common::currency::Currency;
+pub use common::place_trade::TradeAction;
+use common::place_trade::{PlaceTradeError, PlacedTrade, TradeRequest, place_trade};
 use common::store::{
     instrument::{Instrument, InstrumentStore},
-    market::{FullMarket, MarketStore},
-    order::OrderStore,
+    market::MarketStore,
     position::PositionStore,
-    transfer::TransferStore,
-    user::{DbUser, UserStore},
+    user::DbUser,
 };
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum TradeAction {
-    Buy,
-    Sell,
-}
-
-impl ToString for TradeAction {
-    fn to_string(&self) -> String {
-        match &self {
-            TradeAction::Buy => "buy".to_string(),
-            TradeAction::Sell => "sell".to_string(),
-        }
-    }
-}
-
-impl FromStr for TradeAction {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "buy" => Ok(TradeAction::Buy),
-            "sell" => Ok(TradeAction::Sell),
-            _ => Err(()),
-        }
-    }
-}
 
 pub fn get_trade_button_id(instrument: &Instrument, action: TradeAction) -> String {
     format!("trade_button|{}|{}", action.to_string(), instrument.id)
@@ -221,150 +194,38 @@ pub async fn trade(
         }
     };
 
-    if quantity <= 0 {
-        modal
-            .create_response(
-                &ctx.http,
-                utils::text_interaction_response(
-                    "Negative quantity trades are not permitted.",
-                    true,
-                ),
-            )
-            .await?;
-        return Ok(());
-    }
-
     let mut tx = handler.db.begin().await?;
 
-    let market = FullMarket::new_from_instrument_id(
+    let request = TradeRequest {
+        market_id: None,
+        instrument_id,
+        action,
+        quantity,
+    };
+
+    let placed = place_trade(
         &mut tx,
         &handler.market_store,
         &handler.instrument_store,
         &handler.user_store,
-        instrument_id,
+        &handler.position_store,
+        &handler.order_store,
+        &handler.transfer_store,
+        user.id,
+        request,
     )
-    .await?;
-    let traded_instrument = &market.get_instrument(instrument_id)?.0;
-    let position = handler
-        .position_store
-        .get_user_position(&mut tx, traded_instrument, user)
-        .await?;
+    .await;
 
-    let system_user = handler.user_store.get_system_user(&mut tx).await?;
-
-    let result = match action {
-        TradeAction::Buy => trade::buy(
-            quantity,
-            traded_instrument,
-            &market,
-            position.as_ref(),
-            user,
-            &system_user,
-            MARKET_B,
-        ),
-        TradeAction::Sell => trade::sell(
-            quantity,
-            traded_instrument,
-            &market,
-            position.as_ref(),
-            user,
-            &system_user,
-            MARKET_B,
-        ),
-    };
-
-    match result {
-        Ok(result) => {
-            handler
-                .order_store
-                .create_order(&mut tx, &result.order)
-                .await?;
-            if result.position.quantity == 0 {
-                handler
-                    .position_store
-                    .delete_position(
-                        &mut tx,
-                        result.position.instrument_id,
-                        result.position.owner_id,
-                    )
-                    .await?;
-            } else {
-                handler
-                    .position_store
-                    .upsert_position(&mut tx, &result.position)
-                    .await?;
-            }
-            for t in &result.transfers {
-                handler
-                    .transfer_store
-                    .persist(&mut tx, &handler.user_store, t)
-                    .await?;
-            }
-
-            let verb = match action {
-                TradeAction::Buy => "Bought",
-                TradeAction::Sell => "Sold",
-            };
-            let fee_sign = match action {
-                TradeAction::Buy => "+",
-                TradeAction::Sell => "-",
-            };
-
-            let TradeResult {
-                quantity, prices, ..
-            } = result;
-            let total = prices.total();
-            let disp = instrument_display_text(traded_instrument, &market.row);
-            let shares_price = prices.shares_price;
-            let fees = prices.fees;
-
-            let prices_msg = format!("Total: {total} ({shares_price} {fee_sign} {fees} fees)");
-
-            let msg = format!("{verb} {quantity} shares of {disp}. {prices_msg}",);
-            modal
-                .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
-                .await?;
-
-            if market.row.thread_id.is_some() {
-                let thread_msg = format!(
-                    "{} {} {} shares of {}. {}",
-                    user.name,
-                    verb.to_lowercase(),
-                    quantity,
-                    traded_instrument.name,
-                    prices_msg
-                );
-                // This function doesn't return an Option because ideally
-                // all market should have a thread. We will backfill later to make this true.
-                let thread_id = ui::get_market_thread_id(&market.row)?;
-                thread_id
-                    .send_message(&ctx.http, CreateMessage::new().content(thread_msg))
-                    .await?;
-
-                let user_id = user.discord_id.parse::<u64>()?;
-                // Add the user to the thread on trade.
-                ctx.http
-                    .add_thread_channel_member(
-                        ThreadId::from(thread_id.get()),
-                        UserId::new(user_id),
-                    )
-                    .await?;
-            }
-        }
-        Err(trade_error) => {
-            let message = match trade_error {
-                TradeError::InsufficientFunds(total) => format!(
-                    "Insufficient funds: your order cost {} and you only have {} in cash.",
-                    total, user.cash_balance
-                ),
-                TradeError::InsufficientShares => {
-                    let held_shares = position.as_ref().map(|p| p.quantity).unwrap_or(0);
-                    format!(
-                        "Insufficient shares: you only have {} shares to sell.",
-                        held_shares
-                    )
-                }
-            };
+    let PlacedTrade {
+        market,
+        instrument: traded_instrument,
+        result,
+        ..
+    } = match placed {
+        Ok(placed) => placed,
+        Err(PlaceTradeError::Internal(e)) => return Err(e),
+        Err(e) => {
+            let message = e.user_message().unwrap_or_default();
             modal
                 .create_response(
                     &ctx.http,
@@ -373,6 +234,54 @@ pub async fn trade(
                 .await?;
             return Ok(());
         }
+    };
+    let traded_instrument = &traded_instrument;
+
+    let verb = match action {
+        TradeAction::Buy => "Bought",
+        TradeAction::Sell => "Sold",
+    };
+    let fee_sign = match action {
+        TradeAction::Buy => "+",
+        TradeAction::Sell => "-",
+    };
+
+    let TradeResult {
+        quantity, prices, ..
+    } = result;
+    let total = prices.total();
+    let disp = instrument_display_text(traded_instrument, &market.row);
+    let shares_price = prices.shares_price;
+    let fees = prices.fees;
+
+    let prices_msg = format!("Total: {total} ({shares_price} {fee_sign} {fees} fees)");
+
+    let msg = format!("{verb} {quantity} shares of {disp}. {prices_msg}",);
+    modal
+        .create_response(&ctx.http, utils::text_interaction_response(&msg, true))
+        .await?;
+
+    if market.row.thread_id.is_some() {
+        let thread_msg = format!(
+            "{} {} {} shares of {}. {}",
+            user.name,
+            verb.to_lowercase(),
+            quantity,
+            traded_instrument.name,
+            prices_msg
+        );
+        // This function doesn't return an Option because ideally
+        // all market should have a thread. We will backfill later to make this true.
+        let thread_id = ui::get_market_thread_id(&market.row)?;
+        thread_id
+            .send_message(&ctx.http, CreateMessage::new().content(thread_msg))
+            .await?;
+
+        let user_id = user.discord_id.parse::<u64>()?;
+        // Add the user to the thread on trade.
+        ctx.http
+            .add_thread_channel_member(ThreadId::from(thread_id.get()), UserId::new(user_id))
+            .await?;
     }
 
     tx.commit().await?;
