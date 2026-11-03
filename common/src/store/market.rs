@@ -39,6 +39,16 @@ pub trait MarketStore {
         owner: &DbUser,
     ) -> anyhow::Result<Market>;
 
+    /// Creates a market with the given tag unless one already exists.
+    /// Returns `None` if a market with that tag was already present.
+    async fn create_market_if_tag_absent(
+        &self,
+        db: &mut impl DbExecutor,
+        tag: &str,
+        description: &str,
+        owner: &DbUser,
+    ) -> anyhow::Result<Option<Market>>;
+
     async fn set_market_message_id(
         &self,
         db: &mut impl DbExecutor,
@@ -112,6 +122,46 @@ impl MarketStore for DbMarketStore {
             owner.id,
         )
         .fetch_one(db.psql())
+        .await?;
+
+        Ok(market)
+    }
+
+    async fn create_market_if_tag_absent(
+        &self,
+        db: &mut impl DbExecutor,
+        tag: &str,
+        description: &str,
+        owner: &DbUser,
+    ) -> anyhow::Result<Option<Market>> {
+        let market = query_as!(
+            Market,
+            r#"
+            INSERT INTO markets (
+                description,
+                state,
+                owner_id,
+                tag
+            )
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (tag) DO NOTHING
+            RETURNING
+                id,
+                description,
+                state as "state: MarketState",
+                owner_id,
+                message_id,
+                channel_id,
+                thread_id,
+                details_msg_id,
+                tag
+            "#,
+            description,
+            MarketState::Open as MarketState,
+            owner.id,
+            tag,
+        )
+        .fetch_optional(db.psql())
         .await?;
 
         Ok(market)

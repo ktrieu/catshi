@@ -33,6 +33,11 @@ pub trait UserStore {
         discord_id: &UserId,
     ) -> anyhow::Result<Option<DbUser>>;
     async fn get_by_id(&self, db: &mut impl DbExecutor, id: i32) -> anyhow::Result<DbUser>;
+    async fn get_by_name(
+        &self,
+        db: &mut impl DbExecutor,
+        name: &str,
+    ) -> anyhow::Result<Vec<DbUser>>;
     async fn get_system_user(&self, db: &mut impl DbExecutor) -> anyhow::Result<DbUser>;
     async fn increment_balance_by_id(
         &self,
@@ -122,6 +127,32 @@ impl UserStore for DbUserStore {
         .await?;
 
         Ok(user)
+    }
+
+    async fn get_by_name(
+        &self,
+        db: &mut impl DbExecutor,
+        name: &str,
+    ) -> anyhow::Result<Vec<DbUser>> {
+        let users = query_as!(
+            DbUser,
+            r#"
+            SELECT
+                id,
+                name,
+                discord_id,
+                cash_balance
+            FROM users
+            WHERE
+                name = $1
+            ORDER BY id ASC
+            "#,
+            name,
+        )
+        .fetch_all(db.psql())
+        .await?;
+
+        Ok(users)
     }
 
     async fn get_system_user(&self, db: &mut impl DbExecutor) -> anyhow::Result<DbUser> {

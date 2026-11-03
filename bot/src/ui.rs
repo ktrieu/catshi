@@ -5,6 +5,7 @@ use serenity::all::{
     ChannelId, CommandDataOptionValue, CommandInteraction, Context, CreateThread, GenericChannelId,
     GuildThread, Label, Message, MessageId, ModalInteraction, UserId,
 };
+use serenity::http::Http;
 
 use common::store::{blackjack::DbBlackjack, market::Market};
 
@@ -156,11 +157,10 @@ pub async fn create_market_thread(
     market: &Market,
     channel_id: ChannelId,
     message_id: MessageId,
-    ctx: &Context,
+    http: &Http,
 ) -> anyhow::Result<GuildThread> {
     let create_thread = CreateThread::new(format!("Market {}", format_market_id(market.id)));
-    let thread = ctx
-        .http
+    let thread = http
         .create_thread_from_message(channel_id, message_id, &create_thread, None)
         .await?;
 

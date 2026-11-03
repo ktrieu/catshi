@@ -313,7 +313,7 @@ pub async fn trade(
             &market.row,
             market_message.channel_id.expect_channel(),
             market_message.id,
-            ctx,
+            &ctx.http,
         )
         .await?;
 

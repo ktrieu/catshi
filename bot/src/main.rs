@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use common::store;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
 
-use crate::Commands::ExportUsers;
+use crate::Commands::{ExportUsers, SeedElxn26};
 
 mod blackjack;
 mod bot;
@@ -17,6 +17,13 @@ mod utils;
 enum Commands {
     #[command(name = "export_users")]
     ExportUsers,
+    #[command(name = "seed_elxn_26")]
+    SeedElxn26 {
+        #[arg(long)]
+        owner: String,
+        #[arg(long)]
+        channel_id: u64,
+    },
 }
 
 #[derive(Parser)]
@@ -43,6 +50,9 @@ async fn main() {
 
     match &args.commands {
         Some(ExportUsers) => scripts::export_users::run(),
+        Some(SeedElxn26 { owner, channel_id }) => scripts::seed_elxn_26::run(owner, *channel_id)
+            .await
+            .expect("seed_elxn_26 should succeed"),
         None => bot::run().await,
     }
 }
