@@ -81,6 +81,7 @@ services:
       - "${FRONTEND_PORT}:${FRONTEND_PORT}"
     environment:
       - FRONTEND_PORT=${FRONTEND_PORT}
+      - FRONTEND_HOST=0.0.0.0
       - CHOKIDAR_USEPOLLING=true
       - API_URL=http://catshi-api:${API_PORT}
     volumes:
