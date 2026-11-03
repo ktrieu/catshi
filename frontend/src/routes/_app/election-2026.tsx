@@ -1,46 +1,75 @@
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { SenateMarginChart, type SenateMarginBucket } from '../../components/SenateMarginChart'
+import { SenateMarginChart, type Party, type SenateMarginBucket } from '../../components/SenateMarginChart'
 import { SenateStateMap, type SwingStateOdds } from '../../components/SenateStateMap'
+import { elxn26MarketsQueryOptions, type ApiMarket, type Elxn26Markets } from '../../lib/api'
 
 export const Route = createFileRoute('/_app/election-2026')({
   component: Election2026,
 })
 
-const MOCK_SENATE_MARGINS: SenateMarginBucket[] = [
-  { label: 'D+6+', party: 'D', probability: 0.02 },
-  { label: 'D+5', party: 'D', probability: 0.01 },
-  { label: 'D+4', party: 'D', probability: 0.03 },
-  { label: 'D+3', party: 'D', probability: 0.02 },
-  { label: 'D+2', party: 'D', probability: 0.06 },
-  { label: 'D+1', party: 'D', probability: 0.04 },
-  { label: 'Even', party: 'even', probability: 0.1 },
-  { label: 'R+1', party: 'R', probability: 0.05 },
-  { label: 'R+2', party: 'R', probability: 0.18 },
-  { label: 'R+3', party: 'R', probability: 0.08 },
-  { label: 'R+4', party: 'R', probability: 0.22 },
-  { label: 'R+5', party: 'R', probability: 0.07 },
-  { label: 'R+6+', party: 'R', probability: 0.12 },
+const PRICE_SCALE = 1000
+
+const SWING_STATES: { tag: string; fips: string; name: string }[] = [
+  { tag: 'elxn26-senate-nc', fips: '37', name: 'North Carolina' },
+  { tag: 'elxn26-senate-me', fips: '23', name: 'Maine' },
+  { tag: 'elxn26-senate-mi', fips: '26', name: 'Michigan' },
+  { tag: 'elxn26-senate-oh', fips: '39', name: 'Ohio' },
+  { tag: 'elxn26-senate-ia', fips: '19', name: 'Iowa' },
+  { tag: 'elxn26-senate-tx', fips: '48', name: 'Texas' },
+  { tag: 'elxn26-senate-ak', fips: '02', name: 'Alaska' },
+  { tag: 'elxn26-senate-sc', fips: '45', name: 'South Carolina' },
+  { tag: 'elxn26-senate-ne', fips: '31', name: 'Nebraska' },
+  { tag: 'elxn26-senate-ks', fips: '20', name: 'Kansas' },
+  { tag: 'elxn26-senate-ga', fips: '13', name: 'Georgia' },
+  { tag: 'elxn26-senate-nh', fips: '33', name: 'New Hampshire' },
 ]
 
-const MOCK_SWING_STATES: SwingStateOdds[] = [
-  { fips: '37', name: 'North Carolina', demProbability: 0.58 },
-  { fips: '23', name: 'Maine', demProbability: 0.52 },
-  { fips: '26', name: 'Michigan', demProbability: 0.55 },
-  { fips: '39', name: 'Ohio', demProbability: 0.41 },
-  { fips: '19', name: 'Iowa', demProbability: 0.38 },
-  { fips: '48', name: 'Texas', demProbability: 0.31 },
-  { fips: '02', name: 'Alaska', demProbability: 0.46 },
-  { fips: '45', name: 'South Carolina', demProbability: 0.27 },
-  { fips: '31', name: 'Nebraska', demProbability: 0.34 },
+const MARGIN_BUCKETS: { instrument: string; label: string; party: Party }[] = [
+  { instrument: 'D+12+', label: 'D+12+', party: 'D' },
+  { instrument: 'D+10', label: 'D+10', party: 'D' },
+  { instrument: 'D+8', label: 'D+8', party: 'D' },
+  { instrument: 'D+6', label: 'D+6', party: 'D' },
+  { instrument: 'D+4', label: 'D+4', party: 'D' },
+  { instrument: 'D+2', label: 'D+2', party: 'D' },
+  { instrument: 'Even', label: 'Even', party: 'even' },
+  { instrument: 'R+2+', label: 'R+2+', party: 'R' },
 ]
+
+function toMarginBuckets(market: ApiMarket | undefined): SenateMarginBucket[] {
+  if (!market) return []
+  const priceByName = new Map(market.instruments.map((i) => [i.name, i.price]))
+  return MARGIN_BUCKETS.map(({ instrument, label, party }) => ({
+    label,
+    party,
+    probability: (priceByName.get(instrument) ?? 0) / PRICE_SCALE,
+  }))
+}
+
+function toSwingStates(markets: Elxn26Markets): SwingStateOdds[] {
+  return SWING_STATES.flatMap(({ tag, fips, name }) => {
+    const market = markets[tag]
+    const blue = market?.instruments.find((i) => i.name.endsWith('(D)') || i.name.endsWith('(I)'))
+    if (!blue) return []
+    return [{ fips, name, demProbability: blue.price / PRICE_SCALE }]
+  })
+}
 
 function Election2026() {
+  const { data, isPending, isError } = useQuery(elxn26MarketsQueryOptions)
+
   return (
     <section className="py-6">
       <h1 className="text-3xl font-bold mb-6">ELECTION 2026</h1>
       <h3 className="text-2xl font-bold mb-6">SENATE</h3>
-      <SenateMarginChart data={MOCK_SENATE_MARGINS} />
-      <SenateStateMap swingStates={MOCK_SWING_STATES} />
+      {isPending && <p className="text-gray-500">Loading markets…</p>}
+      {isError && <p className="text-red-600">Failed to load markets.</p>}
+      {data && (
+        <>
+          <SenateMarginChart data={toMarginBuckets(data['elxn26-senate-margin'])} />
+          <SenateStateMap swingStates={toSwingStates(data)} />
+        </>
+      )}
     </section>
   )
 }

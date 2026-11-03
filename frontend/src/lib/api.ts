@@ -71,3 +71,31 @@ export const currentUserQueryOptions = queryOptions({
     }
   },
 })
+
+export interface ApiInstrument {
+  id: number
+  name: string
+  state: 'open' | 'winner' | 'loser'
+  shares: number
+  // Integer 1000ths of a YP; a probability out of 1000.
+  price: number
+}
+
+export interface ApiMarket {
+  id: number
+  description: string
+  state: 'open' | 'closed'
+  owner_id: number
+  owner_name: string
+  instruments: ApiInstrument[]
+}
+
+export type Elxn26Markets = Record<string, ApiMarket>
+
+export const elxn26MarketsQueryOptions = queryOptions({
+  queryKey: ['elxn26', 'markets'],
+  queryFn: async (): Promise<Elxn26Markets> => {
+    const res = await apiFetch('/elxn26/markets/')
+    return res.json()
+  },
+})
