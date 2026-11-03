@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { SenateMarginChart, type Party, type SenateMarginBucket } from '../../components/SenateMarginChart'
 import { SenateStateMap, type SwingStateOdds } from '../../components/SenateStateMap'
+import { HouseDistrictMap } from '../../components/HouseDistrictMap'
 import { BottomSheet } from '../../components/BottomSheet'
 import { TradeUi } from '../../components/TradeUi'
 import { elxn26MarketsQueryOptions, type ApiMarket, type Elxn26Markets } from '../../lib/api'
@@ -15,6 +16,7 @@ export const Route = createFileRoute('/_app/election-2026')({
 
 const PRICE_SCALE = 1000
 const TOPLINE_TAG = 'elxn26-senate-margin'
+const NJ7_TAG = 'elxn26-house-nj7'
 
 const SWING_STATES: { tag: string; fips: string; name: string }[] = [
   { tag: 'elxn26-senate-nc', fips: '37', name: 'North Carolina' },
@@ -65,6 +67,8 @@ function Election2026() {
   const { data, isPending, isError } = useQuery(elxn26MarketsQueryOptions)
   const [selectedTag, setSelectedTag] = useState(TOPLINE_TAG)
   const selectedMarket = data?.[selectedTag] ?? data?.[TOPLINE_TAG]
+  const nj7Blue = data?.[NJ7_TAG]?.instruments.find((i) => i.name.endsWith('(D)'))
+  const nj7Odds = nj7Blue ? nj7Blue.price / PRICE_SCALE : undefined
   const selectedFips = SWING_STATES.find((s) => s.tag === selectedTag)?.fips ?? null
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -83,7 +87,7 @@ function Election2026() {
           {isPending && <p className="text-gray-500">Loading markets…</p>}
           {isError && <p className="text-red-600">Failed to load markets.</p>}
           {data && (
-            <>
+            <div className="flex flex-col gap-12">
               <SenateMarginChart
                 data={toMarginBuckets(data[TOPLINE_TAG])}
                 onSelect={() => selectTag(TOPLINE_TAG)}
@@ -93,11 +97,24 @@ function Election2026() {
                 selectedFips={selectedFips}
                 onSelect={(s) => selectTag(s.tag)}
               />
-            </>
+              {nj7Odds !== undefined && (
+                <div>
+                  <h3 className="text-2xl font-bold mb-6">HOUSE</h3>
+                  <div className="flex gap-6 overflow-x-auto p-2">
+                    <HouseDistrictMap
+                      title="NJ-7"
+                      demProbability={nj7Odds}
+                      selected={selectedTag === NJ7_TAG}
+                      onSelect={() => selectTag(NJ7_TAG)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
         {isDesktop && (
-          <aside>
+          <aside className="sticky top-6 self-start max-h-[calc(100vh-3rem)] overflow-y-auto">
             {selectedMarket && <TradeUi key={selectedMarket.id} market={selectedMarket} />}
           </aside>
         )}
