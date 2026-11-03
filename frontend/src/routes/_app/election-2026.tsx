@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
 import { SenateMarginChart, type Party, type SenateMarginBucket } from '../../components/SenateMarginChart'
 import { SenateStateMap, type SwingStateOdds } from '../../components/SenateStateMap'
 import { TradeUi } from '../../components/TradeUi'
@@ -10,6 +11,7 @@ export const Route = createFileRoute('/_app/election-2026')({
 })
 
 const PRICE_SCALE = 1000
+const TOPLINE_TAG = 'elxn26-senate-margin'
 
 const SWING_STATES: { tag: string; fips: string; name: string }[] = [
   { tag: 'elxn26-senate-nc', fips: '37', name: 'North Carolina' },
@@ -52,12 +54,15 @@ function toSwingStates(markets: Elxn26Markets): SwingStateOdds[] {
     const market = markets[tag]
     const blue = market?.instruments.find((i) => i.name.endsWith('(D)') || i.name.endsWith('(I)'))
     if (!blue) return []
-    return [{ fips, name, demProbability: blue.price / PRICE_SCALE }]
+    return [{ fips, name, tag, demProbability: blue.price / PRICE_SCALE }]
   })
 }
 
 function Election2026() {
   const { data, isPending, isError } = useQuery(elxn26MarketsQueryOptions)
+  const [selectedTag, setSelectedTag] = useState(TOPLINE_TAG)
+  const selectedMarket = data?.[selectedTag] ?? data?.[TOPLINE_TAG]
+  const selectedFips = SWING_STATES.find((s) => s.tag === selectedTag)?.fips ?? null
 
   return (
     <section className="py-6">
@@ -69,13 +74,20 @@ function Election2026() {
           {isError && <p className="text-red-600">Failed to load markets.</p>}
           {data && (
             <>
-              <SenateMarginChart data={toMarginBuckets(data['elxn26-senate-margin'])} />
-              <SenateStateMap swingStates={toSwingStates(data)} />
+              <SenateMarginChart
+                data={toMarginBuckets(data[TOPLINE_TAG])}
+                onSelect={() => setSelectedTag(TOPLINE_TAG)}
+              />
+              <SenateStateMap
+                swingStates={toSwingStates(data)}
+                selectedFips={selectedFips}
+                onSelect={(s) => setSelectedTag(s.tag)}
+              />
             </>
           )}
         </div>
         <aside className="hidden md:block">
-          {data?.['elxn26-senate-margin'] && <TradeUi market={data['elxn26-senate-margin']} />}
+          {selectedMarket && <TradeUi key={selectedMarket.id} market={selectedMarket} />}
         </aside>
       </div>
     </section>

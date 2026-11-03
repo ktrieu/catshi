@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { geoPath } from 'd3-geo'
 import { scaleLinear } from 'd3-scale'
 import { feature, mesh } from 'topojson-client'
@@ -9,6 +9,7 @@ import statesTopology from 'us-atlas/states-albers-10m.json'
 export interface SwingStateOdds {
   fips: string
   name: string
+  tag: string
   demProbability: number
 }
 
@@ -29,12 +30,23 @@ const path = geoPath()
 const states = (feature(topology, topology.objects.states) as { features: StateFeature[] }).features
 const borders = path(mesh(topology, topology.objects.states, (a, b) => a !== b)) ?? ''
 
-export function SenateStateMap({ swingStates }: { swingStates: SwingStateOdds[] }) {
+export function SenateStateMap({
+  swingStates,
+  selectedFips,
+  onSelect,
+}: {
+  swingStates: SwingStateOdds[]
+  selectedFips: string | null
+  onSelect: (odds: SwingStateOdds) => void
+}) {
   const oddsByFips = useMemo(() => new Map(swingStates.map((s) => [s.fips, s])), [swingStates])
 
-  const handleSelect = (odds: SwingStateOdds) => {
-    console.log('Swing state clicked:', odds)
-  }
+  const [activeFips, setActiveFips] = useState<string | null>(null)
+
+  const handleSelect = onSelect
+  const selectedState = selectedFips ? states.find((s) => String(s.id) === selectedFips) : undefined
+  const activeState =
+    activeFips && activeFips !== selectedFips ? states.find((s) => String(s.id) === activeFips) : undefined
 
   return (
     <svg
@@ -62,12 +74,17 @@ export function SenateStateMap({ swingStates }: { swingStates: SwingStateOdds[] 
               key={s.id}
               d={path(s) ?? ''}
               fill={oddsColor(odds.demProbability)}
-              className="cursor-pointer stroke-white outline-none hover:stroke-gray-900 focus-visible:stroke-gray-900"
+              className="cursor-pointer stroke-white outline-none"
               strokeWidth={1.5}
+              onPointerEnter={(e) => e.pointerType === 'mouse' && setActiveFips(odds.fips)}
+              onPointerLeave={(e) => e.pointerType === 'mouse' && setActiveFips(null)}
+              onFocus={(e) => e.currentTarget.matches(':focus-visible') && setActiveFips(odds.fips)}
+              onBlur={() => setActiveFips(null)}
               strokeLinejoin="round"
               role="button"
               tabIndex={0}
               aria-label={label}
+              aria-pressed={selectedFips === odds.fips}
               onClick={() => handleSelect(odds)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -80,6 +97,26 @@ export function SenateStateMap({ swingStates }: { swingStates: SwingStateOdds[] 
             </path>
           )
         })}
+
+      {activeState && (
+        <path
+          d={path(activeState) ?? ''}
+          fill="none"
+          className="pointer-events-none stroke-gray-900"
+          strokeWidth={1.5}
+          strokeLinejoin="round"
+        />
+      )}
+
+      {selectedState && (
+        <path
+          d={path(selectedState) ?? ''}
+          fill="none"
+          className="pointer-events-none stroke-gray-900"
+          strokeWidth={3}
+          strokeLinejoin="round"
+        />
+      )}
     </svg>
   )
 }

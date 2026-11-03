@@ -25,19 +25,29 @@ const PARTY_FILL: Record<Party, string> = {
 
 const formatPercent = (p: number) => `${Math.round(p * 100)}%`
 
-export function SenateMarginChart({ data }: { data: SenateMarginBucket[] }) {
+export function SenateMarginChart({
+  data,
+  onSelect,
+}: {
+  data: SenateMarginBucket[]
+  onSelect: () => void
+}) {
   const [containerRef, width] = useElementWidth<HTMLDivElement>()
   const compact = width < COMPACT_BREAKPOINT
 
   return (
-    <div ref={containerRef} className="w-full">
+    <div
+      ref={containerRef}
+      className="w-full cursor-pointer"
+      onClick={onSelect}
+    >
       {width > 0 && (
         <div className="mb-2 flex items-center justify-between">
           <PartyLabel name="DEMOCRATIC" className="text-blue-600" compact={compact} />
           <PartyLabel name="REPUBLICAN" className="text-red-600" compact={compact} />
         </div>
       )}
-      {width > 0 && <Chart data={data} width={width} compact={compact} />}
+      {width > 0 && <Chart data={data} width={width} compact={compact} onSelect={onSelect} />}
     </div>
   )
 }
@@ -46,10 +56,12 @@ function Chart({
   data,
   width,
   compact,
+  onSelect,
 }: {
   data: SenateMarginBucket[]
   width: number
   compact: boolean
+  onSelect: () => void
 }) {
   const [selected, setSelected] = useState<string | null>(null)
 
@@ -108,6 +120,7 @@ function Chart({
             onClick={(e) => {
               e.stopPropagation()
               setSelected(d.label)
+              onSelect()
             }}
           >
             <rect
