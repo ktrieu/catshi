@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatCurrency } from '../lib/currency'
 import { currentUserQueryOptions, getTradeQuote, placeTrade } from '../lib/api'
@@ -25,6 +25,11 @@ export function TradeUi({ market }: { market: ApiMarket }) {
   const { data: user } = useQuery(currentUserQueryOptions)
   const [selection, setSelection] = useState<Selection | null>(null)
   const [quantity, setQuantity] = useState('1')
+  const quantityRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (selection) quantityRef.current?.focus({ preventScroll: true })
+  }, [selection])
 
   const trade = useMutation({
     mutationFn: placeTrade,
@@ -223,7 +228,9 @@ export function TradeUi({ market }: { market: ApiMarket }) {
                   <label className="block text-sm text-gray-700">
                     Quantity
                     <input
+                      ref={quantityRef}
                       type="number"
+                      inputMode="numeric"
                       min={1}
                       step={1}
                       value={quantity}

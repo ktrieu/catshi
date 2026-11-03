@@ -3,8 +3,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { SenateMarginChart, type Party, type SenateMarginBucket } from '../../components/SenateMarginChart'
 import { SenateStateMap, type SwingStateOdds } from '../../components/SenateStateMap'
+import { BottomSheet } from '../../components/BottomSheet'
 import { TradeUi } from '../../components/TradeUi'
 import { elxn26MarketsQueryOptions, type ApiMarket, type Elxn26Markets } from '../../lib/api'
+import { useMediaQuery } from '../../lib/useMediaQuery'
 
 export const Route = createFileRoute('/_app/election-2026')({
   component: Election2026,
@@ -63,6 +65,13 @@ function Election2026() {
   const [selectedTag, setSelectedTag] = useState(TOPLINE_TAG)
   const selectedMarket = data?.[selectedTag] ?? data?.[TOPLINE_TAG]
   const selectedFips = SWING_STATES.find((s) => s.tag === selectedTag)?.fips ?? null
+  const isDesktop = useMediaQuery('(min-width: 768px)')
+  const [sheetOpen, setSheetOpen] = useState(false)
+
+  const selectTag = (tag: string) => {
+    setSelectedTag(tag)
+    setSheetOpen(true)
+  }
 
   return (
     <section className="py-6">
@@ -76,20 +85,27 @@ function Election2026() {
             <>
               <SenateMarginChart
                 data={toMarginBuckets(data[TOPLINE_TAG])}
-                onSelect={() => setSelectedTag(TOPLINE_TAG)}
+                onSelect={() => selectTag(TOPLINE_TAG)}
               />
               <SenateStateMap
                 swingStates={toSwingStates(data)}
                 selectedFips={selectedFips}
-                onSelect={(s) => setSelectedTag(s.tag)}
+                onSelect={(s) => selectTag(s.tag)}
               />
             </>
           )}
         </div>
-        <aside className="hidden md:block">
-          {selectedMarket && <TradeUi key={selectedMarket.id} market={selectedMarket} />}
-        </aside>
+        {isDesktop && (
+          <aside>
+            {selectedMarket && <TradeUi key={selectedMarket.id} market={selectedMarket} />}
+          </aside>
+        )}
       </div>
+      {!isDesktop && selectedMarket && (
+        <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
+          <TradeUi key={selectedMarket.id} market={selectedMarket} />
+        </BottomSheet>
+      )}
     </section>
   )
 }
