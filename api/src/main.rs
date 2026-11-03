@@ -49,6 +49,7 @@ async fn main() {
         .route("/elxn26/markets/", get(markets::get_elxn26_markets))
         .route("/catfishing/", get(catfishing::list_games))
         .route("/trade/", post(trade::post_trade))
+        .route("/trade/quote/", get(trade::get_quote))
         .layer(session_layer);
 
     // run our app with hyper, listening globally on port 3000

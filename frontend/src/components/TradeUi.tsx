@@ -1,10 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatCurrency } from '../lib/currency'
-import { currentUserQueryOptions, placeTrade } from '../lib/api'
+import { currentUserQueryOptions, getTradeQuote, placeTrade } from '../lib/api'
 import type { ApiInstrument, ApiMarket, TradeResult } from '../lib/api'
 
 type Side = 'buy' | 'sell'
+
+function useDebounced<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs)
+    return () => clearTimeout(id)
+  }, [value, delayMs])
+  return debounced
+}
 
 interface Selection {
   instrument: ApiInstrument
@@ -67,7 +76,31 @@ export function TradeUi({ market }: { market: ApiMarket }) {
 
   const parsedQuantity = Number.parseInt(quantity, 10)
   const validQuantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0
-  const total = validQuantity ? parsedQuantity : 0
+  const debouncedQuantity = useDebounced(validQuantity ? parsedQuantity : 0, 300)
+
+  const quote = useQuery({
+    queryKey: [
+      'trade',
+      'quote',
+      market.id,
+      selection?.instrument.id,
+      selection?.side,
+      debouncedQuantity,
+    ],
+    queryFn: () =>
+      getTradeQuote({
+        quantity: debouncedQuantity,
+        direction: selection!.side,
+        market_id: market.id,
+        instrument_id: selection!.instrument.id,
+      }),
+    enabled: !!selection && debouncedQuantity > 0,
+    placeholderData: (prev) => prev,
+  })
+  const stale =
+    quote.isPlaceholderData ||
+    quote.isFetching ||
+    (validQuantity && debouncedQuantity !== parsedQuantity)
 
   return (
     <div className="flex flex-col rounded-lg border border-gray-200">
@@ -198,10 +231,41 @@ export function TradeUi({ market }: { market: ApiMarket }) {
                       className="mt-1 block w-full rounded border border-gray-300 px-2 py-1"
                     />
                   </label>
-                  <p className="flex justify-between text-sm">
-                    <span className="text-gray-700">Price</span>
-                    <span className="font-semibold">{formatCurrency(total * 1000)}</span>
-                  </p>
+                  <div
+                    className={`space-y-1 transition-opacity ${stale ? 'opacity-50' : ''}`}
+                  >
+                    <p className="flex justify-between text-sm">
+                      <span className="text-gray-700">Price</span>
+                      <span className="font-semibold">
+                        {quote.data ? formatCurrency(quote.data.total) : '—'}
+                      </span>
+                    </p>
+                    <p className="flex justify-between text-xs text-gray-500">
+                      <span>
+                        Shares {quote.data ? formatCurrency(quote.data.shares_price) : '—'}
+                      </span>
+                      <span>Fees {quote.data ? formatCurrency(quote.data.fees) : '—'}</span>
+                    </p>
+                    <p className="flex justify-between text-sm">
+                      <span className="text-gray-700">
+                        Max {selection.side === 'buy' ? 'buyable' : 'sellable'}
+                      </span>
+                      {quote.data && quote.data.max_quantity > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setQuantity(String(quote.data.max_quantity))}
+                          className="font-semibold hover:underline"
+                        >
+                          {quote.data.max_quantity}
+                        </button>
+                      ) : (
+                        <span className="font-semibold">{quote.data ? 0 : '—'}</span>
+                      )}
+                    </p>
+                  </div>
+                  {validQuantity && quote.isError && (
+                    <p className="text-sm text-red-700">{quote.error.message}</p>
+                  )}
                   <button
                     type="button"
                     disabled={!validQuantity || trade.isPending}

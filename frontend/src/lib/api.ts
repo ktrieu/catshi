@@ -53,6 +53,29 @@ export async function placeTrade(params: TradeParams): Promise<TradeResult> {
   return res.json()
 }
 
+export type QuoteParams = TradeParams
+
+export interface TradeQuote {
+  market_id: number
+  instrument_id: number
+  quantity: number
+  shares_price: number
+  fees: number
+  total: number
+  max_quantity: number
+}
+
+export async function getTradeQuote(params: QuoteParams): Promise<TradeQuote> {
+  const search = new URLSearchParams({
+    quantity: String(params.quantity),
+    direction: params.direction,
+    market_id: String(params.market_id),
+    instrument_id: String(params.instrument_id),
+  })
+  const res = await apiFetch(`/trade/quote/?${search}`)
+  return res.json()
+}
+
 export interface AuthUser {
   id: number
   discord_id: string

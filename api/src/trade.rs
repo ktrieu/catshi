@@ -1,8 +1,15 @@
 use anyhow::anyhow;
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json,
+    extract::{Query, State},
+    http::StatusCode,
+};
 use common::{
-    place_trade::{PlaceTradeError, PlacedTrade, TradeAction, TradeRequest, place_trade},
-    store::user::UserStore,
+    place_trade::{
+        PlaceTradeError, PlacedTrade, TradeAction, TradeRequest, place_trade, validate_trade,
+    },
+    store::{market::FullMarket, position::PositionStore, user::UserStore},
+    trade::{MARKET_B, calc_buy_prices, calc_sell_prices, get_max_buy_shares},
 };
 use serde::{Deserialize, Serialize};
 
@@ -110,5 +117,83 @@ pub async fn post_trade(
         fees: result.prices.fees.into(),
         total: result.prices.total().into(),
         position_quantity: result.position.quantity,
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct QuoteQuery {
+    quantity: i64,
+    direction: Direction,
+    market_id: i32,
+    instrument_id: i32,
+}
+
+#[derive(Serialize)]
+pub struct QuoteResponse {
+    market_id: i32,
+    instrument_id: i32,
+    quantity: i64,
+    shares_price: i64,
+    fees: i64,
+    total: i64,
+    max_quantity: i64,
+}
+
+pub async fn get_quote(
+    State(state): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    Query(query): Query<QuoteQuery>,
+) -> HandlerResult<Json<QuoteResponse>> {
+    let mut conn = state.db.conn().await?;
+
+    let market = FullMarket::new_from_instrument_id(
+        &mut conn,
+        &state.market_store,
+        &state.instrument_store,
+        &state.user_store,
+        query.instrument_id,
+    )
+    .await?;
+    let instrument = market.get_instrument(query.instrument_id)?.0.clone();
+
+    let request = TradeRequest {
+        market_id: Some(query.market_id),
+        instrument_id: query.instrument_id,
+        action: query.direction.into(),
+        quantity: query.quantity,
+    };
+    validate_trade(&request, &market, &instrument).map_err(trade_error_response)?;
+
+    let shares = market.instruments.iter();
+    let max_quantity = match query.direction {
+        Direction::Buy => {
+            let (mut max, prices) =
+                get_max_buy_shares(user.cash_balance, instrument.id, shares.clone(), MARKET_B);
+            if prices.total() > user.cash_balance && max > 0 {
+                max -= 1;
+            }
+            max.max(0)
+        }
+        Direction::Sell => {
+            let position = state
+                .position_store
+                .get_user_position(&mut conn, &instrument, &user)
+                .await?;
+            position.map(|p| p.quantity).unwrap_or(0)
+        }
+    };
+    let prices = match query.direction {
+        Direction::Buy => calc_buy_prices(query.quantity, instrument.id, shares, MARKET_B),
+        Direction::Sell => calc_sell_prices(query.quantity, instrument.id, shares, MARKET_B),
+    };
+
+    Ok(Json(QuoteResponse {
+        market_id: market.row.id,
+        instrument_id: instrument.id,
+        quantity: query.quantity,
+        shares_price: prices.shares_price.into(),
+        fees: prices.fees.into(),
+        total: prices.total().into(),
+        max_quantity,
     }))
 }
