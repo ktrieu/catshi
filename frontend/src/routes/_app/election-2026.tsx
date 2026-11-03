@@ -30,6 +30,8 @@ const MOCK_SWING_STATES: SwingStateOdds[] = [
   { fips: '19', name: 'Iowa', demProbability: 0.38 },
   { fips: '48', name: 'Texas', demProbability: 0.31 },
   { fips: '02', name: 'Alaska', demProbability: 0.46 },
+  { fips: '45', name: 'South Carolina', demProbability: 0.27 },
+  { fips: '31', name: 'Nebraska', demProbability: 0.34 },
 ]
 
 function Election2026() {
