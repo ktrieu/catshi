@@ -4,6 +4,7 @@ import { portfolioQueryOptions } from '../../lib/api'
 import { formatCurrency } from '../../lib/currency'
 
 export const Route = createFileRoute('/_app/')({
+  head: () => ({ meta: [{ title: 'Catshi' }] }),
   component: Home,
 })
 

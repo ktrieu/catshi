@@ -9,6 +9,7 @@ import { elxn26MarketsQueryOptions, type ApiMarket, type Elxn26Markets } from '.
 import { useMediaQuery } from '../../lib/useMediaQuery'
 
 export const Route = createFileRoute('/_app/election-2026')({
+  head: () => ({ meta: [{ title: 'Election 2026 | Catshi' }] }),
   component: Election2026,
 })
 
