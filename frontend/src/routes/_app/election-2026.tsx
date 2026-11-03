@@ -36,8 +36,8 @@ function Election2026() {
   return (
     <section className="py-6">
       <h1 className="text-3xl font-bold mb-6">ELECTION 2026</h1>
+      <h3 className="text-2xl font-bold mb-6">SENATE</h3>
       <SenateMarginChart data={MOCK_SENATE_MARGINS} />
-      <h2 className="mt-10 text-xl font-semibold">Swing states</h2>
       <SenateStateMap swingStates={MOCK_SWING_STATES} />
     </section>
   )
