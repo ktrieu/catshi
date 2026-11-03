@@ -12,7 +12,7 @@ use common::store::{
 };
 use serde::Serialize;
 
-use crate::{error::HandlerResult, state::AppState};
+use crate::{auth::CurrentUser, error::HandlerResult, state::AppState};
 
 const ELXN26_TAGS: &[&str] = &[
     "elxn26-senate-margin",
@@ -134,6 +134,7 @@ impl From<FullMarketWithPositions> for MarketResponse {
 
 pub async fn get_elxn26_markets(
     State(state): State<AppState>,
+    _user: CurrentUser,
 ) -> HandlerResult<Json<HashMap<String, MarketResponse>>> {
     let tags: Vec<String> = ELXN26_TAGS.iter().map(|t| (*t).to_owned()).collect();
 

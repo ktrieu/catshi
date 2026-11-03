@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router'
 import logo from '../assets/logo.png'
 import { useQuery } from '@tanstack/react-query'
+import { LoginPrompt } from '../components/LoginPrompt'
 import { currentUserQueryOptions } from '../lib/api'
 
 export const Route = createFileRoute('/_app')({
@@ -8,11 +9,13 @@ export const Route = createFileRoute('/_app')({
 })
 
 function AppLayout() {
+  const { data: user, isPending } = useQuery(currentUserQueryOptions)
+
   return (
     <div className="min-h-screen">
-      <Navbar />
+      {user && <Navbar />}
       <main className="mx-auto max-w-7xl p-4">
-        <Outlet />
+        {isPending ? null : user ? <Outlet /> : <LoginPrompt />}
       </main>
     </div>
   )
