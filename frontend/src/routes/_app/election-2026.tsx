@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { SenateMarginChart, type Party, type SenateMarginBucket } from '../../components/SenateMarginChart'
 import { SenateStateMap, type SwingStateOdds } from '../../components/SenateStateMap'
+import { TradeUi } from '../../components/TradeUi'
 import { elxn26MarketsQueryOptions, type ApiMarket, type Elxn26Markets } from '../../lib/api'
 
 export const Route = createFileRoute('/_app/election-2026')({
@@ -61,15 +62,22 @@ function Election2026() {
   return (
     <section className="py-6">
       <h1 className="text-3xl font-bold mb-6">ELECTION 2026</h1>
-      <h3 className="text-2xl font-bold mb-6">SENATE</h3>
-      {isPending && <p className="text-gray-500">Loading markets…</p>}
-      {isError && <p className="text-red-600">Failed to load markets.</p>}
-      {data && (
-        <>
-          <SenateMarginChart data={toMarginBuckets(data['elxn26-senate-margin'])} />
-          <SenateStateMap swingStates={toSwingStates(data)} />
-        </>
-      )}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="min-w-0 md:col-span-2">
+          <h3 className="text-2xl font-bold mb-6">SENATE</h3>
+          {isPending && <p className="text-gray-500">Loading markets…</p>}
+          {isError && <p className="text-red-600">Failed to load markets.</p>}
+          {data && (
+            <>
+              <SenateMarginChart data={toMarginBuckets(data['elxn26-senate-margin'])} />
+              <SenateStateMap swingStates={toSwingStates(data)} />
+            </>
+          )}
+        </div>
+        <aside className="hidden md:block">
+          {data?.['elxn26-senate-margin'] && <TradeUi market={data['elxn26-senate-margin']} />}
+        </aside>
+      </div>
     </section>
   )
 }

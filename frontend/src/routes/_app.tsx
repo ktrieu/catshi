@@ -11,7 +11,7 @@ function AppLayout() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <main className="mx-auto max-w-5xl p-4">
+      <main className="mx-auto max-w-7xl p-4">
         <Outlet />
       </main>
     </div>
@@ -24,7 +24,7 @@ function Navbar() {
 
   return (
     <header className="border-b border-gray-200">
-      <nav className="mx-auto flex max-w-5xl items-center gap-6 p-4">
+      <nav className="mx-auto flex max-w-7xl items-center gap-6 p-4">
         <Link to="/">
           <img src={logo} alt="Catshi" className="h-14" />
         </Link>
