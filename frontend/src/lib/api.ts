@@ -118,6 +118,7 @@ export async function redeemLoginToken(token: string): Promise<AuthUser> {
 // (null) rather than an error so consumers don't have to special-case it.
 export const currentUserQueryOptions = queryOptions({
   queryKey: ['auth', 'me'],
+  staleTime: 1000 * 60 * 60,
   queryFn: async (): Promise<AuthUser | null> => {
     try {
       const res = await apiFetch('/auth/me/')
