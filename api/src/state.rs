@@ -17,12 +17,14 @@ pub struct AppState {
     pub order_store: DbOrderStore,
     pub position_store: DbPositionStore,
     pub transfer_store: DbTransferStore,
+    pub guild_id: String,
 }
 
 impl AppState {
-    pub fn new(db: Arc<CatshiDb>) -> Self {
+    pub fn new(db: Arc<CatshiDb>, guild_id: String) -> Self {
         Self {
             db,
+            guild_id,
             cf_store: DbCatfishingStore {},
             login_token_store: DbLoginTokenStore {},
             user_store: DbUserStore {},

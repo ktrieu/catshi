@@ -10,6 +10,7 @@ services:
         condition: service_completed_successfully
     environment:
       - API_PORT=${API_PORT}
+      - GUILD_ID=${GUILD_ID}
 
   catshi-bot:
     container_name: "catshi-bot"

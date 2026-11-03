@@ -27,6 +27,7 @@ async fn main() {
 
     let api_port = env::var("API_PORT").expect("API_PORT should be set");
     let pg_url = env::var("POSTGRES_URL").expect("POSTGRES_URL should be set");
+    let guild_id = env::var("GUILD_ID").expect("GUILD_ID should be set");
 
     #[cfg(debug_assertions)]
     if auth::dev_auth_enabled() {
@@ -56,7 +57,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{api_port}"))
         .await
         .unwrap();
-    axum::serve(listener, app.with_state(AppState::new(db)))
+    axum::serve(listener, app.with_state(AppState::new(db, guild_id)))
         .await
         .unwrap();
 }

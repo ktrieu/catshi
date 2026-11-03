@@ -112,7 +112,22 @@ export function TradeUi({ market }: { market: ApiMarket }) {
       <div className="flex items-start justify-between gap-3 border-b border-gray-200 p-4">
         <div className="min-w-0">
           <p className="font-semibold">{market.description}</p>
-          <p className="text-sm text-gray-500">Owner: {market.owner_name}</p>
+          <p className="text-sm text-gray-500">
+            Owner: {market.owner_name}
+            {market.thread_url && (
+              <>
+                {' · '}
+                <a
+                  href={market.thread_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-black"
+                >
+                  Discord
+                </a>
+              </>
+            )}
+          </p>
         </div>
         <button
           type="button"

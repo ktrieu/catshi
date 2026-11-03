@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@layer base {
+  a {
+    text-decoration-line: underline;
+  }
+}
+
 @theme {
   --font-sans: "Lexend", ui-sans-serif, system-ui, sans-serif;
 

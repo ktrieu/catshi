@@ -155,6 +155,7 @@ export interface ApiMarket {
   state: 'open' | 'closed'
   owner_id: number
   owner_name: string
+  thread_url: string | null
   instruments: ApiInstrument[]
 }
 

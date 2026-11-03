@@ -90,12 +90,18 @@ pub struct MarketResponse {
     state: &'static str,
     owner_id: i32,
     owner_name: String,
+    thread_url: Option<String>,
     instruments: Vec<InstrumentResponse>,
 }
 
-impl From<FullMarketWithPositions> for MarketResponse {
-    fn from(full: FullMarketWithPositions) -> Self {
+impl MarketResponse {
+    fn new(full: FullMarketWithPositions, guild_id: &str) -> Self {
         let market = full.market;
+        let thread_url = market
+            .row
+            .thread_id
+            .as_ref()
+            .map(|thread_id| format!("https://discord.com/channels/{guild_id}/{thread_id}"));
         let mut positions: HashMap<i32, Vec<PositionResponse>> = HashMap::new();
         for p in full.positions {
             positions
@@ -119,6 +125,7 @@ impl From<FullMarketWithPositions> for MarketResponse {
             },
             owner_id: market.owner.id,
             owner_name: market.owner.name,
+            thread_url,
             instruments: market
                 .instruments
                 .into_iter()
@@ -152,7 +159,7 @@ pub async fn get_elxn26_markets(
 
     let response = markets
         .into_iter()
-        .filter_map(|m| m.market.row.tag.clone().map(|tag| (tag, m.into())))
+        .filter_map(|m| m.market.row.tag.clone().map(|tag| (tag, MarketResponse::new(m, &state.guild_id))))
         .collect();
 
     Ok(Json(response))
