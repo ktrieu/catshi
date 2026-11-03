@@ -14,9 +14,43 @@ export class ApiError extends Error {
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(`/api${path}`, { credentials: 'include', ...init })
   if (!res.ok) {
-    throw new ApiError(res.status, `${res.status} ${res.statusText}`)
+    let message = `${res.status} ${res.statusText}`
+    try {
+      const body = await res.json()
+      if (typeof body?.error === 'string' && body.error) message = body.error
+    } catch {
+      message = `${res.status} ${res.statusText}`
+    }
+    throw new ApiError(res.status, message)
   }
   return res
+}
+
+export interface TradeParams {
+  quantity: number
+  direction: 'buy' | 'sell'
+  market_id: number
+  instrument_id: number
+}
+
+export interface TradeResult {
+  user: AuthUser
+  market_id: number
+  instrument_id: number
+  quantity: number
+  shares_price: number
+  fees: number
+  total: number
+  position_quantity: number
+}
+
+export async function placeTrade(params: TradeParams): Promise<TradeResult> {
+  const res = await apiFetch('/trade/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  return res.json()
 }
 
 export interface AuthUser {
