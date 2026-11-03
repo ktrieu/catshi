@@ -33,6 +33,11 @@ pub trait UserStore {
         discord_id: &UserId,
     ) -> anyhow::Result<Option<DbUser>>;
     async fn get_by_id(&self, db: &mut impl DbExecutor, id: i32) -> anyhow::Result<DbUser>;
+    async fn get_by_ids(
+        &self,
+        db: &mut impl DbExecutor,
+        ids: &[i32],
+    ) -> anyhow::Result<Vec<DbUser>>;
     async fn get_by_name(
         &self,
         db: &mut impl DbExecutor,
@@ -127,6 +132,31 @@ impl UserStore for DbUserStore {
         .await?;
 
         Ok(user)
+    }
+
+    async fn get_by_ids(
+        &self,
+        db: &mut impl DbExecutor,
+        ids: &[i32],
+    ) -> anyhow::Result<Vec<DbUser>> {
+        let users = query_as!(
+            DbUser,
+            r#"
+            SELECT
+                id,
+                name,
+                discord_id,
+                cash_balance
+            FROM users
+            WHERE
+                id = ANY($1)
+            "#,
+            ids,
+        )
+        .fetch_all(db.psql())
+        .await?;
+
+        Ok(users)
     }
 
     async fn get_by_name(

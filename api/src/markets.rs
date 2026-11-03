@@ -7,8 +7,8 @@ use common::{
 };
 use common::store::{
     instrument::{InstrumentState, InstrumentWithShares},
-    market::{FullMarket, MarketState},
-    position::{PositionStore, PositionWithUser},
+    market::{FullMarketWithPositions, MarketState},
+    position::PositionWithUser,
 };
 use serde::Serialize;
 
@@ -93,8 +93,17 @@ pub struct MarketResponse {
     instruments: Vec<InstrumentResponse>,
 }
 
-impl MarketResponse {
-    fn new(market: FullMarket, positions: &mut HashMap<i32, Vec<PositionResponse>>) -> Self {
+impl From<FullMarketWithPositions> for MarketResponse {
+    fn from(full: FullMarketWithPositions) -> Self {
+        let market = full.market;
+        let mut positions: HashMap<i32, Vec<PositionResponse>> = HashMap::new();
+        for p in full.positions {
+            positions
+                .entry(p.position.instrument_id)
+                .or_default()
+                .push(p.into());
+        }
+
         let prices: Vec<Currency> = market
             .instruments
             .iter()
@@ -130,37 +139,19 @@ pub async fn get_elxn26_markets(
 
     let mut conn = state.db.conn().await?;
 
-    let markets = FullMarket::new_from_tags(
+    let markets = FullMarketWithPositions::new_from_tags(
         &mut conn,
         &state.market_store,
         &state.instrument_store,
         &state.user_store,
+        &state.position_store,
         &tags,
     )
     .await?;
 
-    let mut positions: HashMap<i32, Vec<PositionResponse>> = HashMap::new();
-    for market in &markets {
-        for p in state
-            .position_store
-            .get_all_market_positions(&mut conn, market.row.id)
-            .await?
-        {
-            positions
-                .entry(p.position.instrument_id)
-                .or_default()
-                .push(p.into());
-        }
-    }
-
     let response = markets
         .into_iter()
-        .filter_map(|m| {
-            m.row
-                .tag
-                .clone()
-                .map(|tag| (tag, MarketResponse::new(m, &mut positions)))
-        })
+        .filter_map(|m| m.market.row.tag.clone().map(|tag| (tag, m.into())))
         .collect();
 
     Ok(Json(response))

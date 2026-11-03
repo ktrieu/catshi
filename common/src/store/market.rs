@@ -8,6 +8,7 @@ use trait_variant::make;
 use crate::store::{
     DbExecutor,
     instrument::{InstrumentStore, InstrumentWithShares},
+    position::{PositionStore, PositionWithUser},
     user::{DbUser, UserStore},
 };
 
@@ -391,38 +392,6 @@ impl FullMarket {
         })
     }
 
-    pub async fn new_from_tags(
-        exec: &mut impl DbExecutor,
-        market_store: &impl MarketStore,
-        instrument_store: &impl InstrumentStore,
-        user_store: &impl UserStore,
-        tags: &[String],
-    ) -> anyhow::Result<Vec<Self>> {
-        let rows = market_store.get_markets_by_tags(exec, tags).await?;
-
-        let market_ids: Vec<i32> = rows.iter().map(|m| m.id).collect();
-        let mut instruments_by_market: HashMap<i32, Vec<InstrumentWithShares>> = HashMap::new();
-        for i in instrument_store
-            .get_instruments_with_share_counts_for_markets(exec, &market_ids)
-            .await?
-        {
-            instruments_by_market.entry(i.0.market_id).or_default().push(i);
-        }
-
-        let mut markets = Vec::with_capacity(rows.len());
-        for row in rows {
-            let owner = user_store.get_by_id(exec, row.owner_id).await?;
-            let instruments = instruments_by_market.remove(&row.id).unwrap_or_default();
-            markets.push(Self {
-                row,
-                instruments,
-                owner,
-            });
-        }
-
-        Ok(markets)
-    }
-
     pub fn get_instrument(&self, id: i32) -> anyhow::Result<&InstrumentWithShares> {
         // We expect markets to have very few instruments - just linear search.
         self.instruments
@@ -433,5 +402,76 @@ impl FullMarket {
                 id,
                 self.row.id
             ))
+    }
+}
+
+#[derive(Debug)]
+pub struct FullMarketWithPositions {
+    pub market: FullMarket,
+    pub positions: Vec<PositionWithUser>,
+}
+
+impl FullMarketWithPositions {
+    pub async fn new_from_tags(
+        exec: &mut impl DbExecutor,
+        market_store: &impl MarketStore,
+        instrument_store: &impl InstrumentStore,
+        user_store: &impl UserStore,
+        position_store: &impl PositionStore,
+        tags: &[String],
+    ) -> anyhow::Result<Vec<Self>> {
+        let rows = market_store.get_markets_by_tags(exec, tags).await?;
+
+        let market_ids: Vec<i32> = rows.iter().map(|m| m.id).collect();
+        let owner_ids: Vec<i32> = rows.iter().map(|m| m.owner_id).collect();
+
+        let mut instruments_by_market: HashMap<i32, Vec<InstrumentWithShares>> = HashMap::new();
+        for i in instrument_store
+            .get_instruments_with_share_counts_for_markets(exec, &market_ids)
+            .await?
+        {
+            instruments_by_market.entry(i.0.market_id).or_default().push(i);
+        }
+
+        let owners: HashMap<i32, DbUser> = user_store
+            .get_by_ids(exec, &owner_ids)
+            .await?
+            .into_iter()
+            .map(|u| (u.id, u))
+            .collect();
+
+        let instrument_market: HashMap<i32, i32> = instruments_by_market
+            .iter()
+            .flat_map(|(market_id, iws)| iws.iter().map(|(i, _)| (i.id, *market_id)))
+            .collect();
+        let mut positions_by_market: HashMap<i32, Vec<PositionWithUser>> = HashMap::new();
+        for p in position_store
+            .get_positions_for_markets(exec, &market_ids)
+            .await?
+        {
+            if let Some(market_id) = instrument_market.get(&p.position.instrument_id) {
+                positions_by_market.entry(*market_id).or_default().push(p);
+            }
+        }
+
+        let mut markets = Vec::with_capacity(rows.len());
+        for row in rows {
+            let owner = owners
+                .get(&row.owner_id)
+                .cloned()
+                .ok_or_else(|| anyhow!("owner {} not found for market {}", row.owner_id, row.id))?;
+            let instruments = instruments_by_market.remove(&row.id).unwrap_or_default();
+            let positions = positions_by_market.remove(&row.id).unwrap_or_default();
+            markets.push(Self {
+                market: FullMarket {
+                    row,
+                    instruments,
+                    owner,
+                },
+                positions,
+            });
+        }
+
+        Ok(markets)
     }
 }

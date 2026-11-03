@@ -68,6 +68,12 @@ pub trait PositionStore {
         &self,
         db: &mut impl DbExecutor,
     ) -> anyhow::Result<Vec<PositionWithMarketId>>;
+
+    async fn get_positions_for_markets(
+        &self,
+        db: &mut impl DbExecutor,
+        market_ids: &[i32],
+    ) -> anyhow::Result<Vec<PositionWithUser>>;
 }
 
 #[derive(Debug, Clone)]
@@ -219,6 +225,45 @@ impl PositionStore for DbPositionStore {
         let positions = rows
             .into_iter()
             .map(PgPositionWithMarketIdRow::into_position)
+            .collect();
+
+        Ok(positions)
+    }
+
+    async fn get_positions_for_markets(
+        &self,
+        db: &mut impl DbExecutor,
+        market_ids: &[i32],
+    ) -> anyhow::Result<Vec<PositionWithUser>> {
+        let rows = query_as!(
+            PgPositionWithUserRow,
+            r#"
+            SELECT
+                positions.id,
+                positions.quantity,
+                positions.cost_basis,
+                positions.instrument_id,
+                positions.owner_id,
+                users.id as users_id,
+                users.name as users_name,
+                users.discord_id as users_discord_id,
+                users.cash_balance as users_cash_balance
+            FROM positions
+            JOIN
+                instruments ON instruments.id = positions.instrument_id
+            JOIN
+                users ON users.id = positions.owner_id
+            WHERE
+                instruments.market_id = ANY($1)
+            "#,
+            market_ids,
+        )
+        .fetch_all(db.psql())
+        .await?;
+
+        let positions = rows
+            .into_iter()
+            .map(PgPositionWithUserRow::into_position)
             .collect();
 
         Ok(positions)
