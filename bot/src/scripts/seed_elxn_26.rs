@@ -72,6 +72,21 @@ const MARKETS: &[MarketSeed] = &[
         instruments: &["Dan Osborn (I)", "Pete Ricketts (R)"],
     },
     MarketSeed {
+        tag: "elxn26-senate-ks",
+        description: "2026 Senate: Kansas winner",
+        instruments: &["Adam Hamilton (D)", "Roger Marshall (R)"],
+    },
+    MarketSeed {
+        tag: "elxn26-senate-ga",
+        description: "2026 Senate: Georgia winner",
+        instruments: &["Jon Ossoff (D)", "Mike Collins (R)"],
+    },
+    MarketSeed {
+        tag: "elxn26-senate-nh",
+        description: "2026 Senate: New Hampshire winner",
+        instruments: &["Chris Pappas (D)", "John E. Sununu (R)"],
+    },
+    MarketSeed {
         tag: "elxn26-house-nj7",
         description: "2026 House: New Jersey's 7th District winner",
         instruments: &["Rebecca Bennett (D)", "Tom Kean Jr. (R)"],
