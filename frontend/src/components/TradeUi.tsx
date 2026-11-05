@@ -167,20 +167,30 @@ export function TradeUi({ market }: { market: ApiMarket }) {
                   <p className="text-sm font-medium text-blue-600">{mine.quantity} owned</p>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => select(instrument, 'buy')}
-                className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
-              >
-                Buy
-              </button>
-              <button
-                type="button"
-                onClick={() => select(instrument, 'sell')}
-                className="rounded bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-700"
-              >
-                Sell
-              </button>
+              {instrument.state === 'winner' ? (
+                <span className="shrink-0 text-sm font-semibold text-green-700">✅ Winner</span>
+              ) : instrument.state === 'loser' ? (
+                <span className="shrink-0 text-sm font-semibold text-red-700">❌ Loser</span>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={market.state !== 'open'}
+                    onClick={() => select(instrument, 'buy')}
+                    className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-green-600"
+                  >
+                    Buy
+                  </button>
+                  <button
+                    type="button"
+                    disabled={market.state !== 'open'}
+                    onClick={() => select(instrument, 'sell')}
+                    className="rounded bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-600"
+                  >
+                    Sell
+                  </button>
+                </>
+              )}
             </div>
             <div
               className={`grid transition-all duration-200 ${expanded.has(instrument.id) ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
