@@ -89,6 +89,13 @@ pub trait MarketStore {
         market: &Market,
         state: MarketState,
     ) -> anyhow::Result<()>;
+
+    async fn list_markets(
+        &self,
+        db: &mut impl DbExecutor,
+        state: Option<MarketState>,
+        staked_user_id: Option<i32>,
+    ) -> anyhow::Result<Vec<Market>>;
 }
 
 #[derive(Debug, Clone)]
@@ -360,6 +367,48 @@ impl MarketStore for DbMarketStore {
 
         Ok(())
     }
+
+    async fn list_markets(
+        &self,
+        db: &mut impl DbExecutor,
+        state: Option<MarketState>,
+        staked_user_id: Option<i32>,
+    ) -> anyhow::Result<Vec<Market>> {
+        let markets = query_as!(
+            Market,
+            r#"
+            SELECT
+                id,
+                description,
+                state as "state: MarketState",
+                owner_id,
+                message_id,
+                channel_id,
+                thread_id,
+                details_msg_id,
+                tag
+            FROM
+                markets
+            WHERE
+                ($1::TEXT IS NULL OR state = $1)
+                AND ($2::INT IS NULL OR EXISTS (
+                    SELECT 1
+                    FROM positions
+                    JOIN instruments ON instruments.id = positions.instrument_id
+                    WHERE instruments.market_id = markets.id
+                        AND positions.owner_id = $2
+                        AND positions.quantity > 0
+                ))
+            ORDER BY id ASC
+            "#,
+            state as Option<MarketState>,
+            staked_user_id,
+        )
+        .fetch_all(db.psql())
+        .await?;
+
+        Ok(markets)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -422,6 +471,16 @@ impl FullMarketWithPositions {
     ) -> anyhow::Result<Vec<Self>> {
         let rows = market_store.get_markets_by_tags(exec, tags).await?;
 
+        Self::new_from_rows(exec, instrument_store, user_store, position_store, rows).await
+    }
+
+    pub async fn new_from_rows(
+        exec: &mut impl DbExecutor,
+        instrument_store: &impl InstrumentStore,
+        user_store: &impl UserStore,
+        position_store: &impl PositionStore,
+        rows: Vec<Market>,
+    ) -> anyhow::Result<Vec<Self>> {
         let market_ids: Vec<i32> = rows.iter().map(|m| m.id).collect();
         let owner_ids: Vec<i32> = rows.iter().map(|m| m.owner_id).collect();
 

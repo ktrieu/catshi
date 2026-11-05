@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id,\n                description,\n                state as \"state: MarketState\",\n                owner_id,\n                message_id,\n                channel_id,\n                thread_id,\n                details_msg_id,\n                tag\n            FROM\n                markets\n            WHERE\n                ($1::TEXT IS NULL OR state = $1)\n                AND ($2::INT IS NULL OR EXISTS (\n                    SELECT 1\n                    FROM positions\n                    JOIN instruments ON instruments.id = positions.instrument_id\n                    WHERE instruments.market_id = markets.id\n                        AND positions.owner_id = $2\n                        AND positions.quantity > 0\n                ))\n            ORDER BY id ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "state: MarketState",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "owner_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "message_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "channel_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "thread_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "details_msg_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "tag",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "7b1d2aa41a22023c8c8aa9a5291f0efea2c1423ef0c58259a23228340508a647"
+}

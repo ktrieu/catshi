@@ -1,16 +1,19 @@
 use std::collections::HashMap;
 
-use axum::{Json, extract::State};
+use axum::{
+    Json,
+    extract::{Query, State},
+};
 use common::{
     currency::Currency,
     trade::{MARKET_B, calc_price},
 };
 use common::store::{
     instrument::{InstrumentState, InstrumentWithShares},
-    market::{FullMarketWithPositions, MarketState},
+    market::{FullMarketWithPositions, MarketState, MarketStore},
     position::PositionWithUser,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{auth::CurrentUser, error::HandlerResult, state::AppState};
 
@@ -141,6 +144,62 @@ impl MarketResponse {
                 .collect(),
         }
     }
+}
+
+#[derive(Deserialize, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum StatusFilter {
+    Open,
+    Closed,
+}
+
+impl From<StatusFilter> for MarketState {
+    fn from(s: StatusFilter) -> Self {
+        match s {
+            StatusFilter::Open => MarketState::Open,
+            StatusFilter::Closed => MarketState::Closed,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ListMarketsParams {
+    status: Option<StatusFilter>,
+    #[serde(default)]
+    staked: bool,
+}
+
+pub async fn list_markets(
+    State(state): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    Query(params): Query<ListMarketsParams>,
+) -> HandlerResult<Json<Vec<MarketResponse>>> {
+    let mut conn = state.db.conn().await?;
+
+    let rows = state
+        .market_store
+        .list_markets(
+            &mut conn,
+            params.status.map(Into::into),
+            params.staked.then_some(user.id),
+        )
+        .await?;
+
+    let markets = FullMarketWithPositions::new_from_rows(
+        &mut conn,
+        &state.instrument_store,
+        &state.user_store,
+        &state.position_store,
+        rows,
+    )
+    .await?;
+
+    Ok(Json(
+        markets
+            .into_iter()
+            .map(|m| MarketResponse::new(m, &state.guild_id))
+            .collect(),
+    ))
 }
 
 pub async fn get_elxn26_markets(

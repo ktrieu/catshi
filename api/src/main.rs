@@ -48,6 +48,7 @@ async fn main() {
         .route("/auth/me/", get(auth::me))
         .route("/auth/redeem/{token}/", post(auth::redeem))
         .route("/portfolio/", get(portfolio::get_portfolio))
+        .route("/markets/", get(markets::list_markets))
         .route("/elxn26/markets/", get(markets::get_elxn26_markets))
         .route("/catfishing/", get(catfishing::list_games))
         .route("/trade/", post(trade::post_trade))
