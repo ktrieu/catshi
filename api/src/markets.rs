@@ -113,7 +113,11 @@ impl MarketResponse {
         let prices: Vec<Currency> = market
             .instruments
             .iter()
-            .map(|(i, _)| calc_price(i.id, market.instruments.iter(), MARKET_B))
+            .map(|(i, _)| match i.state {
+                InstrumentState::Open => calc_price(i.id, market.instruments.iter(), MARKET_B),
+                InstrumentState::Winner => Currency::new_yp(1),
+                InstrumentState::Loser => Currency::new_yp(0),
+            })
             .collect();
 
         Self {
