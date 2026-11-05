@@ -159,6 +159,23 @@ export interface ApiMarket {
   instruments: ApiInstrument[]
 }
 
+export interface ListMarketsParams {
+  status?: 'open' | 'closed'
+  staked?: boolean
+}
+
+export const marketsQueryOptions = (params: ListMarketsParams = {}) =>
+  queryOptions({
+    queryKey: ['markets', params],
+    queryFn: async (): Promise<ApiMarket[]> => {
+      const search = new URLSearchParams()
+      if (params.status) search.set('status', params.status)
+      if (params.staked) search.set('staked', 'true')
+      const res = await apiFetch(`/markets/?${search}`)
+      return res.json()
+    },
+  })
+
 export type Elxn26Markets = Record<string, ApiMarket>
 
 export const elxn26MarketsQueryOptions = queryOptions({
