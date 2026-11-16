@@ -1,0 +1,13 @@
+[package]
+name = "cf-archiver"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+dotenvy = "0.15.7"
+serenity = { git = "https://github.com/serenity-rs/serenity", rev = "71843741a5db01de63a051af93726e444eeb08ef"}
+tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
+simplelog = "0.12.2"
+log = "0.4.29"
+common = { version = "0.1.0", path = "../common" }

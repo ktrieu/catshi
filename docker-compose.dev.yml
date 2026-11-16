@@ -19,6 +19,7 @@ services:
     volumes:
       - ./api:/app/api
       - ./bot:/app/bot
+      - ./cf-archiver:/app/cf-archiver
       - ./.sqlx:/app/.sqlx
       - ./common:/app/common
       - ./Cargo.toml:/app/Cargo.toml
@@ -42,6 +43,7 @@ services:
     volumes:
       - ./api:/app/api
       - ./bot:/app/bot
+      - ./cf-archiver:/app/cf-archiver
       - ./.sqlx:/app/.sqlx
       - ./common:/app/common
       - ./Cargo.toml:/app/Cargo.toml
@@ -49,6 +51,28 @@ services:
       - cargo-registry-bot:/usr/local/cargo/registry
       - cargo-git-bot:/usr/local/cargo/git
       - target-bot:/app/target
+
+  catshi-cf-archiver:
+    build:
+      target: dev
+    tty: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - POSTGRES_URL=postgres://catshi:catshi@postgres:5432/catshi
+      - SQLX_OFFLINE=true
+    volumes:
+      - ./cf-archiver:/app/cf-archiver
+      - ./bot:/app/bot
+      - ./api:/app/api
+      - ./.sqlx:/app/.sqlx
+      - ./common:/app/common
+      - ./Cargo.toml:/app/Cargo.toml
+      - ./Cargo.lock:/app/Cargo.lock
+      - cargo-registry-cf-archiver:/usr/local/cargo/registry
+      - cargo-git-cf-archiver:/usr/local/cargo/git
+      - target-cf-archiver:/app/target
 
   catshi-migrate:
     depends_on:
@@ -98,3 +122,6 @@ volumes:
   cargo-registry-bot:
   cargo-git-bot:
   target-bot:
+  cargo-registry-cf-archiver:
+  cargo-git-cf-archiver:
+  target-cf-archiver:
