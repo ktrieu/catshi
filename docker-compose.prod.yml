@@ -20,7 +20,7 @@ services:
       - POSTGRES_URL=${POSTGRES_URL}
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL}
 
-  catshi-cf-archiver:
+  catshi-purser:
     build:
       target: prod
     restart: unless-stopped

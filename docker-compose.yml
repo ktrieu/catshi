@@ -27,17 +27,17 @@ services:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL}
 
-  catshi-cf-archiver:
-    container_name: "catshi-cf-archiver"
+  catshi-purser:
+    container_name: "catshi-purser"
     build:
       context: .
-      dockerfile: cf-archiver/Dockerfile
+      dockerfile: purser/Dockerfile
     init: true
     depends_on:
       catshi-migrate:
         condition: service_completed_successfully
     environment:
-      - DISCORD_TOKEN=${CF_ARCHIVER_DISCORD_TOKEN}
+      - DISCORD_TOKEN=${PURSER_DISCORD_TOKEN}
       - CF_ARCHIVE_CHANNEL_ID=${CF_ARCHIVE_CHANNEL_ID}
 
   catshi-migrate:
