@@ -2,6 +2,7 @@ use sqlx::{PgConnection, PgPool, Postgres, Transaction, pool::PoolConnection};
 
 pub mod blackjack;
 pub mod catfishing;
+pub mod cf_archive;
 pub mod instrument;
 pub mod login_token;
 pub mod market;

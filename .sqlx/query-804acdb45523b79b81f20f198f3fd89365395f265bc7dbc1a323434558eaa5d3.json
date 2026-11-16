@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO cf_archive (\n                game_number,\n                message_id,\n                results,\n                posted_at\n            )\n            VALUES ($1, $2, $3, to_timestamp($4))\n            RETURNING\n                id,\n                game_number,\n                message_id,\n                results,\n                EXTRACT(EPOCH FROM posted_at)::BIGINT AS \"posted_at!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "game_number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "message_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "results",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 4,
+        "name": "posted_at!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Jsonb",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "804acdb45523b79b81f20f198f3fd89365395f265bc7dbc1a323434558eaa5d3"
+}
