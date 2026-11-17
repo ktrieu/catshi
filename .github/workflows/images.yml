@@ -19,7 +19,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, bot, purser]
+        include:
+          - service: api
+            file: api/Dockerfile
+            target: prod
+          - service: bot
+            file: bot/Dockerfile
+            target: prod
+          - service: purser
+            file: purser/Dockerfile
+            target: prod
+          - service: migrate
+            file: Dockerfile.migrate
     steps:
       - uses: actions/checkout@v4
 
@@ -44,8 +55,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: ${{ matrix.service }}/Dockerfile
-          target: prod
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
