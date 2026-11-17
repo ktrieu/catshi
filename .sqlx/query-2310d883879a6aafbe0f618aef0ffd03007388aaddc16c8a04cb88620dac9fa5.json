@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO cf_archive_users (archive_id, user_id)\n            SELECT $1, user_id FROM UNNEST($2::INT[]) AS user_id\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2310d883879a6aafbe0f618aef0ffd03007388aaddc16c8a04cb88620dac9fa5"
+}
