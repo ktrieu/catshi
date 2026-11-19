@@ -36,3 +36,8 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - DATABASE_URL=${POSTGRES_URL}
+
+networks:
+  default:
+    name: ${DOCKER_NETWORK:?DOCKER_NETWORK must be set}
+    external: true
