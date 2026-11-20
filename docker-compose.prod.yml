@@ -37,6 +37,14 @@ services:
     environment:
       - DATABASE_URL=${POSTGRES_URL}
 
+  catshi-frontend:
+    image: ghcr.io/ktrieu/catshi-frontend:${CATSHI_IMAGE_TAG:?CATSHI_IMAGE_TAG must be set}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT}:80"
+    environment:
+      - API_URL=http://catshi-api:${API_PORT}
+
 networks:
   default:
     name: ${DOCKER_NETWORK:?DOCKER_NETWORK must be set}
