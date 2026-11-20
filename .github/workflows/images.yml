@@ -31,6 +31,10 @@ jobs:
             target: prod
           - service: migrate
             file: Dockerfile.migrate
+          - service: frontend
+            context: frontend
+            file: frontend/Dockerfile
+            target: prod
     steps:
       - uses: actions/checkout@v4
 
@@ -54,7 +58,7 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ matrix.context || '.' }}
           file: ${{ matrix.file }}
           target: ${{ matrix.target }}
           push: ${{ github.event_name != 'pull_request' }}
