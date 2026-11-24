@@ -65,15 +65,7 @@ fn get_pv_field(p: &PortfolioValue, field: LeaderboardField) -> Currency {
     }
 }
 
-pub async fn run(
-    ctx: &Context,
-    handler: &Handler,
-    command: &CommandInteraction,
-) -> anyhow::Result<()> {
-    let selected_field = ui::get_command_option_str(command, FIELD_OPT_NAME)
-        .map(|s| LeaderboardField::from_str(s))
-        .unwrap_or(Ok(LeaderboardField::NetWorth))?;
-
+pub async fn render(handler: &Handler, field: LeaderboardField) -> anyhow::Result<String> {
     let mut tx = handler.db.begin().await?;
 
     let transfers = handler
@@ -134,19 +126,31 @@ pub async fn run(
 
     let mut sorted_fields: Vec<(&String, Currency)> = portfolio_values
         .iter()
-        .map(|p| (&p.user.name, get_pv_field(p, selected_field)))
+        .map(|p| (&p.user.name, get_pv_field(p, field)))
         .collect();
 
     sorted_fields.sort_by_key(|(_, v)| Reverse(*v));
 
     let mut rows: Vec<[String; 2]> = Vec::with_capacity(portfolio_values.len() + 1);
-    rows.push(["User".to_string(), selected_field.to_string()]);
+    rows.push(["User".to_string(), field.to_string()]);
 
     for (name, value) in sorted_fields {
         rows.push([ui::user_shortname(&name), value.to_string()]);
     }
 
-    let msg = code_block(&tabulate(rows));
+    Ok(code_block(&tabulate(rows)))
+}
+
+pub async fn run(
+    ctx: &Context,
+    handler: &Handler,
+    command: &CommandInteraction,
+) -> anyhow::Result<()> {
+    let selected_field = ui::get_command_option_str(command, FIELD_OPT_NAME)
+        .map(|s| LeaderboardField::from_str(s))
+        .unwrap_or(Ok(LeaderboardField::NetWorth))?;
+
+    let msg = render(handler, selected_field).await?;
 
     command
         .create_response(&ctx.http, utils::text_interaction_response(&msg, false))

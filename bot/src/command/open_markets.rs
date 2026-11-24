@@ -12,11 +12,7 @@ pub fn create() -> CreateCommand<'static> {
     CreateCommand::new(NAME).description("list all open markets")
 }
 
-pub async fn run(
-    ctx: &Context,
-    handler: &Handler,
-    command: &CommandInteraction,
-) -> anyhow::Result<()> {
+pub async fn render(handler: &Handler) -> anyhow::Result<String> {
     let mut conn = handler.db.conn().await?;
     let markets = handler
         .market_store
@@ -37,7 +33,15 @@ pub async fn run(
         lines.push(l);
     }
 
-    let resp = lines.join("\n");
+    Ok(lines.join("\n"))
+}
+
+pub async fn run(
+    ctx: &Context,
+    handler: &Handler,
+    command: &CommandInteraction,
+) -> anyhow::Result<()> {
+    let resp = render(handler).await?;
 
     utils::send_long_message_safe(ctx, command, &resp, false).await
 }

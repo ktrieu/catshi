@@ -1,8 +1,9 @@
 use serenity::all::{
     CommandInteraction, Context, CreateInteractionResponse, CreateInteractionResponseFollowup,
-    CreateInteractionResponseMessage,
+    CreateInteractionResponseMessage, CreateMessage, GenericChannelId,
 };
 use serenity::constants::MESSAGE_CODE_LIMIT;
+use serenity::http::Http;
 
 pub fn text_interaction_response(text: &'_ str, ephemeral: bool) -> CreateInteractionResponse<'_> {
     CreateInteractionResponse::Message(
@@ -37,6 +38,20 @@ pub async fn send_long_message_safe(
                     .content(chunk.as_str())
                     .ephemeral(ephemeral),
             )
+            .await?;
+    }
+
+    Ok(())
+}
+
+pub async fn send_long_channel_message(
+    http: &Http,
+    channel: GenericChannelId,
+    text: &str,
+) -> anyhow::Result<()> {
+    for chunk in split_message(text, MESSAGE_CODE_LIMIT) {
+        channel
+            .send_message(http, CreateMessage::new().content(chunk))
             .await?;
     }
 

@@ -12,6 +12,7 @@ use serenity::{
 
 use crate::{
     command::{self, resolve::parse_market_resolve_modal_id, trade::parse_trade_button_id},
+    daily_digest::{self, DailyDigestConfig},
     trade, ui,
     ui::{
         blackjack::parse_blackjack_action, market_message::parse_market_resolve_button_id,
@@ -331,9 +332,20 @@ pub async fn run() {
     let discord_token =
         Token::from_env("DISCORD_TOKEN").expect("DISCORD_TOKEN should be present in env.");
     let mut client = Client::builder(discord_token, GatewayIntents::GUILD_MESSAGE_REACTIONS)
-        .event_handler(handler)
+        .event_handler(handler.clone())
         .await
         .expect("client creation should succeed");
+
+    match DailyDigestConfig::from_env() {
+        Some(config) => {
+            tokio::spawn(daily_digest::run(
+                handler.clone(),
+                client.http.clone(),
+                config,
+            ));
+        }
+        None => info!("DAILY_DIGEST_CHANNEL_ID not set, daily digest disabled"),
+    }
 
     info!("Starting client");
     client.start().await.expect("client start should succeed");

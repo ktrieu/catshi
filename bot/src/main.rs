@@ -7,6 +7,7 @@ use crate::Commands::{ExportUsers, SeedElxn26};
 mod blackjack;
 mod bot;
 mod command;
+mod daily_digest;
 use common::portfolio;
 mod scripts;
 use common::trade;
