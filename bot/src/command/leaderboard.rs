@@ -1,6 +1,7 @@
 use std::str::FromStr;
 use std::{cmp::Reverse, collections::HashMap};
 
+use common::store::CatshiDb;
 use common::store::transfer::TransferDirection;
 use serenity::all::{
     CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
@@ -65,11 +66,16 @@ fn get_pv_field(p: &PortfolioValue, field: LeaderboardField) -> Currency {
     }
 }
 
-pub async fn render(handler: &Handler, field: LeaderboardField) -> anyhow::Result<String> {
-    let mut tx = handler.db.begin().await?;
+pub async fn render(
+    db: &CatshiDb,
+    transfer_store: &impl TransferStore,
+    position_store: &impl PositionStore,
+    instrument_store: &impl InstrumentStore,
+    field: LeaderboardField,
+) -> anyhow::Result<String> {
+    let mut tx = db.begin().await?;
 
-    let transfers = handler
-        .transfer_store
+    let transfers = transfer_store
         .get_user_transfer_by_source_and_direction(&mut tx)
         .await?;
 
@@ -85,8 +91,7 @@ pub async fn render(handler: &Handler, field: LeaderboardField) -> anyhow::Resul
         .map(|t| ((t.user.id, t.source, t.direction), t.amount))
         .collect();
 
-    let positions = handler
-        .position_store
+    let positions = position_store
         .get_all_positions_with_market_id(&mut tx)
         .await?;
     let mut positions_by_user: HashMap<i32, Vec<PositionWithMarketId>> = HashMap::new();
@@ -99,8 +104,7 @@ pub async fn render(handler: &Handler, field: LeaderboardField) -> anyhow::Resul
             .push(p);
     }
 
-    let instruments = handler
-        .instrument_store
+    let instruments = instrument_store
         .get_all_open_instruments_with_share_counts(&mut tx)
         .await?;
     let mut instruments_by_market: HashMap<i32, Vec<InstrumentWithShares>> = HashMap::new();
@@ -150,7 +154,14 @@ pub async fn run(
         .map(|s| LeaderboardField::from_str(s))
         .unwrap_or(Ok(LeaderboardField::NetWorth))?;
 
-    let msg = render(handler, selected_field).await?;
+    let msg = render(
+        &handler.db,
+        &handler.transfer_store,
+        &handler.position_store,
+        &handler.instrument_store,
+        selected_field,
+    )
+    .await?;
 
     command
         .create_response(&ctx.http, utils::text_interaction_response(&msg, false))

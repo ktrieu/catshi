@@ -2,12 +2,11 @@ use clap::{Parser, Subcommand};
 use common::store;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
 
-use crate::Commands::{ExportUsers, SeedElxn26};
+use crate::Commands::{DailyDigest, ExportUsers, SeedElxn26};
 
 mod blackjack;
 mod bot;
 mod command;
-mod daily_digest;
 use common::portfolio;
 mod scripts;
 use common::trade;
@@ -18,6 +17,8 @@ mod utils;
 enum Commands {
     #[command(name = "export_users")]
     ExportUsers,
+    #[command(name = "daily_digest")]
+    DailyDigest,
     #[command(name = "seed_elxn_26")]
     SeedElxn26 {
         #[arg(long)]
@@ -51,6 +52,9 @@ async fn main() {
 
     match &args.commands {
         Some(ExportUsers) => scripts::export_users::run(),
+        Some(DailyDigest) => scripts::daily_digest::run()
+            .await
+            .expect("daily_digest should succeed"),
         Some(SeedElxn26 { owner, channel_id }) => scripts::seed_elxn_26::run(owner, *channel_id)
             .await
             .expect("seed_elxn_26 should succeed"),
