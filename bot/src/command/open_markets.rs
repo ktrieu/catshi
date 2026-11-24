@@ -1,3 +1,4 @@
+use common::store::CatshiDb;
 use serenity::all::{CommandInteraction, Context, CreateCommand};
 
 use crate::{
@@ -12,14 +13,9 @@ pub fn create() -> CreateCommand<'static> {
     CreateCommand::new(NAME).description("list all open markets")
 }
 
-pub async fn run(
-    ctx: &Context,
-    handler: &Handler,
-    command: &CommandInteraction,
-) -> anyhow::Result<()> {
-    let mut conn = handler.db.conn().await?;
-    let markets = handler
-        .market_store
+pub async fn render(db: &CatshiDb, market_store: &impl MarketStore) -> anyhow::Result<String> {
+    let mut conn = db.conn().await?;
+    let markets = market_store
         .get_markets_by_state(&mut conn, MarketState::Open)
         .await?;
 
@@ -37,7 +33,15 @@ pub async fn run(
         lines.push(l);
     }
 
-    let resp = lines.join("\n");
+    Ok(lines.join("\n"))
+}
+
+pub async fn run(
+    ctx: &Context,
+    handler: &Handler,
+    command: &CommandInteraction,
+) -> anyhow::Result<()> {
+    let resp = render(&handler.db, &handler.market_store).await?;
 
     utils::send_long_message_safe(ctx, command, &resp, false).await
 }

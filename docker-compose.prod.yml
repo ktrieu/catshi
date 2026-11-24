@@ -19,6 +19,10 @@ services:
     environment:
       - POSTGRES_URL=${POSTGRES_URL}
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL}
+    labels:
+      ofelia.enabled: "true"
+      ofelia.job-exec.daily-digest.schedule: "0 0 9 * * *"
+      ofelia.job-exec.daily-digest.command: "bot daily_digest"
 
   catshi-purser:
     image: ghcr.io/ktrieu/catshi-purser:${CATSHI_IMAGE_TAG:?CATSHI_IMAGE_TAG must be set}
@@ -36,6 +40,18 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - DATABASE_URL=${POSTGRES_URL}
+
+  ofelia:
+    image: mcuadros/ofelia:latest
+    container_name: "catshi-ofelia"
+    restart: unless-stopped
+    depends_on:
+      - catshi-bot
+    environment:
+      - TZ=America/Toronto
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: daemon --docker
 
 networks:
   default:

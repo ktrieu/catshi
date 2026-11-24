@@ -26,6 +26,7 @@ services:
       - GUILD_ID=${GUILD_ID}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL}
+      - DAILY_DIGEST_CHANNEL_ID=${DAILY_DIGEST_CHANNEL_ID:-}
 
   catshi-purser:
     container_name: "catshi-purser"
