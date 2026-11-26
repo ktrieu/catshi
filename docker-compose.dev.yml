@@ -102,6 +102,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: dev
     init: true
     ports:
       - "${FRONTEND_PORT}:${FRONTEND_PORT}"
