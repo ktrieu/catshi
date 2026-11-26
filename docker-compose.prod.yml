@@ -44,6 +44,11 @@ services:
       - "${FRONTEND_PORT}:80"
     environment:
       - API_URL=http://catshi-api:${API_PORT}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.catshi.rule=Host(`catshi.fun`)
+      - traefik.http.routers.catshi.entrypoints=web
+      - traefik.http.services.catshi.loadbalancer.server.port=80
 
 networks:
   default:
