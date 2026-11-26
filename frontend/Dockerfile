@@ -19,7 +19,6 @@ FROM nginx:1.29-alpine AS prod
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Kept last so docker-compose.dev.yml (no target) still gets the dev server.
 FROM base AS dev
 # Default only for documentation; actual port comes from FRONTEND_PORT
 # (read in vite.config.ts) and is published via docker-compose.
